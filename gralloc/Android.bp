@@ -62,10 +62,7 @@ cc_library_shared {
         "-Wno-sign-conversion",
         "-Wno-unused-parameter",
         "-Wno-unused-variable",
-    ] + select(soong_config_variable("qtidisplay", "target_uses_ycrcb_camera_encode"), {
-        "true": ["-DUSE_YCRCB_CAMERA_ENCODE"],
-        default: [],
-    }) + select(soong_config_variable("qtidisplay", "target_uses_ycrcb_camera_preview"), {
+    ] + select(soong_config_variable("qtidisplay", "target_uses_ycrcb_camera_preview"), {
         "true": ["-DUSE_YCRCB_CAMERA_PREVIEW"],
         default: [],
     }) + select(soong_config_variable("qtidisplay", "target_uses_ycrcb_venus_camera_preview"), {
