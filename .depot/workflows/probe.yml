@@ -1,0 +1,44 @@
+name: Depot resource probe
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: depot-ubuntu-24.04-16
+
+    steps:
+      - name: System resources
+        run: |
+          echo "=== CPU ==="
+          nproc
+          lscpu
+
+          echo "=== MEMORY ==="
+          free -h
+
+          echo "=== ROOT DISK ==="
+          df -h /
+          lsblk
+
+          echo "=== SYSTEM ==="
+          uname -a
+          cat /etc/os-release
+
+      - name: Mount durable cache disk
+        uses: depot/cache-mount@v1
+        with:
+          name: aviumui-aosp-workspace
+          path: /mnt/avium-cache
+
+      - name: Probe cache disk
+        run: |
+          echo "=== CACHE DISK ==="
+          df -h /mnt/avium-cache
+          findmnt /mnt/avium-cache || true
+          stat -f /mnt/avium-cache || true
+
+          echo "depot-cache-probe-$(date -u +%s)" \
+            | tee /mnt/avium-cache/probe.txt
+
+          ls -lah /mnt/avium-cache
