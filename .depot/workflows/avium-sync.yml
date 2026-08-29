@@ -1,0 +1,84 @@
+name: AviumUI source sync
+
+on:
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: depot-ubuntu-24.04-16
+
+    steps:
+      - name: Mount persistent Android workspace
+        uses: depot/cache-mount@v1
+        with:
+          name: aviumui-aosp-workspace
+          path: /mnt/avium-cache
+
+      - name: Prepare build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc bison build-essential ccache curl flex g++-multilib \
+            gcc-multilib git git-lfs gnupg gperf imagemagick \
+            lib32readline-dev lib32z1-dev libelf-dev liblz4-tool \
+            libssl-dev libxml2 libxml2-utils lzop pngcrush \
+            rsync schedtool squashfs-tools xsltproc zip zlib1g-dev \
+            python3 python-is-python3 unzip wget
+
+          git lfs install
+
+          mkdir -p "$HOME/bin"
+          curl -o "$HOME/bin/repo" \
+            https://storage.googleapis.com/git-repo-downloads/repo
+          chmod +x "$HOME/bin/repo"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Initialize AviumUI source
+        run: |
+          export PATH="$HOME/bin:$PATH"
+
+          mkdir -p /mnt/avium-cache/android/avium
+          cd /mnt/avium-cache/android/avium
+
+          if [ ! -d .repo ]; then
+            repo init \
+              --depth=1 \
+              --no-repo-verify \
+              -u https://github.com/AviumUI/android_manifests \
+              -b avium-16.2 \
+              -g default,-mips,-darwin,-notdefault \
+              --git-lfs
+
+            git clone \
+              https://github.com/ColoMovo-Labs/aviumui-enchilada-manifests.git \
+              --depth 1 \
+              .repo/local_manifests
+          else
+            git -C .repo/local_manifests pull --ff-only
+          fi
+
+      - name: Sync source
+        run: |
+          export PATH="$HOME/bin:$PATH"
+          cd /mnt/avium-cache/android/avium
+
+          repo sync \
+            -c \
+            --no-clone-bundle \
+            --no-tags \
+            --optimized-fetch \
+            --prune \
+            -j8
+
+      - name: Report source state
+        if: always()
+        run: |
+          echo "=== CACHE DISK ==="
+          df -h /mnt/avium-cache
+
+          echo "=== SOURCE SIZE ==="
+          du -sh /mnt/avium-cache/android/avium || true
+          du -sh /mnt/avium-cache/android/avium/.repo || true
+
+          echo "=== FILE COUNT ==="
+          find /mnt/avium-cache/android/avium -xdev -type f | wc -l || true
