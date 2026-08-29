@@ -1,0 +1,32 @@
+# Android Build Artifacts & Trees
+.repo/
+out/
+ccache/
+*.zip
+*.img
+*.log
+*.tar
+*.tar.gz
+*.tar.zst
+*.iso
+
+# Temporary & Environment files
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+*.swp
+*.bak
+*~
+
+# Crave runtime cache/tokens
+.crave/
+crave.env
+crave_token.json
+
+# Keep project assets explicitly
+!local_manifests/*.xml
+!patches/**/*.patch
+!patches/**/*.diff
+!scripts/*.sh
+!docs/*.md
