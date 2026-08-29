@@ -11,7 +11,7 @@ This document outlines the systematic engineering roadmap for bringing up **Aviu
 * **Release Type**: **Unofficial**
 * **Build Cleanliness**: **No clean** (incremental ccache preservation on remote runner)
 * **Device Customization Policy**: **No device-specific Avium overrides** (clean baseline without legacy `avium_enchilada.mk` variables)
-* **Manifest Delivery**: `https://github.com/ColoMovo/aviumui-enchilada-manifests.git` (`enchilada.xml`)
+* **Manifest Delivery**: `https://github.com/ColoMovo-Labs/aviumui-enchilada-manifests.git` (`enchilada.xml`)
 
 ---
 
@@ -30,7 +30,7 @@ graph TD
 ### Stage 1: Infrastructure & Manifests
 * [x] Set up the `aviumui-enchilada` Git orchestration skeleton.
 * [x] Establish Candidate A source tracking and rationale ([SOURCES.md](SOURCES.md)).
-* [x] Publish standalone manifest repository [`ColoMovo/aviumui-enchilada-manifests`](https://github.com/ColoMovo/aviumui-enchilada-manifests).
+* [x] Publish standalone manifest repository [`ColoMovo/aviumui-enchilada-manifests`](https://github.com/ColoMovo-Labs/aviumui-enchilada-manifests).
 * [x] Submit upstream ROM-builders supported ROM whitelist PR (`#25789`).
 * [x] Prepare build script draft (`scripts/rom-builders-build_rom.sh`).
 

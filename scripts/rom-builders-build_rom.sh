@@ -1,6 +1,6 @@
 # sync rom
 repo init --depth=1 --no-repo-verify -u https://github.com/AviumUI/android_manifests -b avium-16.2 -g default,-mips,-darwin,-notdefault --git-lfs
-git clone https://github.com/ColoMovo/aviumui-enchilada-manifests.git --depth 1 .repo/local_manifests
+git clone https://github.com/ColoMovo-Labs/aviumui-enchilada-manifests.git --depth 1 .repo/local_manifests
 repo sync -c --no-clone-bundle --no-tags --optimized-fetch --prune --force-sync -j8
 
 # build rom
