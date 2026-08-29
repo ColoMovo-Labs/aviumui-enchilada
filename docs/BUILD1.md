@@ -59,8 +59,39 @@ While the project manifest (`enchilada.xml`) tracks branch heads (`lineage-23.2`
 ## 📦 Expected Build Output Artifacts
 
 Upon successful ninja target completion (`m bacon`), the following core artifacts must be produced under `out/target/product/enchilada/`:
-1. `boot.img` (Kernel 4.19.325 + ramdisk)
-2. `dtbo.img` (SDM845 device tree overlay)
+1. `boot.img` (Kernel 4.19.325 `Image.gz-dtb` + ramdisk)
+2. `dtbo.img` (SDM845 device tree overlay compiled via `mkdtboimg`)
 3. `super_empty.img` (Retrofit dynamic partitions descriptor)
 4. `system.img`, `system_ext.img`, `product.img`, `vendor.img`, `odm.img` (EROFS payload partitions)
 5. `AviumUI-16.2.1-enchilada-*-Unofficial-Vanilla.zip` (Signed flashable package)
+
+---
+
+## 🛠️ Host Environment & Build Dependencies
+
+The following Ubuntu package dependencies are required on the build host (note: `cpio` is required for Linux kernel header compression):
+
+```bash
+sudo apt-get update && sudo apt-get install -y \
+  bc bison build-essential ccache cpio curl flex g++-multilib gcc-multilib \
+  git gnupg gperf imagemagick lib32readline-dev lib32z1-dev libelf-dev \
+  liblz4-tool libncurses5-dev libncurses6 libsdl1.2-dev libssl-dev libxml2 \
+  libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip \
+  zlib1g-dev python3 time
+```
+
+---
+
+## ✅ Verified Subsystem Bring-up: Standalone Kernel Build #1
+
+The OnePlus 6 Linux 4.19 kernel (`kernel/oneplus/sdm845 @ avium-16.2`) has been successfully built and verified standalone using the Android 16 prebuilt LLVM/Clang toolchain:
+
+* **Kernel Git Commit**: `53b798328231b5e75ff1df2b6b031a8618ac8084`
+* **Defconfig**: `vendor/enchilada_defconfig` (arch/arm64/configs/vendor/enchilada_defconfig)
+* **Compiler**: Android 16 prebuilt Clang 20.0.0 (`prebuilts/clang/host/linux-x86/clang-r547379/bin/clang`)
+* **Cross-compilers**: GCC 4.9 `aarch64-linux-android-` & `arm-linux-androideabi-` + `LLVM=1 LLVM_IAS=1`
+* **Build Duration**: 166s (~2m46s on 8 vCPU)
+* **Peak Resident RSS**: ~2.18 GiB (0 OOM events, 100% stable)
+* **Target Output**: `Image.gz-dtb` (20 MB, SHA-256: `11a9861ed6a659132e21434cfa5d04490b8b22948da8dc17e0494e3ae1631c13`)
+* **Device Tree Overlays**: `enchilada-*-overlay.dtbo` generated successfully.
+* **Persistent Artifacts**: Stored at `/workspaces/android/artifacts/kernel-build1/`
