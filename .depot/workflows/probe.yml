@@ -8,37 +8,79 @@ jobs:
     runs-on: depot-ubuntu-24.04-16
 
     steps:
-      - name: System resources
-        run: |
-          echo "=== CPU ==="
-          nproc
-          lscpu
-
-          echo "=== MEMORY ==="
-          free -h
-
-          echo "=== ROOT DISK ==="
-          df -h /
-          lsblk
-
-          echo "=== SYSTEM ==="
-          uname -a
-          cat /etc/os-release
-
       - name: Mount durable cache disk
         uses: depot/cache-mount@v1
         with:
           name: aviumui-aosp-workspace
           path: /mnt/avium-cache
 
-      - name: Probe cache disk
+      - name: Verify cross-run persistence
         run: |
-          echo "=== CACHE DISK ==="
+          echo "=== 1. VERIFY PERSISTENCE ==="
+          if [ ! -f /mnt/avium-cache/probe.txt ]; then
+            echo "ERROR: /mnt/avium-cache/probe.txt NOT FOUND!"
+            exit 1
+          fi
+          cat /mnt/avium-cache/probe.txt
+          stat /mnt/avium-cache/probe.txt
+
+      - name: Benchmark sequential I/O
+        run: |
+          echo "=== 2. BENCHMARK SEQUENTIAL I/O ==="
+          mkdir -p /mnt/avium-cache/benchmark
+
+          echo "--- Cache Disk: Sequential Write 4GiB ---"
+          /usr/bin/time -v dd if=/dev/zero of=/mnt/avium-cache/benchmark/test.bin bs=16M count=256 conv=fsync
+
+          echo "--- Cache Disk: Sequential Read 4GiB ---"
+          /usr/bin/time -v dd if=/mnt/avium-cache/benchmark/test.bin of=/dev/null bs=16M
+
+          echo "--- Local Ephemeral Disk: Sequential Write 4GiB ---"
+          /usr/bin/time -v dd if=/dev/zero of=/tmp/depot-local-test.bin bs=16M count=256 conv=fsync
+
+          echo "--- Local Ephemeral Disk: Sequential Read 4GiB ---"
+          /usr/bin/time -v dd if=/tmp/depot-local-test.bin of=/dev/null bs=16M
+
+          rm -f /tmp/depot-local-test.bin
+          rm -f /mnt/avium-cache/benchmark/test.bin
+
+      - name: Benchmark small files / metadata
+        run: |
+          echo "=== 3. BENCHMARK SMALL FILES (20k files) ==="
+          mkdir -p /mnt/avium-cache/benchmark/smallfiles
+
+          echo "--- Cache Disk: Create 20,000 files ---"
+          /usr/bin/time -v bash -c '
+            for i in $(seq 1 20000); do
+              printf "%s\n" "$i" > /mnt/avium-cache/benchmark/smallfiles/file-$i
+            done
+          '
+
+          echo "--- Cache Disk: Stat 20,000 files ---"
+          /usr/bin/time -v find /mnt/avium-cache/benchmark/smallfiles -type f -exec stat {} \; >/dev/null
+
+          echo "--- Cache Disk: Delete 20,000 files ---"
+          /usr/bin/time -v rm -rf /mnt/avium-cache/benchmark/smallfiles
+
+          echo "--- Local Ephemeral Disk: Small Files (20,000 files) ---"
+          mkdir -p /tmp/depot-smallfiles
+
+          echo "--- Local Disk: Create 20,000 files ---"
+          /usr/bin/time -v bash -c '
+            for i in $(seq 1 20000); do
+              printf "%s\n" "$i" > /tmp/depot-smallfiles/file-$i
+            done
+          '
+
+          echo "--- Local Disk: Stat 20,000 files ---"
+          /usr/bin/time -v find /tmp/depot-smallfiles -type f -exec stat {} \; >/dev/null
+
+          echo "--- Local Disk: Delete 20,000 files ---"
+          /usr/bin/time -v rm -rf /tmp/depot-smallfiles
+
+      - name: Inspect Cache Disk and Inode Status
+        run: |
+          echo "=== 4. CACHE DISK METRIC & INODES ==="
           df -h /mnt/avium-cache
-          findmnt /mnt/avium-cache || true
-          stat -f /mnt/avium-cache || true
-
-          echo "depot-cache-probe-$(date -u +%s)" \
-            | tee /mnt/avium-cache/probe.txt
-
-          ls -lah /mnt/avium-cache
+          df -i /mnt/avium-cache
+          findmnt /mnt/avium-cache
