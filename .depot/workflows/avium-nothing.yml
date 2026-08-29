@@ -1,0 +1,100 @@
+name: AviumUI Soong graph validation
+
+on:
+  workflow_dispatch:
+
+# Source sync and all builds share a mutable persistent checkout. Queue rather
+# than cancel so a manually dispatched build can never race a sync or another
+# build against that checkout.
+concurrency:
+  group: avium-enchilada-persistent-workspace
+  cancel-in-progress: false
+
+jobs:
+  nothing:
+    runs-on: depot-ubuntu-24.04-16
+
+    steps:
+      - name: Mount persistent Android workspace
+        uses: depot/cache-mount@v1
+        with:
+          name: aviumui-aosp-workspace
+          path: /mnt/avium-cache
+
+      - name: Prepare build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc bison build-essential ccache curl flex g++-multilib \
+            gcc-multilib git git-lfs gnupg gperf imagemagick \
+            lib32readline-dev lib32z1-dev libelf-dev liblz4-tool \
+            libssl-dev libxml2 libxml2-utils lzop pngcrush \
+            rsync schedtool squashfs-tools xsltproc zip zlib1g-dev \
+            python3 python-is-python3 unzip wget
+
+          git lfs install
+          mkdir -p "$HOME/bin"
+          curl -o "$HOME/bin/repo" \
+            https://storage.googleapis.com/git-repo-downloads/repo
+          chmod +x "$HOME/bin/repo"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Verify storage and source prerequisites
+        run: |
+          echo "=== RUNNER RESOURCES ==="
+          nproc
+          free -h
+          df -h /
+          df -h /tmp
+          echo "=== PERSISTENT CACHE ==="
+          df -h /mnt/avium-cache
+          test -d /mnt/avium-cache/android/avium/.repo
+          test -f /mnt/avium-cache/android/avium/build/envsetup.sh
+
+      - name: Update manifests and source incrementally
+        run: |
+          export PATH="$HOME/bin:$PATH"
+          cd /mnt/avium-cache/android/avium
+          git -C .repo/local_manifests pull --ff-only
+          repo sync \
+            -c \
+            --no-clone-bundle \
+            --no-tags \
+            --optimized-fetch \
+            --prune \
+            -j8
+
+      - name: Validate Soong graph with m nothing
+        run: |
+          export OUT_DIR=/tmp/avium-out
+          export TMPDIR=/tmp/avium-tmp
+          export CCACHE_DIR=/tmp/avium-ccache
+          export BUILD_LOG_DIR=/mnt/avium-cache/build-logs
+          export PATH="$HOME/bin:$PATH"
+          mkdir -p "$OUT_DIR" "$TMPDIR" "$CCACHE_DIR" "$BUILD_LOG_DIR"
+
+          cd /mnt/avium-cache/android/avium
+          source build/envsetup.sh
+          lunch lineage_enchilada-bp4a-userdebug
+          test "$TARGET_PRODUCT" = lineage_enchilada
+          test "$TARGET_DEVICE" = enchilada
+          test "$TARGET_ARCH" = arm64
+          test "$TARGET_BUILD_VARIANT" = userdebug
+
+          start_epoch=$(date +%s)
+          set +e
+          set -o pipefail
+          m -j8 nothing 2>&1 | tee "$BUILD_LOG_DIR/m-nothing-${GITHUB_RUN_ID:-manual}.log"
+          build_status=${PIPESTATUS[0]}
+          set -e
+          end_epoch=$(date +%s)
+
+          echo "=== BUILD RESULT ==="
+          echo "m nothing exit status: $build_status"
+          echo "wall seconds: $((end_epoch - start_epoch))"
+          echo "=== POST-BUILD RESOURCES ==="
+          free -h
+          df -h /
+          df -h /tmp
+          du -sh "$OUT_DIR" || true
+          exit "$build_status"
