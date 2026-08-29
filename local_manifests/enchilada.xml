@@ -42,10 +42,19 @@
 
   <!-- Hardware HALs -->
   <!-- TODO: Verify if hardware/oneplus is already declared in AviumUI/LineageOS default manifest -->
-  <project path="hardware/oneplus"
-           name="LineageOS/android_hardware_oneplus"
-           remote="github"
-           revision="lineage-23.2" />
+    <!-- OnePlus hardware HALs -->
+    <project
+        name="LineageOS/android_hardware_oneplus"
+        path="hardware/oneplus"
+        remote="github"
+        revision="lineage-23.2" />
+
+    <!-- Dolby hardware support -->
+    <project
+        name="AviumUI-Devices/hardware_dolby"
+        path="hardware/dolby"
+        remote="github"
+        revision="avium-16.2" />
 
   <!-- Proprietary Vendor Blobs -->
   <project path="vendor/oneplus/enchilada"
