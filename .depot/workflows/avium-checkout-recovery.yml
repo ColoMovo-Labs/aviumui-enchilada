@@ -33,6 +33,7 @@ jobs:
       - name: Inspect six failed checkouts and expose first failure
         shell: bash
         run: |
+          set +e
           set -u -o pipefail
           export PATH="$HOME/bin:$PATH"
 
@@ -128,6 +129,7 @@ jobs:
           done
 
           echo '=== REPO CAPABILITY CHECK ==='
+          cd "$source_root"
           repo --version
           sync_help="$(repo sync -h)"
           printf '%s\n' "$sync_help"
@@ -147,7 +149,6 @@ jobs:
           fi
 
           echo '=== TARGETED SYNC: -j1 --fail-fast ==='
-          cd "$source_root"
           sync_log=/tmp/avium-checkout-recovery-targeted-sync.log
           set +e
           repo sync \
