@@ -1,0 +1,123 @@
+name: AviumUI Google Cloud Java checkout repair
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: avium-enchilada-persistent-workspace
+  cancel-in-progress: false
+
+jobs:
+  repair-google-cloud-java:
+    runs-on: depot-ubuntu-24.04-16
+
+    steps:
+      - name: Mount persistent Android workspace
+        uses: depot/cache-mount@v1
+        with:
+          name: aviumui-aosp-workspace
+          path: /mnt/avium-cache
+
+      - name: Prepare repo tool
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y git curl python-is-python3
+
+          mkdir -p "$HOME/bin"
+          curl -fsSL -o "$HOME/bin/repo" \
+            https://storage.googleapis.com/git-repo-downloads/repo
+          chmod +x "$HOME/bin/repo"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Remove only the verified Google Cloud Java stale index lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/bin:$PATH"
+
+          source_root=/mnt/avium-cache/android/avium
+          project=external/google-cloud-java
+          worktree="$source_root/$project"
+          expected_gitdir="$source_root/.repo/projects/external/google-cloud-java.git"
+          lock_path="$expected_gitdir/index.lock"
+          expected_mtime='2026-08-30 00:02:46.722154498 +0000'
+
+          echo '=== RECOVERY PRECONDITIONS ==='
+          test -d "$source_root/.repo"
+          test -d "$worktree"
+          printf 'source_root=%s\nproject=%s\n' "$source_root" "$project"
+
+          persistent_writers=0
+          process_rows="$(pgrep -af 'repo|git' || true)"
+          if test -z "$process_rows"; then
+            echo 'No repo/git processes found.'
+          else
+            while IFS= read -r row; do
+              pid=${row%% *}
+              cwd=$(readlink "/proc/$pid/cwd" 2>/dev/null || printf UNKNOWN)
+              case "$cwd" in
+                "$source_root"|"$source_root"/*)
+                  scope=PERSISTENT_SOURCE_TREE
+                  persistent_writers=1
+                  ;;
+                *) scope=UNRELATED_TO_PERSISTENT_SOURCE_TREE ;;
+              esac
+              printf 'PID=%s scope=%s cwd=%s cmd=%s\n' "$pid" "$scope" "$cwd" "$row"
+            done <<< "$process_rows"
+          fi
+          test "$persistent_writers" -eq 0
+
+          gitdir=$(git -C "$worktree" rev-parse --absolute-git-dir)
+          printf 'gitdir=%s\n' "$gitdir"
+          test "$gitdir" = "$expected_gitdir"
+          git -C "$worktree" rev-parse HEAD
+          test "$(git -C "$worktree" remote get-url aosp)" = \
+            https://android.googlesource.com/platform/external/google-cloud-java
+
+          status=$(git -C "$worktree" status --porcelain=v1 -uno)
+          test -z "$status"
+          echo 'Local changes: NONE'
+
+          echo "Candidate lock: $lock_path"
+          test -f "$lock_path"
+          test ! -L "$lock_path"
+          test "$(stat -c '%s' "$lock_path")" = 0
+          actual_mtime=$(stat -c '%y' "$lock_path")
+          printf 'lock size=0 mtime=%s\n' "$actual_mtime"
+          test "$actual_mtime" = "$expected_mtime"
+
+          # This single file was observed in the prior diagnostic attempt after
+          # the matching source-sync writer had ended.  No other lock is touched.
+          rm -- "$lock_path"
+          test ! -e "$lock_path"
+          echo "STALE_LOCK_REMOVED=$lock_path"
+
+      - name: Continue the six-project serial targeted sync
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/bin:$PATH"
+          cd /mnt/avium-cache/android/avium
+
+          repo --version
+          sync_help="$(repo sync -h)"
+          for option in -c --no-clone-bundle --no-tags --optimized-fetch --prune -j --fail-fast; do
+            printf '%s\n' "$sync_help" | grep -Fq -- "$option"
+            printf 'SUPPORTED: %s\n' "$option"
+          done
+
+          repo sync \
+            -c \
+            --no-clone-bundle \
+            --no-tags \
+            --optimized-fetch \
+            --prune \
+            -j1 \
+            --fail-fast \
+            external/google-cloud-java \
+            external/guava \
+            external/guice \
+            external/gwp_asan \
+            prebuilts/clang/host/linux-x86 \
+            prebuilts/rust
