@@ -1,0 +1,134 @@
+name: AviumUI Clang index lock recovery
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: avium-enchilada-persistent-workspace
+  cancel-in-progress: false
+
+jobs:
+  recover-clang:
+    runs-on: depot-ubuntu-24.04-16
+
+    steps:
+      - name: Mount persistent Android workspace
+        uses: depot/cache-mount@v1
+        with:
+          name: aviumui-aosp-workspace
+          path: /mnt/avium-cache
+
+      - name: Prepare repo tool
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y git curl python-is-python3
+          mkdir -p "$HOME/bin"
+          curl -fsSL -o "$HOME/bin/repo" \
+            https://storage.googleapis.com/git-repo-downloads/repo
+          chmod +x "$HOME/bin/repo"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Verify Clang state and remove only its stale index lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/bin:$PATH"
+          source_root=/mnt/avium-cache/android/avium
+          project=prebuilts/clang/host/linux-x86
+          worktree="$source_root/$project"
+          expected_gitdir="$source_root/.repo/projects/prebuilts/clang/host/linux-x86.git"
+          lock_path="$expected_gitdir/index.lock"
+          expected_lock_mtime='2026-08-29 18:21:20.722289420 +0000'
+          expected_deleted_entries=38979
+
+          test -d "$source_root/.repo"
+          test -d "$worktree"
+
+          persistent_writers=0
+          process_rows="$(pgrep -af 'repo|git' || true)"
+          if test -z "$process_rows"; then
+            echo 'No repo/git processes found.'
+          else
+            while IFS= read -r row; do
+              pid=${row%% *}
+              cwd=$(readlink "/proc/$pid/cwd" 2>/dev/null || printf UNKNOWN)
+              case "$cwd" in
+                "$source_root"|"$source_root"/*)
+                  scope=PERSISTENT_SOURCE_TREE
+                  persistent_writers=1
+                  ;;
+                *) scope=UNRELATED_TO_PERSISTENT_SOURCE_TREE ;;
+              esac
+              printf 'PID=%s scope=%s cwd=%s cmd=%s\n' "$pid" "$scope" "$cwd" "$row"
+            done <<< "$process_rows"
+          fi
+          test "$persistent_writers" -eq 0
+
+          gitdir=$(git -C "$worktree" rev-parse --absolute-git-dir)
+          printf 'gitdir=%s\n' "$gitdir"
+          test "$gitdir" = "$expected_gitdir"
+          git -C "$worktree" rev-parse HEAD
+          git -C "$worktree" cat-file -e HEAD^{commit}
+          test "$(git -C "$worktree" remote get-url aosp)" = \
+            https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86
+
+          status_file=/tmp/avium-clang-status.txt
+          git -C "$worktree" status --porcelain=v1 -uno > "$status_file"
+          status_count=$(awk 'NF { count++ } END { print count+0 }' "$status_file")
+          printf 'status entries=%s\n' "$status_count"
+          test "$status_count" = "$expected_deleted_entries"
+          if ! awk 'NF && substr($0, 1, 2) != "D " { print; exit 1 }' "$status_file"; then
+            echo 'Refusing recovery: status contains a non-deletion entry.' >&2
+            exit 3
+          fi
+          echo 'WORKTREE_STATE=ONLY_INTERRUPTED_CHECKOUT_DELETIONS'
+
+          test ! -e "$expected_gitdir/index"
+          test -f "$lock_path"
+          test ! -L "$lock_path"
+          test "$(stat -c '%s' "$lock_path")" = 0
+          lock_mtime=$(stat -c '%y' "$lock_path")
+          printf 'lock size=0 mtime=%s\n' "$lock_mtime"
+          test "$lock_mtime" = "$expected_lock_mtime"
+
+          rm -- "$lock_path"
+          test ! -e "$lock_path"
+          echo "STALE_LOCK_REMOVED=$lock_path"
+
+      - name: Sync only Clang normally
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/bin:$PATH"
+          cd /mnt/avium-cache/android/avium
+          repo sync \
+            -c \
+            --no-clone-bundle \
+            --no-tags \
+            --optimized-fetch \
+            --prune \
+            -j1 \
+            --fail-fast \
+            prebuilts/clang/host/linux-x86
+
+      - name: Continue the six-project serial targeted sync
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/bin:$PATH"
+          cd /mnt/avium-cache/android/avium
+          repo sync \
+            -c \
+            --no-clone-bundle \
+            --no-tags \
+            --optimized-fetch \
+            --prune \
+            -j1 \
+            --fail-fast \
+            external/google-cloud-java \
+            external/guava \
+            external/guice \
+            external/gwp_asan \
+            prebuilts/clang/host/linux-x86 \
+            prebuilts/rust
