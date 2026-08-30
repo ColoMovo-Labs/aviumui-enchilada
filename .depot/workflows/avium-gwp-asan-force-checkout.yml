@@ -82,12 +82,26 @@ jobs:
           printf 'index_LICENSE mode=%s blob=%s stage=%s path=%s\nworktree_LICENSE=%s\n' \
             "$index_mode" "$index_blob" "$index_stage" "$index_path" "$worktree_license"
           test "$index_mode" = "$expected_index_mode"
+          echo 'ASSERTION_OK=index_mode'
           test "$index_blob" = "$expected_index_blob"
+          echo 'ASSERTION_OK=index_blob'
           test "$index_stage" = "$expected_index_stage"
+          echo 'ASSERTION_OK=index_stage'
           test "$index_path" = "$expected_index_path"
+          echo 'ASSERTION_OK=index_path'
           test "$worktree_license" = "$expected_worktree_license"
+          echo 'ASSERTION_OK=worktree_blob'
+          if test -L "$worktree/LICENSE"; then
+            echo 'LICENSE_TYPE=symlink'
+            readlink "$worktree/LICENSE"
+          else
+            echo 'LICENSE_TYPE=regular_file'
+          fi
+          stat -c 'LICENSE stat: type=%F mode=%a size=%s' "$worktree/LICENSE"
           test ! -L "$worktree/LICENSE"
+          echo 'ASSERTION_OK=LICENSE_not_symlink'
           test "$(stat -c '%a' "$worktree/LICENSE")" = 644
+          echo 'ASSERTION_OK=LICENSE_mode'
 
           cd "$source_root"
           sync_help="$(repo sync -h)"
