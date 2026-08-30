@@ -1,0 +1,132 @@
+name: AviumUI Clang force checkout recovery
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: avium-enchilada-persistent-workspace
+  cancel-in-progress: false
+
+jobs:
+  force-checkout-clang:
+    runs-on: depot-ubuntu-24.04-16
+
+    steps:
+      - name: Mount persistent Android workspace
+        uses: depot/cache-mount@v1
+        with:
+          name: aviumui-aosp-workspace
+          path: /mnt/avium-cache
+
+      - name: Prepare repo tool
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y git curl python-is-python3
+          mkdir -p "$HOME/bin"
+          curl -fsSL -o "$HOME/bin/repo" \
+            https://storage.googleapis.com/git-repo-downloads/repo
+          chmod +x "$HOME/bin/repo"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Revalidate Clang before force checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/bin:$PATH"
+          source_root=/mnt/avium-cache/android/avium
+          project=prebuilts/clang/host/linux-x86
+          worktree="$source_root/$project"
+          expected_gitdir="$source_root/.repo/projects/prebuilts/clang/host/linux-x86.git"
+
+          test -d "$source_root/.repo"
+          test -d "$worktree"
+
+          persistent_writers=0
+          process_rows="$(pgrep -af 'repo|git' || true)"
+          if test -z "$process_rows"; then
+            echo 'No repo/git processes found.'
+          else
+            while IFS= read -r row; do
+              pid=${row%% *}
+              cwd=$(readlink "/proc/$pid/cwd" 2>/dev/null || printf UNKNOWN)
+              case "$cwd" in
+                "$source_root"|"$source_root"/*)
+                  scope=PERSISTENT_SOURCE_TREE
+                  persistent_writers=1
+                  ;;
+                *) scope=UNRELATED_TO_PERSISTENT_SOURCE_TREE ;;
+              esac
+              printf 'PID=%s scope=%s cwd=%s cmd=%s\n' "$pid" "$scope" "$cwd" "$row"
+            done <<< "$process_rows"
+          fi
+          test "$persistent_writers" -eq 0
+
+          gitdir=$(git -C "$worktree" rev-parse --absolute-git-dir)
+          printf 'gitdir=%s\n' "$gitdir"
+          test "$gitdir" = "$expected_gitdir"
+          git -C "$worktree" rev-parse HEAD
+          git -C "$worktree" cat-file -e HEAD^{commit}
+          test "$(git -C "$worktree" remote get-url aosp)" = \
+            https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86
+
+          for lock_name in index.lock shallow.lock packed-refs.lock config.lock; do
+            lock_path="$expected_gitdir/$lock_name"
+            if test -e "$lock_path"; then
+              echo "Refusing force checkout: unexpected lock $lock_path" >&2
+              stat -c 'mode=%A size=%s mtime=%y inode=%i' "$lock_path"
+              exit 3
+            fi
+          done
+
+          status_file=/tmp/avium-clang-pre-force-status.txt
+          git -C "$worktree" status --porcelain=v1 -uno > "$status_file"
+          status_count=$(awk 'NF { count++ } END { print count+0 }' "$status_file")
+          printf 'status entries=%s\n' "$status_count"
+          test "$status_count" -gt 0
+          if ! awk 'NF && substr($0, 1, 2) != "D " { print; exit 1 }' "$status_file"; then
+            echo 'Refusing force checkout: a non-deletion local change exists.' >&2
+            exit 3
+          fi
+          echo 'FORCE_CHECKOUT_AUTHORIZATION=ONLY_INTERRUPTED_CHECKOUT_DELETIONS'
+
+      - name: Force checkout only Clang with the documented repo flag
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/bin:$PATH"
+          cd /mnt/avium-cache/android/avium
+          sync_help="$(repo sync -h)"
+          printf '%s\n' "$sync_help" | grep -Fq -- '--force-checkout'
+          echo 'SUPPORTED: --force-checkout'
+          repo sync \
+            -c \
+            --no-clone-bundle \
+            --no-tags \
+            --optimized-fetch \
+            --prune \
+            -j1 \
+            --fail-fast \
+            --force-checkout \
+            prebuilts/clang/host/linux-x86
+
+      - name: Continue the six-project serial targeted sync
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/bin:$PATH"
+          cd /mnt/avium-cache/android/avium
+          repo sync \
+            -c \
+            --no-clone-bundle \
+            --no-tags \
+            --optimized-fetch \
+            --prune \
+            -j1 \
+            --fail-fast \
+            external/google-cloud-java \
+            external/guava \
+            external/guice \
+            external/gwp_asan \
+            prebuilts/clang/host/linux-x86 \
+            prebuilts/rust
