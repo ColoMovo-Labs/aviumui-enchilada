@@ -67,7 +67,13 @@ jobs:
           test "$(git -C "$worktree" remote get-url aosp)" = \
             https://android.googlesource.com/platform/external/gwp_asan
           status=$(git -C "$worktree" status --porcelain=v1 -uno)
-          test -z "$status"
+          if test -n "$status"; then
+            printf 'Local changes detected:\n%s\n' "$status"
+            echo '=== READ-ONLY DIFF: external/gwp_asan/LICENSE ==='
+            git -C "$worktree" diff --no-ext-diff -- LICENSE || true
+            git -C "$worktree" diff --no-ext-diff --numstat -- LICENSE || true
+            exit 2
+          fi
           echo 'Local changes: NONE'
 
           printf 'Candidate lock: %s\n' "$lock_path"
