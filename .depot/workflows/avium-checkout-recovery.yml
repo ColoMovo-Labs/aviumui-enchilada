@@ -1,0 +1,180 @@
+name: AviumUI checkout recovery diagnostic
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: avium-enchilada-persistent-workspace
+  cancel-in-progress: false
+
+jobs:
+  diagnose-checkout:
+    runs-on: depot-ubuntu-24.04-16
+
+    steps:
+      - name: Mount persistent Android workspace
+        uses: depot/cache-mount@v1
+        with:
+          name: aviumui-aosp-workspace
+          path: /mnt/avium-cache
+
+      - name: Prepare repo tool
+        run: |
+          set -u
+          sudo apt-get update
+          sudo apt-get install -y git curl python-is-python3
+
+          mkdir -p "$HOME/bin"
+          curl -fsSL -o "$HOME/bin/repo" \
+            https://storage.googleapis.com/git-repo-downloads/repo
+          chmod +x "$HOME/bin/repo"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Inspect six failed checkouts and expose first failure
+        shell: bash
+        run: |
+          set -u -o pipefail
+          export PATH="$HOME/bin:$PATH"
+
+          source_root=/mnt/avium-cache/android/avium
+          projects=(
+            external/google-cloud-java
+            external/guava
+            external/guice
+            external/gwp_asan
+            prebuilts/clang/host/linux-x86
+            prebuilts/rust
+          )
+
+          echo '=== PERSISTENT SOURCE PRECONDITIONS ==='
+          printf 'source_root=%s\n' "$source_root"
+          test -d "$source_root/.repo"
+          test -f "$source_root/build/envsetup.sh"
+          printf '.repo=present\n'
+          printf 'build/envsetup.sh=present\n'
+
+          echo '=== REPO/GIT PROCESSES BEFORE TARGETED SYNC ==='
+          process_rows="$(pgrep -af 'repo|git' || true)"
+          if test -z "$process_rows"; then
+            echo 'No repo/git processes found.'
+          else
+            while IFS= read -r row; do
+              pid=${row%% *}
+              cwd=$(readlink "/proc/$pid/cwd" 2>/dev/null || printf UNKNOWN)
+              case "$cwd" in
+                "$source_root"|"$source_root"/*) scope=PERSISTENT_SOURCE_TREE ;;
+                *) scope=UNRELATED_TO_PERSISTENT_SOURCE_TREE ;;
+              esac
+              printf 'PID=%s scope=%s cwd=%s cmd=%s\n' "$pid" "$scope" "$cwd" "$row"
+            done <<< "$process_rows"
+          fi
+
+          inspect_project() {
+            phase=$1
+            project=$2
+            worktree="$source_root/$project"
+            echo '--------------------------------------------------'
+            printf 'PHASE=%s\nProject=%s\nWorktree=%s\n' "$phase" "$project" "$worktree"
+            if test -d "$worktree"; then
+              echo 'Working directory: PRESENT'
+            else
+              echo 'Working directory: MISSING'
+            fi
+
+            echo '+ git -C <project> rev-parse --git-dir'
+            git -C "$worktree" rev-parse --git-dir
+            gitdir_rc=$?
+            printf 'exit=%s\n' "$gitdir_rc"
+
+            echo '+ git -C <project> rev-parse --absolute-git-dir'
+            gitdir_abs=$(git -C "$worktree" rev-parse --absolute-git-dir 2>&1)
+            gitdir_abs_rc=$?
+            printf '%s\nexit=%s\n' "$gitdir_abs" "$gitdir_abs_rc"
+
+            echo '+ git -C <project> rev-parse HEAD'
+            git -C "$worktree" rev-parse HEAD
+            head_rc=$?
+            printf 'exit=%s\n' "$head_rc"
+
+            echo '+ git -C <project> status --porcelain=v1 -uno'
+            git -C "$worktree" status --porcelain=v1 -uno
+            status_rc=$?
+            printf 'exit=%s\n' "$status_rc"
+
+            echo '+ git -C <project> remote -v'
+            git -C "$worktree" remote -v
+            remote_rc=$?
+            printf 'exit=%s\n' "$remote_rc"
+
+            if test "$gitdir_abs_rc" -eq 0 && test -d "$gitdir_abs"; then
+              printf 'Resolved git dir: %s\n' "$gitdir_abs"
+              for entry in index index.lock shallow.lock packed-refs.lock config.lock; do
+                candidate="$gitdir_abs/$entry"
+                if test -e "$candidate"; then
+                  printf 'LOCK_CHECK %s: PRESENT\n' "$candidate"
+                  stat -c '  mode=%A size=%s mtime=%y inode=%i' "$candidate"
+                else
+                  printf 'LOCK_CHECK %s: absent\n' "$candidate"
+                fi
+              done
+            else
+              echo 'LOCK_CHECK: skipped because the Git dir is unavailable.'
+            fi
+          }
+
+          echo '=== PRE-TARGETED PROJECT INSPECTION ==='
+          for project in "${projects[@]}"; do
+            inspect_project PRE_TARGETED "$project"
+          done
+
+          echo '=== REPO CAPABILITY CHECK ==='
+          repo --version
+          sync_help="$(repo sync -h)"
+          printf '%s\n' "$sync_help"
+          missing=0
+          for option in -c --no-clone-bundle --no-tags --optimized-fetch --prune -j --fail-fast; do
+            if printf '%s\n' "$sync_help" | grep -Fq -- "$option"; then
+              printf 'SUPPORTED: %s\n' "$option"
+            else
+              printf 'UNSUPPORTED: %s\n' "$option"
+              missing=1
+            fi
+          done
+
+          if test "$missing" -ne 0; then
+            echo 'TARGETED_SYNC=SKIPPED: requested flags are not all documented by this repo version.'
+            exit 0
+          fi
+
+          echo '=== TARGETED SYNC: -j1 --fail-fast ==='
+          cd "$source_root"
+          sync_log=/tmp/avium-checkout-recovery-targeted-sync.log
+          set +e
+          repo sync \
+            -c \
+            --no-clone-bundle \
+            --no-tags \
+            --optimized-fetch \
+            --prune \
+            -j1 \
+            --fail-fast \
+            "${projects[@]}" 2>&1 | tee "$sync_log"
+          sync_rc=${PIPESTATUS[0]}
+          printf 'TARGETED_SYNC_EXIT=%s\n' "$sync_rc"
+
+          first_failed_project=$(awk '
+            /^Failing repos \(checkout\):/ { capture=1; next }
+            capture && NF { print; exit }
+          ' "$sync_log")
+          if test -n "$first_failed_project"; then
+            printf 'FIRST_FAILED_PROJECT=%s\n' "$first_failed_project"
+            inspect_project POST_TARGETED_FAILURE "$first_failed_project"
+          elif test "$sync_rc" -eq 0; then
+            echo 'FIRST_FAILED_PROJECT=NONE'
+          else
+            echo 'FIRST_FAILED_PROJECT=UNPARSED; raw targeted stderr is above.'
+          fi
+
+          # This is a diagnostic workflow: it records a targeted-sync failure
+          # without changing any checkout, index, lock, or object repository.
+          exit 0
