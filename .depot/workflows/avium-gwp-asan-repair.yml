@@ -72,6 +72,12 @@ jobs:
             echo '=== READ-ONLY DIFF: external/gwp_asan/LICENSE ==='
             git -C "$worktree" diff --no-ext-diff -- LICENSE || true
             git -C "$worktree" diff --no-ext-diff --numstat -- LICENSE || true
+            git -C "$worktree" diff --no-ext-diff --raw -- LICENSE || true
+            git -C "$worktree" diff --no-ext-diff --summary -- LICENSE || true
+            echo '=== READ-ONLY INDEX/WORKTREE COMPARISON ==='
+            git -C "$worktree" ls-files -s -- LICENSE
+            git -C "$worktree" hash-object LICENSE
+            stat -c 'mode=%a size=%s mtime=%y' "$worktree/LICENSE"
             exit 2
           fi
           echo 'Local changes: NONE'
