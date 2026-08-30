@@ -1,0 +1,298 @@
+name: AviumUI Build1 Marathon Pipeline
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: avium-enchilada-persistent-workspace
+  cancel-in-progress: false
+
+jobs:
+  marathon:
+    runs-on: depot-ubuntu-24.04-16
+
+    steps:
+      - name: Mount persistent Android workspace
+        uses: depot/cache-mount@v1
+        with:
+          name: aviumui-aosp-workspace
+          path: /mnt/avium-cache
+
+      - name: Prepare build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc bison build-essential ccache curl flex g++-multilib \
+            gcc-multilib git git-lfs gnupg gperf imagemagick \
+            lib32readline-dev lib32z1-dev libelf-dev liblz4-tool \
+            libssl-dev libxml2 libxml2-utils lzop pngcrush \
+            rsync schedtool squashfs-tools xsltproc zip zlib1g-dev \
+            python3 python-is-python3 unzip wget zstd tar
+
+          git lfs install
+          mkdir -p "$HOME/bin"
+          curl -o "$HOME/bin/repo" \
+            https://storage.googleapis.com/git-repo-downloads/repo
+          chmod +x "$HOME/bin/repo"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Execute Checkpointed Build Marathon Slice
+        run: |
+          set -eo pipefail
+
+          STATUS_DIR="/mnt/avium-cache/status"
+          LOG_DIR="/mnt/avium-cache/build-logs"
+          RELEASE_DIR="/mnt/avium-cache/releases/build1"
+          RELEASE_BOOT_DIR="$RELEASE_DIR/bootimage"
+          FAILURE_DIR="/mnt/avium-cache/build-failures"
+          CHECKPOINT_DIR="/mnt/avium-cache/checkpoints/out"
+          SOURCE_BACKUP_DIR="/mnt/avium-cache/checkpoints/build1-source-state"
+
+          mkdir -p "$STATUS_DIR" "$LOG_DIR" "$RELEASE_DIR" "$RELEASE_BOOT_DIR" "$FAILURE_DIR" "$CHECKPOINT_DIR" "$SOURCE_BACKUP_DIR"
+
+          STATUS_FILE="$STATUS_DIR/build1-status.txt"
+
+          update_status() {
+            local stage="$1"
+            local result="$2"
+            local blocker="${3:-NONE}"
+            echo "==================================================" > "$STATUS_FILE"
+            echo "AviumUI 16.2.1 / enchilada Build #1 Status" >> "$STATUS_FILE"
+            echo "==================================================" >> "$STATUS_FILE"
+            echo "Stage: $stage" >> "$STATUS_FILE"
+            echo "Result: $result" >> "$STATUS_FILE"
+            echo "Current run: ${GITHUB_RUN_ID:-marathon-worker}" >> "$STATUS_FILE"
+            echo "Last update: $(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$STATUS_FILE"
+            echo "Current blocker: $blocker" >> "$STATUS_FILE"
+            echo "==================================================" >> "$STATUS_FILE"
+            echo "--- STATUS UPDATED: Stage=$stage, Result=$result, Blocker=$blocker ---"
+          }
+
+          echo "=== 1. CHECK PREVIOUS WORKER STATUS ==="
+          if [ -f "$STATUS_FILE" ]; then
+            cat "$STATUS_FILE"
+            if grep -q "ROM_BUILD_PASS=YES" "$STATUS_FILE" 2>/dev/null || grep -q "ROM_BUILD_PASS" "$STATUS_FILE" 2>/dev/null; then
+              echo "=== FULL ROM BUILD ALREADY SUCCEEDED! Exiting worker gracefully. ==="
+              exit 0
+            fi
+            if grep -q "NEXT_STAGE=BLOCKED" "$STATUS_FILE" 2>/dev/null || grep -q "MANUAL_REVIEW_REQUIRED" "$STATUS_FILE" 2>/dev/null; then
+              echo "=== BUILD IN BLOCKED STATE AWAITING MANUAL REVIEW. Exiting worker gracefully. ==="
+              exit 0
+            fi
+          fi
+
+          echo "=== 2. BACKUP SOURCE MANIFEST & PATCH LEDGER ==="
+          cd /mnt/avium-cache/android/avium
+          export PATH="$HOME/bin:$PATH"
+
+          repo manifest -r > "$SOURCE_BACKUP_DIR/manifest.xml" 2>/dev/null || true
+          if [ -f "$SOURCE_BACKUP_DIR/manifest.xml" ]; then
+            sha256sum "$SOURCE_BACKUP_DIR/manifest.xml" > "$SOURCE_BACKUP_DIR/manifest.sha256"
+          fi
+
+          for repo_path in vendor/lineage build/soong hardware/dolby device/oneplus/sdm845-common; do
+            if [ -d "$repo_path/.git" ]; then
+              safe_name=$(echo "$repo_path" | tr '/' '_')
+              git -C "$repo_path" log -n 5 > "$SOURCE_BACKUP_DIR/${safe_name}_git_log.txt" 2>/dev/null || true
+              git -C "$repo_path" status > "$SOURCE_BACKUP_DIR/${safe_name}_status.txt" 2>/dev/null || true
+              git -C "$repo_path" diff --binary HEAD~1..HEAD > "$SOURCE_BACKUP_DIR/${safe_name}_recent_commit.patch" 2>/dev/null || true
+            fi
+          done
+
+          echo "=== 3. LOCAL HARDWARE & STORAGE AUDIT ==="
+          nproc
+          free -h
+          df -h /
+          df -h /tmp
+          df -h /mnt/avium-cache
+
+          avail_tmp_kb=$(df -k /tmp | tail -n 1 | awk '{print $4}')
+          avail_tmp_gb=$((avail_tmp_kb / 1024 / 1024))
+          echo "Available local ephemeral disk in /tmp: ${avail_tmp_gb} GiB"
+
+          if [ "$avail_tmp_gb" -lt 50 ]; then
+            echo "ERROR: Insufficient local disk for Android build (${avail_tmp_gb} GiB < 50 GiB)"
+            update_status "RESOURCE_CHECK" "FAIL" "FULL_BUILD_BLOCKED_BY_LOCAL_STORAGE"
+            exit 1
+          fi
+
+          export OUT_DIR=/tmp/avium-out
+          export TMPDIR=/tmp/avium-tmp
+          export CCACHE_DIR=/tmp/avium-ccache
+          export USE_CCACHE=1
+          export CCACHE_EXEC=/usr/bin/ccache
+
+          mkdir -p "$OUT_DIR" "$TMPDIR" "$CCACHE_DIR"
+
+          echo "=== 4. RESTORE OUT CHECKPOINT (IF AVAILABLE) ==="
+          if [ -f "$CHECKPOINT_DIR/latest.tar.zst" ] && [ -f "$CHECKPOINT_DIR/latest.metadata" ]; then
+            echo "Found valid checkpoint archive: $CHECKPOINT_DIR/latest.tar.zst"
+            cat "$CHECKPOINT_DIR/latest.metadata"
+            echo "Extracting checkpoint to $OUT_DIR..."
+            tar --zstd -xf "$CHECKPOINT_DIR/latest.tar.zst" -C "$OUT_DIR"
+            echo "Checkpoint extracted successfully. Logical size: $(du -sh "$OUT_DIR" | cut -f1)"
+          else
+            echo "No previous valid checkpoint found. Starting fresh incremental out."
+          fi
+
+          echo "=== 5. LOAD BUILD ENVIRONMENT & TARGET ==="
+          source build/envsetup.sh
+          lunch lineage_enchilada-bp4a-userdebug
+
+          echo "=== 6. VERIFY & ARCHIVE BOOTIMAGE ==="
+          boot_img_target="$OUT_DIR/target/product/enchilada/boot.img"
+          if [ ! -f "$boot_img_target" ]; then
+            echo "Bootimage not present in local out. Building bootimage..."
+            boot_log="$LOG_DIR/build1-bootimage-marathon-$(date -u +%Y%m%dT%H%M%SZ).log"
+            set +e
+            m -j8 bootimage 2>&1 | tee "$boot_log"
+            boot_status=${PIPESTATUS[0]}
+            set -e
+
+            if [ "$boot_status" -ne 0 ] || [ ! -f "$boot_img_target" ]; then
+              echo "ERROR: Bootimage build failed with status $boot_status"
+              update_status "BOOTIMAGE" "FAIL" "Bootimage build failed (see $boot_log)"
+              fail_snap="$FAILURE_DIR/bootimage-$(date -u +%Y%m%dT%H%M%SZ)"
+              mkdir -p "$fail_snap"
+              tail -n 300 "$boot_log" > "$fail_snap/error_tail.txt" || true
+              exit 1
+            fi
+          fi
+
+          boot_size=$(stat -c %s "$boot_img_target")
+          boot_sha256=$(sha256sum "$boot_img_target" | cut -d' ' -f1)
+          echo "Boot.img validated: $boot_img_target ($boot_size bytes, SHA256: $boot_sha256)"
+          cp "$boot_img_target" "$RELEASE_BOOT_DIR/boot.img" || true
+          echo "$boot_sha256  boot.img" > "$RELEASE_BOOT_DIR/SHA256SUMS.txt" || true
+
+          echo "=== 7. TIME-SLICED FULL ROM BUILD (m -j8 bacon) ==="
+          update_status "FULL_ROM_BUILD" "RUNNING" "NONE"
+
+          bacon_log="$LOG_DIR/build1-m-bacon-$(date -u +%Y%m%dT%H%M%SZ).log"
+          metrics_log="$LOG_DIR/build1-metrics-$(date -u +%Y%m%dT%H%M%SZ).log"
+
+          (
+            while true; do
+              echo "=== METRIC SNAPSHOT $(date -u +'%Y-%m-%dT%H:%M:%SZ') ===" >> "$metrics_log"
+              free -m >> "$metrics_log"
+              df -h /tmp >> "$metrics_log"
+              sleep 180
+            done
+          ) &
+          monitor_pid=$!
+
+          MAX_BUILD_SECONDS=15000 # 4h 10m active budget, leaving 50m for checkpointing and cleanup
+
+          start_epoch=$(date +%s)
+          set +e
+          m -j8 bacon > >(tee -a "$bacon_log") 2> >(tee -a "$bacon_log" >&2) &
+          bacon_pid=$!
+
+          timed_out=0
+          while kill -0 "$bacon_pid" 2>/dev/null; do
+            now=$(date +%s)
+            elapsed=$((now - start_epoch))
+            if [ "$elapsed" -ge "$MAX_BUILD_SECONDS" ]; then
+              echo "=== TIME SLICE EXPIRED (${elapsed}s >= ${MAX_BUILD_SECONDS}s). Gracefully stopping m bacon... ==="
+              timed_out=1
+              kill -TERM "$bacon_pid" 2>/dev/null || true
+              sleep 15
+              kill -INT "$bacon_pid" 2>/dev/null || true
+              sleep 15
+              kill -KILL "$bacon_pid" 2>/dev/null || true
+              break
+            fi
+            sleep 30
+          done
+
+          wait "$bacon_pid" 2>/dev/null || true
+          bacon_status=$?
+          set -e
+
+          kill "$monitor_pid" 2>/dev/null || true
+
+          end_epoch=$(date +%s)
+          runtime=$((end_epoch - start_epoch))
+
+          echo "=================================================="
+          echo "=== BUILD SLICE FINISHED ==="
+          echo "Exit status: $bacon_status"
+          echo "Timed out: $timed_out"
+          echo "Runtime: ${runtime}s"
+          echo "Log: $bacon_log"
+          echo "=================================================="
+
+          if [ "$timed_out" -eq 1 ]; then
+            echo "=== CREATING OUT CHECKPOINT FOR RESUME ==="
+            cp_stamp=$(date -u +%Y%m%dT%H%M%SZ)
+            cp_archive="$CHECKPOINT_DIR/checkpoint-${cp_stamp}.tar.zst"
+            cp_partial="${cp_archive}.partial"
+            cp_meta="$CHECKPOINT_DIR/checkpoint-${cp_stamp}.metadata"
+
+            echo "Compressing $OUT_DIR to $cp_partial..."
+            tar -C "$OUT_DIR" -cf - . | zstd -1 -T0 > "$cp_partial"
+
+            arch_size=$(stat -c %s "$cp_partial")
+            arch_sha256=$(sha256sum "$cp_partial" | cut -d' ' -f1)
+
+            mv "$cp_partial" "$cp_archive"
+            cp "$cp_archive" "$CHECKPOINT_DIR/latest.tar.zst"
+
+            echo "Target: lineage_enchilada-bp4a-userdebug" > "$cp_meta"
+            echo "Created: $cp_stamp" >> "$cp_meta"
+            echo "ArchiveSize: $arch_size" >> "$cp_meta"
+            echo "SHA256: $arch_sha256" >> "$cp_meta"
+            echo "Stage: BACON_SLICE_COMPLETE" >> "$cp_meta"
+            cp "$cp_meta" "$CHECKPOINT_DIR/latest.metadata"
+
+            echo "Checkpoint saved successfully ($arch_size bytes, SHA256: $arch_sha256)."
+            update_status "FULL_ROM_BUILD" "BACON_SLICE_COMPLETE" "NEXT_STAGE=RESUME_REQUIRED"
+            exit 0
+          fi
+
+          if [ "$bacon_status" -ne 0 ]; then
+            echo "ERROR: Full ROM build failed with exit code $bacon_status"
+            update_status "FULL_ROM_BUILD" "FAIL" "m bacon exited with $bacon_status (see $bacon_log)"
+            fail_snap="$FAILURE_DIR/bacon-$(date -u +%Y%m%dT%H%M%SZ)"
+            mkdir -p "$fail_snap"
+            tail -n 300 "$bacon_log" > "$fail_snap/error_tail.txt" || true
+            exit "$bacon_status"
+          fi
+
+          echo "=== 8. COLLECTING RELEASE ARTIFACTS ==="
+          rom_zips=( $OUT_DIR/target/product/enchilada/*.zip )
+          if [ -e "${rom_zips[0]}" ]; then
+            for z in "${rom_zips[@]}"; do
+              if [[ "$z" != *"target_files"* && "$z" != *"ota"* ]]; then
+                echo "Found release zip: $z"
+                cp "$z" "$RELEASE_DIR/"
+              fi
+            done
+
+            for img in boot.img dtbo.img recovery.img vendor_boot.img; do
+              if [ -f "$OUT_DIR/target/product/enchilada/$img" ]; then
+                cp "$OUT_DIR/target/product/enchilada/$img" "$RELEASE_DIR/" || true
+              fi
+            done
+
+            cd "$RELEASE_DIR"
+            sha256sum * > SHA256SUMS.txt 2>/dev/null || true
+            echo "Release artifacts saved to $RELEASE_DIR"
+            ls -lh "$RELEASE_DIR"
+
+            echo "==================================================" > "$STATUS_FILE"
+            echo "AviumUI 16.2.1 / enchilada Build #1 Status" >> "$STATUS_FILE"
+            echo "==================================================" >> "$STATUS_FILE"
+            echo "M_NOTHING=PASS" >> "$STATUS_FILE"
+            echo "BOOTIMAGE=PASS" >> "$STATUS_FILE"
+            echo "BACON=PASS" >> "$STATUS_FILE"
+            echo "ROM_BUILD_PASS=YES" >> "$STATUS_FILE"
+            echo "PHYSICAL_TEST=NOT_PERFORMED" >> "$STATUS_FILE"
+            echo "BUILD SUCCEEDED UNTESTED ON PHYSICAL DEVICE" >> "$STATUS_FILE"
+            echo "Last update: $(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$STATUS_FILE"
+            echo "Current blocker: NONE" >> "$STATUS_FILE"
+            echo "==================================================" >> "$STATUS_FILE"
+          else
+            echo "Warning: No release zip found in target directory."
+            update_status "FULL_ROM_BUILD" "INCOMPLETE" "No release zip produced"
+          fi
