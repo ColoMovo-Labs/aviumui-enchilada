@@ -37,52 +37,233 @@ jobs:
           chmod +x "$HOME/bin/repo"
           echo "$HOME/bin" >> "$GITHUB_PATH"
 
-      - name: Initialize AviumUI source
+      - name: Verify existing AviumUI source and update manifests
         run: |
           export PATH="$HOME/bin:$PATH"
-
-          mkdir -p /mnt/avium-cache/android/avium
           cd /mnt/avium-cache/android/avium
 
-          if [ ! -d .repo ]; then
-            repo init \
-              --depth=1 \
-              --no-repo-verify \
-              -u https://github.com/AviumUI/android_manifests \
-              -b avium-16.2 \
-              -g default,-mips,-darwin,-notdefault \
-              --git-lfs
-
-            git clone \
-              https://github.com/ColoMovo-Labs/aviumui-enchilada-manifests.git \
-              --depth 1 \
-              .repo/local_manifests
-          else
-            git -C .repo/local_manifests pull --ff-only
-          fi
+          test -d .repo
+          test -f build/envsetup.sh
+          git -C .repo/local_manifests pull --ff-only
 
       - name: Sync source
         run: |
+          set -u
           export PATH="$HOME/bin:$PATH"
+          export AVIUM_STAGE=SOURCE_SYNC_ATTEMPT_2
+          export AVIUM_STATUS_DIR=/mnt/avium-cache/status
+          export AVIUM_RUN_ID="${DEPOT_RUN_ID:-${GITHUB_RUN_ID:-UNKNOWN}}"
+          export AVIUM_SYNC_STARTED="$(date -Is)"
           cd /mnt/avium-cache/android/avium
+          mkdir -p "$AVIUM_STATUS_DIR"
 
-          repo sync \
-            -c \
-            --no-clone-bundle \
-            --no-tags \
-            --optimized-fetch \
-            --prune \
-            -j8
+          status_file="$AVIUM_STATUS_DIR/avium-sync-status.txt"
+          heartbeat_log="$AVIUM_STATUS_DIR/avium-sync-heartbeat.log"
+          heartbeat_interval=600
+          previous_pids=''
+          previous_rchar=0
+          previous_wchar=0
+          previous_read_bytes=0
+          previous_write_bytes=0
+          previous_sample=0
+          stalled_samples=0
+          sync_pid='UNKNOWN'
+          heartbeat_pid=''
+
+          worker_rows() {
+            ps -eo pid=,stat=,wchan:32=,args= | awk '
+              /repo\/main\.py|git fetch|git remote-|git-remote-|unpack-objects|index-pack|git read-tree|git checkout/ {
+                pid=$1; state=$2; wchan=$3
+                $1=$2=$3=""
+                sub(/^[[:space:]]+/, "")
+                printf "%s|%s|%s|%s\\n", pid, state, wchan, $0
+              }'
+          }
+
+          emit_terminal_status() {
+            terminal_result=$1
+            terminal_health=$2
+            terminal_stage=$3
+            terminal_time=$(date -Is)
+            terminal_elapsed=$(( $(date +%s) - $(date -d "$AVIUM_SYNC_STARTED" +%s) ))
+            {
+              echo 'AviumUI enchilada Build #1'
+              echo
+              echo "Stage: $terminal_stage"
+              echo "Run ID: $AVIUM_RUN_ID"
+              echo "Started: $AVIUM_SYNC_STARTED"
+              echo "Last heartbeat: $terminal_time"
+              echo "Elapsed: ${terminal_elapsed}s"
+              echo "Health: $terminal_health"
+              echo "repo sync PID: $sync_pid"
+              echo 'Active git workers: UNKNOWN'
+              echo 'Current repositories: UNKNOWN'
+              echo 'IO delta: UNKNOWN'
+              echo "Last known result: $terminal_result"
+            } | tee "$status_file"
+            printf '%s stage=%s health=%s result=%s elapsed=%ss\n' \
+              "$terminal_time" "$terminal_stage" "$terminal_health" \
+              "$terminal_result" "$terminal_elapsed" >> "$heartbeat_log"
+          }
+
+          heartbeat() {
+            sample_time=$(date -Is)
+            sample_epoch=$(date +%s)
+            elapsed=$((sample_epoch - $(date -d "$AVIUM_SYNC_STARTED" +%s)))
+            rows=$(worker_rows)
+            pids=$(printf '%s\n' "$rows" | awk -F'|' 'NF {printf "%s ", $1}')
+            worker_count=$(printf '%s\n' "$rows" | awk -F'|' 'NF {n++} END {print n+0}')
+            r_count=$(printf '%s\n' "$rows" | awk -F'|' '$2 ~ /^R/ {n++} END {print n+0}')
+            s_count=$(printf '%s\n' "$rows" | awk -F'|' '$2 ~ /^S/ {n++} END {print n+0}')
+            d_count=$(printf '%s\n' "$rows" | awk -F'|' '$2 ~ /^D/ {n++} END {print n+0}')
+
+            rchar=0
+            wchar=0
+            read_bytes=0
+            write_bytes=0
+            for pid in $pids; do
+              if test -r "/proc/$pid/io"; then
+                while read -r key value; do
+                  case "$key" in
+                    rchar:) rchar=$((rchar + value)) ;;
+                    wchar:) wchar=$((wchar + value)) ;;
+                    read_bytes:) read_bytes=$((read_bytes + value)) ;;
+                    write_bytes:) write_bytes=$((write_bytes + value)) ;;
+                  esac
+                done < "/proc/$pid/io"
+              fi
+            done
+
+            if test "$previous_sample" -eq 0; then
+              io_delta='UNKNOWN'
+              churn='UNKNOWN'
+              health='UNKNOWN'
+            else
+              delta_rchar=$((rchar - previous_rchar))
+              delta_wchar=$((wchar - previous_wchar))
+              delta_read_bytes=$((read_bytes - previous_read_bytes))
+              delta_write_bytes=$((write_bytes - previous_write_bytes))
+              io_delta="rchar: ${delta_rchar}; wchar: ${delta_wchar}; read_bytes: ${delta_read_bytes}; write_bytes: ${delta_write_bytes}"
+              if test "$pids" = "$previous_pids"; then
+                churn='NO'
+              else
+                churn='YES'
+              fi
+
+              io_progress=0
+              for delta in "$delta_rchar" "$delta_wchar" "$delta_read_bytes" "$delta_write_bytes"; do
+                if test "$delta" -gt 0; then
+                  io_progress=1
+                fi
+              done
+              if test "$io_progress" -eq 1 || test "$churn" = YES; then
+                stalled_samples=0
+                if test "$d_count" -gt 0; then
+                  health='IO_BOUND'
+                else
+                  health='PROGRESSING'
+                fi
+              else
+                stalled_samples=$((stalled_samples + 1))
+                if test "$stalled_samples" -ge 2; then
+                  health='POSSIBLY_STALLED'
+                else
+                  health='UNKNOWN'
+                fi
+              fi
+            fi
+
+            {
+              echo '--------------------------------------------------'
+              echo 'AVIUM SYNC HEARTBEAT'
+              echo "Time: $sample_time"
+              echo "Elapsed: ${elapsed}s"
+              echo "Stage: $AVIUM_STAGE"
+              echo "Run ID: $AVIUM_RUN_ID"
+              echo "Top-level repo sync PID: $sync_pid"
+              if test "$sync_pid" != UNKNOWN && test -d "/proc/$sync_pid"; then
+                echo "Top-level repo sync state: $(ps -o stat= -p "$sync_pid" | tr -d ' ')"
+              else
+                echo 'Top-level repo sync state: UNKNOWN'
+              fi
+              echo "Active repo/git worker count: $worker_count"
+              echo "Process states summary: R=$r_count S=$s_count D=$d_count"
+              echo 'Current Git activity:'
+              echo 'Current repositories / work directories:'
+              shown=0
+              while IFS='|' read -r worker_pid worker_state worker_wchan worker_cmd; do
+                test -n "$worker_pid" || continue
+                worker_cwd=$(readlink "/proc/$worker_pid/cwd" 2>/dev/null || printf UNKNOWN)
+                printf '  PID=%s state=%s wchan=%s cwd=%s\n' \
+                  "$worker_pid" "$worker_state" "$worker_wchan" "$worker_cwd"
+                printf '    cmd: %.220s\n' "$worker_cmd"
+                shown=$((shown + 1))
+                test "$shown" -lt 12 || break
+              done <<< "$rows"
+              echo "IO delta since previous heartbeat: $io_delta"
+              echo "Worker churn: $churn"
+              echo "HEALTH=$health"
+              echo 'Last known result: RUNNING'
+            } | tee "$status_file"
+            printf '%s stage=%s elapsed=%ss health=%s workers=%s R=%s S=%s D=%s churn=%s io="%s"\n' \
+              "$sample_time" "$AVIUM_STAGE" "$elapsed" "$health" "$worker_count" \
+              "$r_count" "$s_count" "$d_count" "$churn" "$io_delta" >> "$heartbeat_log"
+            if test -f "$heartbeat_log" && test "$(wc -c < "$heartbeat_log")" -gt 65536; then
+              tail -n 240 "$heartbeat_log" > "$heartbeat_log.trim"
+              mv "$heartbeat_log.trim" "$heartbeat_log"
+            fi
+
+            previous_pids=$pids
+            previous_rchar=$rchar
+            previous_wchar=$wchar
+            previous_read_bytes=$read_bytes
+            previous_write_bytes=$write_bytes
+            previous_sample=1
+          }
+
+          heartbeat_monitor() {
+            while :; do
+              heartbeat
+              sleep "$heartbeat_interval"
+            done
+          }
+
+          stop_heartbeat() {
+            if test -n "$heartbeat_pid" && kill -0 "$heartbeat_pid" 2>/dev/null; then
+              kill "$heartbeat_pid" 2>/dev/null || true
+              wait "$heartbeat_pid" 2>/dev/null || true
+            fi
+            heartbeat_pid=''
+          }
+
+          trap stop_heartbeat EXIT INT TERM
+          sync_args=(-c --no-clone-bundle --no-tags --optimized-fetch --prune -j8)
+          if repo sync -h | grep -Eq '(^|[[:space:]])--progress([[:space:],]|$)'; then
+            echo 'repo sync native progress: enabled'
+            sync_args+=(--progress)
+          else
+            echo 'repo sync native progress: unavailable; heartbeat remains authoritative'
+          fi
+
+          set +e
+          repo sync "${sync_args[@]}" &
+          sync_pid=$!
+          heartbeat_monitor &
+          heartbeat_pid=$!
+          wait "$sync_pid"
+          sync_status=$?
+          set -e
+          stop_heartbeat
+
+          if test "$sync_status" -eq 0; then
+            emit_terminal_status PASS COMPLETE SOURCE_SYNC_COMPLETE
+          else
+            emit_terminal_status FAIL FAILED "$AVIUM_STAGE"
+          fi
+          exit "$sync_status"
 
       - name: Report source state
         if: always()
         run: |
-          echo "=== CACHE DISK ==="
-          df -h /mnt/avium-cache
-
-          echo "=== SOURCE SIZE ==="
-          du -sh /mnt/avium-cache/android/avium || true
-          du -sh /mnt/avium-cache/android/avium/.repo || true
-
-          echo "=== FILE COUNT ==="
-          find /mnt/avium-cache/android/avium -xdev -type f | wc -l || true
+          echo "=== LATEST AVIUM SYNC STATUS ==="
+          cat /mnt/avium-cache/status/avium-sync-status.txt || true
