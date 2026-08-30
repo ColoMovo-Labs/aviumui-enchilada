@@ -3,9 +3,6 @@ name: AviumUI Soong graph validation
 on:
   workflow_dispatch:
 
-# Source sync and all builds share a mutable persistent checkout. Queue rather
-# than cancel so a manually dispatched build can never race a sync or another
-# build against that checkout.
 concurrency:
   group: avium-enchilada-persistent-workspace
   cancel-in-progress: false
@@ -41,7 +38,7 @@ jobs:
 
       - name: Verify storage and source prerequisites
         run: |
-          echo "=== RUNNER RESOURCES ==="
+          echo "=== RUNNER HARDWARE & RESOURCES ==="
           nproc
           free -h
           df -h /
@@ -51,24 +48,13 @@ jobs:
           test -d /mnt/avium-cache/android/avium/.repo
           test -f /mnt/avium-cache/android/avium/build/envsetup.sh
 
-      - name: Update manifests and source incrementally
-        run: |
-          export PATH="$HOME/bin:$PATH"
-          cd /mnt/avium-cache/android/avium
-          git -C .repo/local_manifests pull --ff-only
-          repo sync \
-            -c \
-            --no-clone-bundle \
-            --no-tags \
-            --optimized-fetch \
-            --prune \
-            -j8
-
       - name: Validate Soong graph with m nothing
         run: |
           export OUT_DIR=/tmp/avium-out
           export TMPDIR=/tmp/avium-tmp
           export CCACHE_DIR=/tmp/avium-ccache
+          export USE_CCACHE=1
+          export CCACHE_EXEC=/usr/bin/ccache
           export BUILD_LOG_DIR=/mnt/avium-cache/build-logs
           export PATH="$HOME/bin:$PATH"
           mkdir -p "$OUT_DIR" "$TMPDIR" "$CCACHE_DIR" "$BUILD_LOG_DIR"
@@ -76,25 +62,48 @@ jobs:
           cd /mnt/avium-cache/android/avium
           source build/envsetup.sh
           lunch lineage_enchilada-bp4a-userdebug
-          test "$TARGET_PRODUCT" = lineage_enchilada
-          test "$TARGET_DEVICE" = enchilada
-          test "$TARGET_ARCH" = arm64
-          test "$TARGET_BUILD_VARIANT" = userdebug
+
+          echo "=== VERIFY TARGET ENVIRONMENT VARIABLES ==="
+          echo "TARGET_PRODUCT=$TARGET_PRODUCT"
+          echo "TARGET_BUILD_VARIANT=$TARGET_BUILD_VARIANT"
+          device_val=$(get_build_var TARGET_DEVICE)
+          arch_val=$(get_build_var TARGET_ARCH)
+          echo "TARGET_DEVICE=$device_val"
+          echo "TARGET_ARCH=$arch_val"
+          echo "OUT_DIR=$OUT_DIR"
+          echo "TMPDIR=$TMPDIR"
+
+          test "$TARGET_PRODUCT" = "lineage_enchilada"
+          test "$TARGET_BUILD_VARIANT" = "userdebug"
+          test "$device_val" = "enchilada"
+          test "$arch_val" = "arm64"
+          test "$OUT_DIR" = "/tmp/avium-out"
+          test "$TMPDIR" = "/tmp/avium-tmp"
+
+          timestamp=$(date -u +%Y%m%dT%H%M%SZ)
+          log_file="$BUILD_LOG_DIR/build1-m-nothing-$timestamp.log"
+          echo "=== EXECUTING m -j8 nothing ==="
+          echo "Log file: $log_file"
 
           start_epoch=$(date +%s)
           set +e
           set -o pipefail
-          m -j8 nothing 2>&1 | tee "$BUILD_LOG_DIR/m-nothing-${GITHUB_RUN_ID:-manual}.log"
+
+          m -j8 nothing 2>&1 | tee "$log_file"
           build_status=${PIPESTATUS[0]}
           set -e
           end_epoch=$(date +%s)
+          runtime=$((end_epoch - start_epoch))
 
+          echo "=================================================="
           echo "=== BUILD RESULT ==="
           echo "m nothing exit status: $build_status"
-          echo "wall seconds: $((end_epoch - start_epoch))"
+          echo "wall seconds: ${runtime}s"
+          echo "log path: $log_file"
           echo "=== POST-BUILD RESOURCES ==="
           free -h
           df -h /
           df -h /tmp
           du -sh "$OUT_DIR" || true
+          echo "=================================================="
           exit "$build_status"
