@@ -71,10 +71,11 @@ jobs:
           heartbeat_pid=''
 
           worker_rows() {
-            ps -eo pid=,stat=,wchan:32=,args= | awk '
-              /repo\/main\.py|git fetch|git remote-|git-remote-|unpack-objects|index-pack|git read-tree|git checkout/ {
+            ps -eo pid=,stat=,wchan:32=,comm=,args= | awk '
+              ($4 == "python3" && /repo\/main\.py/) ||
+              ($4 ~ /^git/ && /git fetch|git remote-|git-remote-|unpack-objects|index-pack|git read-tree|git checkout/) {
                 pid=$1; state=$2; wchan=$3
-                $1=$2=$3=""
+                $1=$2=$3=$4=""
                 sub(/^[[:space:]]+/, "")
                 printf "%s|%s|%s|%s\\n", pid, state, wchan, $0
               }'
