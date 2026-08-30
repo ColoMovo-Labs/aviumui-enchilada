@@ -1,0 +1,87 @@
+name: AviumUI Clang checkout inspection
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: avium-enchilada-persistent-workspace
+  cancel-in-progress: false
+
+jobs:
+  inspect-clang-checkout:
+    runs-on: depot-ubuntu-24.04-16
+
+    steps:
+      - name: Mount persistent Android workspace
+        uses: depot/cache-mount@v1
+        with:
+          name: aviumui-aosp-workspace
+          path: /mnt/avium-cache
+
+      - name: Inspect only the failed Clang checkout
+        shell: bash
+        run: |
+          set +e
+          set -u -o pipefail
+          source_root=/mnt/avium-cache/android/avium
+          project=prebuilts/clang/host/linux-x86
+          worktree="$source_root/$project"
+
+          echo '=== WRITER CHECK ==='
+          process_rows="$(pgrep -af 'repo|git' || true)"
+          if test -z "$process_rows"; then
+            echo 'No repo/git processes found.'
+          else
+            while IFS= read -r row; do
+              pid=${row%% *}
+              cwd=$(readlink "/proc/$pid/cwd" 2>/dev/null || printf UNKNOWN)
+              case "$cwd" in
+                "$source_root"|"$source_root"/*) scope=PERSISTENT_SOURCE_TREE ;;
+                *) scope=UNRELATED_TO_PERSISTENT_SOURCE_TREE ;;
+              esac
+              printf 'PID=%s scope=%s cwd=%s cmd=%s\n' "$pid" "$scope" "$cwd" "$row"
+            done <<< "$process_rows"
+          fi
+
+          echo '=== GIT IDENTITY AND OBJECT HEALTH ==='
+          printf 'project=%s\nworktree=%s\n' "$project" "$worktree"
+          git -C "$worktree" rev-parse --git-dir
+          git -C "$worktree" rev-parse --absolute-git-dir
+          git -C "$worktree" rev-parse HEAD
+          git -C "$worktree" remote -v
+          git -C "$worktree" cat-file -e HEAD^{commit}
+          echo 'HEAD commit object: readable'
+          git -C "$worktree" fsck --no-dangling --no-progress
+          fsck_rc=$?
+          printf 'Object fsck exit=%s\n' "$fsck_rc"
+
+          echo '=== WORKTREE STATUS ==='
+          set +e
+          status_output=$(git -C "$worktree" status --porcelain=v1 -uno)
+          status_rc=$?
+          # Keep collecting raw evidence even if this damaged checkout makes a
+          # later read-only Git query fail.
+          set +e
+          printf 'git status exit=%s\n' "$status_rc"
+          if test "$status_rc" -eq 0; then
+            printf '%s\n' "$status_output" | awk '
+              NF { total++; state=substr($0,1,2); count[state]++ }
+              END {
+                printf "status entries=%d\n", total+0
+                for (state in count) printf "status %s=%d\n", state, count[state]
+              }'
+            echo 'First 20 status entries:'
+            printf '%s\n' "$status_output" | sed -n '1,20p'
+          fi
+
+          gitdir=$(git -C "$worktree" rev-parse --absolute-git-dir)
+          echo '=== INDEX/LOCK CHECK ==='
+          for entry in index index.lock shallow.lock packed-refs.lock config.lock; do
+            candidate="$gitdir/$entry"
+            if test -e "$candidate"; then
+              printf 'LOCK_CHECK %s: PRESENT\n' "$candidate"
+              stat -c '  mode=%A size=%s mtime=%y inode=%i' "$candidate"
+            else
+              printf 'LOCK_CHECK %s: absent\n' "$candidate"
+            fi
+          done
