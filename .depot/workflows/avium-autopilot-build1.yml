@@ -1,0 +1,200 @@
+name: AviumUI Build1 Cloud Autopilot Pipeline
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: avium-enchilada-persistent-workspace
+  cancel-in-progress: false
+
+jobs:
+  autopilot:
+    runs-on: depot-ubuntu-24.04-16
+
+    steps:
+      - name: Mount persistent Android workspace
+        uses: depot/cache-mount@v1
+        with:
+          name: aviumui-aosp-workspace
+          path: /mnt/avium-cache
+
+      - name: Prepare build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc bison build-essential ccache curl flex g++-multilib \
+            gcc-multilib git git-lfs gnupg gperf imagemagick \
+            lib32readline-dev lib32z1-dev libelf-dev liblz4-tool \
+            libssl-dev libxml2 libxml2-utils lzop pngcrush \
+            rsync schedtool squashfs-tools xsltproc zip zlib1g-dev \
+            python3 python-is-python3 unzip wget
+
+          git lfs install
+          mkdir -p "$HOME/bin"
+          curl -o "$HOME/bin/repo" \
+            https://storage.googleapis.com/git-repo-downloads/repo
+          chmod +x "$HOME/bin/repo"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Execute Unattended Cloud Autopilot Pipeline
+        run: |
+          set -eo pipefail
+
+          STATUS_DIR="/mnt/avium-cache/status"
+          LOG_DIR="/mnt/avium-cache/build-logs"
+          RELEASE_DIR="/mnt/avium-cache/releases/build1"
+          FAILURE_DIR="/mnt/avium-cache/build-failures"
+
+          mkdir -p "$STATUS_DIR" "$LOG_DIR" "$RELEASE_DIR" "$FAILURE_DIR"
+
+          STATUS_FILE="$STATUS_DIR/build1-status.txt"
+
+          update_status() {
+            local stage="$1"
+            local result="$2"
+            local blocker="${3:-NONE}"
+            cat << S_EOF > "$STATUS_FILE"
+==================================================
+AviumUI 16.2.1 / enchilada Build #1 Status
+==================================================
+Stage: $stage
+Result: $result
+Current run: ${GITHUB_RUN_ID:-autopilot-run}
+Last update: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+Current blocker: $blocker
+==================================================
+S_EOF
+            echo "--- STATUS UPDATED: Stage=$stage, Result=$result ---"
+          }
+
+          update_status "RESOURCE_CHECK" "RUNNING" "NONE"
+
+          echo "=== 1. HARDWARE & DISK RESOURCE AUDIT ==="
+          nproc
+          free -h
+          df -h /
+          df -h /tmp
+          df -h /mnt/avium-cache
+
+          avail_tmp_kb=$(df -k /tmp | tail -n 1 | awk '{print $4}')
+          avail_tmp_gb=$((avail_tmp_kb / 1024 / 1024))
+          echo "Available local space in /tmp: ${avail_tmp_gb} GiB"
+
+          if [ "$avail_tmp_gb" -lt 60 ]; then
+            echo "ERROR: Insufficient local disk for Android full ROM build (${avail_tmp_gb} GiB < 60 GiB)"
+            update_status "RESOURCE_CHECK" "FAIL" "FULL_BUILD_BLOCKED_BY_LOCAL_STORAGE"
+            exit 1
+          fi
+
+          export OUT_DIR=/tmp/avium-out
+          export TMPDIR=/tmp/avium-tmp
+          export CCACHE_DIR=/tmp/avium-ccache
+          export USE_CCACHE=1
+          export CCACHE_EXEC=/usr/bin/ccache
+          export PATH="$HOME/bin:$PATH"
+
+          mkdir -p "$OUT_DIR" "$TMPDIR" "$CCACHE_DIR"
+
+          cd /mnt/avium-cache/android/avium
+
+          echo "=== 2. ENVIRONMENT & TARGET SETUP ==="
+          source build/envsetup.sh
+          lunch lineage_enchilada-bp4a-userdebug
+
+          echo "=== 3. VERIFY BOOTIMAGE STAGE ==="
+          update_status "BOOTIMAGE_VERIFICATION" "RUNNING" "NONE"
+
+          boot_img_target="$OUT_DIR/target/product/enchilada/boot.img"
+          if [ ! -f "$boot_img_target" ]; then
+            echo "Building bootimage in fresh runner environment..."
+            boot_log="$LOG_DIR/build1-bootimage-autopilot-$(date -u +%Y%m%dT%H%M%SZ).log"
+            set +e
+            m -j8 bootimage 2>&1 | tee "$boot_log"
+            boot_status=${PIPESTATUS[0]}
+            set -e
+
+            if [ "$boot_status" -ne 0 ] || [ ! -f "$boot_img_target" ]; then
+              echo "ERROR: Bootimage build failed with status $boot_status"
+              update_status "BOOTIMAGE" "FAIL" "bootimage compilation error (see $boot_log)"
+              fail_snap="$FAILURE_DIR/bootimage-$(date -u +%Y%m%dT%H%M%SZ)"
+              mkdir -p "$fail_snap"
+              tail -n 200 "$boot_log" > "$fail_snap/error_tail.txt" || true
+              exit 1
+            fi
+          fi
+
+          boot_size=$(stat -c %s "$boot_img_target")
+          boot_sha256=$(sha256sum "$boot_img_target" | cut -d' ' -f1)
+          echo "BOOTIMAGE_PASS verified: $boot_img_target ($boot_size bytes, SHA256: $boot_sha256)"
+          update_status "BOOTIMAGE" "PASS" "NONE"
+
+          cp "$boot_img_target" "$RELEASE_DIR/boot.img" || true
+
+          echo "=== 4. FULL ROM BUILD (m -j8 bacon) ==="
+          update_status "FULL_ROM_BUILD" "RUNNING" "NONE"
+
+          bacon_log="$LOG_DIR/build1-m-bacon-$(date -u +%Y%m%dT%H%M%SZ).log"
+          metrics_log="$LOG_DIR/build1-metrics-$(date -u +%Y%m%dT%H%M%SZ).log"
+
+          (
+            while true; do
+              echo "=== METRIC SNAPSHOT $(date -u +%Y-%m-%dT%H:%M:%SZ) ===" >> "$metrics_log"
+              free -m >> "$metrics_log"
+              df -h /tmp >> "$metrics_log"
+              sleep 180
+            done
+          ) &
+          monitor_pid=$!
+
+          start_epoch=$(date +%s)
+          set +e
+          set -o pipefail
+
+          m -j8 bacon 2>&1 | tee "$bacon_log"
+          bacon_status=${PIPESTATUS[0]}
+          set -e
+          end_epoch=$(date +%s)
+          runtime=$((end_epoch - start_epoch))
+
+          kill "$monitor_pid" 2>/dev/null || true
+
+          echo "=================================================="
+          echo "=== FULL ROM BUILD FINISHED ==="
+          echo "Status: $bacon_status"
+          echo "Wall seconds: ${runtime}s"
+          echo "Log: $bacon_log"
+          echo "=== POST-BUILD HARDWARE & DISK SNAPSHOT ==="
+          free -h
+          df -h /tmp
+          du -sh "$OUT_DIR" || true
+          echo "=================================================="
+
+          if [ "$bacon_status" -ne 0 ]; then
+            echo "Full ROM build failed with exit code $bacon_status"
+            update_status "FULL_ROM_BUILD" "FAIL" "m bacon exited with $bacon_status (see $bacon_log)"
+            fail_snap="$FAILURE_DIR/bacon-$(date -u +%Y%m%dT%H%M%SZ)"
+            mkdir -p "$fail_snap"
+            tail -n 300 "$bacon_log" > "$fail_snap/error_tail.txt" || true
+            exit "$bacon_status"
+          fi
+
+          echo "=== 5. COLLECTING ROM RELEASE ARTIFACTS ==="
+          rom_zips=($OUT_DIR/target/product/enchilada/*.zip)
+          if [ -e "${rom_zips[0]}" ]; then
+            for z in "${rom_zips[@]}"; do
+              if [[ "$z" != *"target_files"* && "$z" != *"ota"* ]]; then
+                echo "Found release zip: $z"
+                cp "$z" "$RELEASE_DIR/"
+              fi
+            done
+
+            cd "$RELEASE_DIR"
+            sha256sum * > SHA256SUMS.txt || true
+            echo "Release artifacts saved to $RELEASE_DIR"
+            ls -lh "$RELEASE_DIR"
+
+            update_status "ROM_BUILD_PASS" "PASS (UNTESTED ON PHYSICAL DEVICE)" "NONE"
+          else
+            echo "Warning: No release zip found in $OUT_DIR/target/product/enchilada/"
+            update_status "FULL_ROM_BUILD" "INCOMPLETE" "No output zip found in target directory"
+          fi
