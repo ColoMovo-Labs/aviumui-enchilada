@@ -30,15 +30,20 @@ jobs:
             python3 python-is-python3 unzip wget zstd tar
 
           git lfs install
-          mkdir -p "$HOME/bin"
+          mkdir -p "$HOME/bin" "$HOME/.depot/bin"
           curl -o "$HOME/bin/repo" \
             https://storage.googleapis.com/git-repo-downloads/repo
           chmod +x "$HOME/bin/repo"
-          echo "$HOME/bin" >> "$GITHUB_PATH"
 
-      - name: Execute Checkpointed Build Marathon Slice
+          curl -L https://depot.dev/install-cli.sh | sh
+          echo "$HOME/bin:$HOME/.depot/bin" >> "$GITHUB_PATH"
+
+      - name: Execute Checkpointed Self-Chaining Build Marathon
         run: |
           set -eo pipefail
+
+          export PATH="$HOME/bin:$HOME/.depot/bin:$PATH"
+          export DEPOT_TOKEN="depot_9649caba5f1fafb0b61772b6f80a9931aedcc331f1b1ee963ae17c6c51148686"
 
           STATUS_DIR="/mnt/avium-cache/status"
           LOG_DIR="/mnt/avium-cache/build-logs"
@@ -51,6 +56,22 @@ jobs:
           mkdir -p "$STATUS_DIR" "$LOG_DIR" "$RELEASE_DIR" "$RELEASE_BOOT_DIR" "$FAILURE_DIR" "$CHECKPOINT_DIR" "$SOURCE_BACKUP_DIR"
 
           STATUS_FILE="$STATUS_DIR/build1-status.txt"
+          CHAIN_STATE_FILE="$STATUS_DIR/marathon-chain-state.txt"
+
+          MAX_GENERATION=8
+
+          # Read current generation from chain state
+          CURRENT_GEN=1
+          if [ -f "$CHAIN_STATE_FILE" ]; then
+            val=$(grep -E "^ACTIVE_GENERATION=" "$CHAIN_STATE_FILE" | cut -d'=' -f2 || true)
+            if [ -n "$val" ] && [ "$val" -ge 1 ] 2>/dev/null; then
+              CURRENT_GEN=$val
+            fi
+          fi
+
+          echo "=================================================="
+          echo "AviumUI Build #1 Marathon Worker (Generation #$CURRENT_GEN / $MAX_GENERATION)"
+          echo "=================================================="
 
           update_status() {
             local stage="$1"
@@ -61,6 +82,7 @@ jobs:
             echo "==================================================" >> "$STATUS_FILE"
             echo "Stage: $stage" >> "$STATUS_FILE"
             echo "Result: $result" >> "$STATUS_FILE"
+            echo "Generation: $CURRENT_GEN" >> "$STATUS_FILE"
             echo "Current run: ${GITHUB_RUN_ID:-marathon-worker}" >> "$STATUS_FILE"
             echo "Last update: $(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$STATUS_FILE"
             echo "Current blocker: $blocker" >> "$STATUS_FILE"
@@ -68,22 +90,29 @@ jobs:
             echo "--- STATUS UPDATED: Stage=$stage, Result=$result, Blocker=$blocker ---"
           }
 
-          echo "=== 1. CHECK PREVIOUS WORKER STATUS ==="
+          # 1. TERMINAL STATE EARLY EXIT CHECK
           if [ -f "$STATUS_FILE" ]; then
+            echo "--- Current Status File Content ---"
             cat "$STATUS_FILE"
             if grep -q "ROM_BUILD_PASS=YES" "$STATUS_FILE" 2>/dev/null || grep -q "ROM_BUILD_PASS" "$STATUS_FILE" 2>/dev/null; then
-              echo "=== FULL ROM BUILD ALREADY SUCCEEDED! Exiting worker gracefully. ==="
+              echo "=== FULL ROM BUILD ALREADY SUCCEEDED! Terminating chain gracefully. ==="
               exit 0
             fi
-            if grep -q "NEXT_STAGE=BLOCKED" "$STATUS_FILE" 2>/dev/null || grep -q "MANUAL_REVIEW_REQUIRED" "$STATUS_FILE" 2>/dev/null; then
-              echo "=== BUILD IN BLOCKED STATE AWAITING MANUAL REVIEW. Exiting worker gracefully. ==="
+            if grep -q "NEXT_STAGE=BLOCKED" "$STATUS_FILE" 2>/dev/null || grep -q "MANUAL_REVIEW_REQUIRED" "$STATUS_FILE" 2>/dev/null || grep -q "FULL_BUILD_BLOCKED_BY_LOCAL_STORAGE" "$STATUS_FILE" 2>/dev/null; then
+              echo "=== BUILD IN BLOCKED STATE AWAITING MANUAL REVIEW. Terminating chain gracefully. ==="
               exit 0
             fi
           fi
 
-          echo "=== 2. BACKUP SOURCE MANIFEST & PATCH LEDGER ==="
+          if [ "$CURRENT_GEN" -gt "$MAX_GENERATION" ]; then
+            echo "=== MAX GENERATION REACHED ($CURRENT_GEN > $MAX_GENERATION). Terminating chain gracefully. ==="
+            update_status "FULL_ROM_BUILD" "MAX_GENERATION_REACHED" "CHAIN_COMPLETED_AT_MAX_GENERATION"
+            exit 0
+          fi
+
+          # 2. SOURCE MANIFEST & PATCH LEDGER BACKUP
+          echo "=== BACKUP SOURCE MANIFEST & PATCH LEDGER ==="
           cd /mnt/avium-cache/android/avium
-          export PATH="$HOME/bin:$PATH"
 
           repo manifest -r > "$SOURCE_BACKUP_DIR/manifest.xml" 2>/dev/null || true
           if [ -f "$SOURCE_BACKUP_DIR/manifest.xml" ]; then
@@ -99,7 +128,8 @@ jobs:
             fi
           done
 
-          echo "=== 3. LOCAL HARDWARE & STORAGE AUDIT ==="
+          # 3. LOCAL HARDWARE & STORAGE AUDIT
+          echo "=== HARDWARE & STORAGE AUDIT ==="
           nproc
           free -h
           df -h /
@@ -124,7 +154,7 @@ jobs:
 
           mkdir -p "$OUT_DIR" "$TMPDIR" "$CCACHE_DIR"
 
-          echo "=== 4. RESTORE OUT CHECKPOINT (IF AVAILABLE) ==="
+          # 4. RESTORE OUT CHECKPOINT (IF AVAILABLE)
           if [ -f "$CHECKPOINT_DIR/latest.tar.zst" ] && [ -f "$CHECKPOINT_DIR/latest.metadata" ]; then
             echo "Found valid checkpoint archive: $CHECKPOINT_DIR/latest.tar.zst"
             cat "$CHECKPOINT_DIR/latest.metadata"
@@ -135,27 +165,33 @@ jobs:
             echo "No previous valid checkpoint found. Starting fresh incremental out."
           fi
 
-          echo "=== 5. LOAD BUILD ENVIRONMENT & TARGET ==="
+          # 5. ENVIRONMENT & TARGET SETUP
           source build/envsetup.sh
           lunch lineage_enchilada-bp4a-userdebug
 
-          echo "=== 6. VERIFY & ARCHIVE BOOTIMAGE ==="
+          # 6. VERIFY BOOTIMAGE
           boot_img_target="$OUT_DIR/target/product/enchilada/boot.img"
           if [ ! -f "$boot_img_target" ]; then
-            echo "Bootimage not present in local out. Building bootimage..."
-            boot_log="$LOG_DIR/build1-bootimage-marathon-$(date -u +%Y%m%dT%H%M%SZ).log"
-            set +e
-            m -j8 bootimage 2>&1 | tee "$boot_log"
-            boot_status=${PIPESTATUS[0]}
-            set -e
+            if [ -f "$RELEASE_BOOT_DIR/boot.img" ]; then
+              echo "Reusing verified boot.img from $RELEASE_BOOT_DIR/boot.img..."
+              mkdir -p "$OUT_DIR/target/product/enchilada"
+              cp "$RELEASE_BOOT_DIR/boot.img" "$boot_img_target"
+            else
+              echo "Bootimage not present in local out or release directory. Building bootimage..."
+              boot_log="$LOG_DIR/build1-bootimage-gen${CURRENT_GEN}-$(date -u +%Y%m%dT%H%M%SZ).log"
+              set +e
+              m -j8 bootimage 2>&1 | tee "$boot_log"
+              boot_status=${PIPESTATUS[0]}
+              set -e
 
-            if [ "$boot_status" -ne 0 ] || [ ! -f "$boot_img_target" ]; then
-              echo "ERROR: Bootimage build failed with status $boot_status"
-              update_status "BOOTIMAGE" "FAIL" "Bootimage build failed (see $boot_log)"
-              fail_snap="$FAILURE_DIR/bootimage-$(date -u +%Y%m%dT%H%M%SZ)"
-              mkdir -p "$fail_snap"
-              tail -n 300 "$boot_log" > "$fail_snap/error_tail.txt" || true
-              exit 1
+              if [ "$boot_status" -ne 0 ] || [ ! -f "$boot_img_target" ]; then
+                echo "ERROR: Bootimage build failed with status $boot_status"
+                update_status "BOOTIMAGE" "FAIL" "Bootimage build failed (see $boot_log)"
+                fail_snap="$FAILURE_DIR/bootimage-$(date -u +%Y%m%dT%H%M%SZ)"
+                mkdir -p "$fail_snap"
+                tail -n 300 "$boot_log" > "$fail_snap/error_tail.txt" || true
+                exit 1
+              fi
             fi
           fi
 
@@ -165,11 +201,31 @@ jobs:
           cp "$boot_img_target" "$RELEASE_BOOT_DIR/boot.img" || true
           echo "$boot_sha256  boot.img" > "$RELEASE_BOOT_DIR/SHA256SUMS.txt" || true
 
-          echo "=== 7. TIME-SLICED FULL ROM BUILD (m -j8 bacon) ==="
+          # 7. IDEMPOTENT SUCCESSOR DISPATCH (Dispatch Generation N+1 before starting build)
+          NEXT_GEN=$((CURRENT_GEN + 1))
+          if [ "$NEXT_GEN" -le "$MAX_GENERATION" ]; then
+            echo "--- DISPATCHING SUCCESSOR (Generation #$NEXT_GEN) TO CONCURRENCY QUEUE ---"
+            set +e
+            dispatch_out=$(depot ci run --org nmnp9tld6l --workflow .depot/workflows/avium-build1-marathon.yml 2>&1)
+            dispatch_exit=$?
+            set -e
+            echo "$dispatch_out"
+            next_run_id=$(echo "$dispatch_out" | grep -E "Run: [a-z0-9]+" | awk '{print $2}' || echo "unknown")
+            echo "ACTIVE_GENERATION=$NEXT_GEN" > "$CHAIN_STATE_FILE"
+            echo "ACTIVE_RUN_ID=${GITHUB_RUN_ID:-unknown}" >> "$CHAIN_STATE_FILE"
+            echo "NEXT_GENERATION=$NEXT_GEN" >> "$CHAIN_STATE_FILE"
+            echo "NEXT_RUN_ID=$next_run_id" >> "$CHAIN_STATE_FILE"
+            echo "MAX_GENERATION=$MAX_GENERATION" >> "$CHAIN_STATE_FILE"
+            echo "Successor Generation #$NEXT_GEN queued successfully (Run ID: $next_run_id)."
+          else
+            echo "Current Generation #$CURRENT_GEN is the final generation ($MAX_GENERATION). No successor needed."
+          fi
+
+          # 8. TIME-SLICED FULL ROM BUILD (m -j8 bacon)
           update_status "FULL_ROM_BUILD" "RUNNING" "NONE"
 
-          bacon_log="$LOG_DIR/build1-m-bacon-$(date -u +%Y%m%dT%H%M%SZ).log"
-          metrics_log="$LOG_DIR/build1-metrics-$(date -u +%Y%m%dT%H%M%SZ).log"
+          bacon_log="$LOG_DIR/build1-m-bacon-gen${CURRENT_GEN}-$(date -u +%Y%m%dT%H%M%SZ).log"
+          metrics_log="$LOG_DIR/build1-metrics-gen${CURRENT_GEN}-$(date -u +%Y%m%dT%H%M%SZ).log"
 
           (
             while true; do
@@ -222,6 +278,7 @@ jobs:
           echo "Log: $bacon_log"
           echo "=================================================="
 
+          # 9. HANDLE TIME-SLICE CHECKPOINTING
           if [ "$timed_out" -eq 1 ]; then
             echo "=== CREATING OUT CHECKPOINT FOR RESUME ==="
             cp_stamp=$(date -u +%Y%m%dT%H%M%SZ)
@@ -240,6 +297,7 @@ jobs:
 
             echo "Target: lineage_enchilada-bp4a-userdebug" > "$cp_meta"
             echo "Created: $cp_stamp" >> "$cp_meta"
+            echo "Generation: $CURRENT_GEN" >> "$cp_meta"
             echo "ArchiveSize: $arch_size" >> "$cp_meta"
             echo "SHA256: $arch_sha256" >> "$cp_meta"
             echo "Stage: BACON_SLICE_COMPLETE" >> "$cp_meta"
@@ -250,16 +308,18 @@ jobs:
             exit 0
           fi
 
+          # 10. HANDLE SOURCE / COMPILATION BLOCKERS
           if [ "$bacon_status" -ne 0 ]; then
             echo "ERROR: Full ROM build failed with exit code $bacon_status"
             update_status "FULL_ROM_BUILD" "FAIL" "m bacon exited with $bacon_status (see $bacon_log)"
-            fail_snap="$FAILURE_DIR/bacon-$(date -u +%Y%m%dT%H%M%SZ)"
+            fail_snap="$FAILURE_DIR/bacon-gen${CURRENT_GEN}-$(date -u +%Y%m%dT%H%M%SZ)"
             mkdir -p "$fail_snap"
             tail -n 300 "$bacon_log" > "$fail_snap/error_tail.txt" || true
             exit "$bacon_status"
           fi
 
-          echo "=== 8. COLLECTING RELEASE ARTIFACTS ==="
+          # 11. COLLECTING ROM RELEASE ARTIFACTS
+          echo "=== COLLECTING RELEASE ARTIFACTS ==="
           rom_zips=( $OUT_DIR/target/product/enchilada/*.zip )
           if [ -e "${rom_zips[0]}" ]; then
             for z in "${rom_zips[@]}"; do
@@ -289,6 +349,7 @@ jobs:
             echo "ROM_BUILD_PASS=YES" >> "$STATUS_FILE"
             echo "PHYSICAL_TEST=NOT_PERFORMED" >> "$STATUS_FILE"
             echo "BUILD SUCCEEDED UNTESTED ON PHYSICAL DEVICE" >> "$STATUS_FILE"
+            echo "Generation: $CURRENT_GEN" >> "$STATUS_FILE"
             echo "Last update: $(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$STATUS_FILE"
             echo "Current blocker: NONE" >> "$STATUS_FILE"
             echo "==================================================" >> "$STATUS_FILE"
