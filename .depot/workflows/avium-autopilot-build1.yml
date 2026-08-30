@@ -53,17 +53,15 @@ jobs:
             local stage="$1"
             local result="$2"
             local blocker="${3:-NONE}"
-            cat << S_EOF > "$STATUS_FILE"
-==================================================
-AviumUI 16.2.1 / enchilada Build #1 Status
-==================================================
-Stage: $stage
-Result: $result
-Current run: ${GITHUB_RUN_ID:-autopilot-run}
-Last update: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
-Current blocker: $blocker
-==================================================
-S_EOF
+            echo "==================================================" > "$STATUS_FILE"
+            echo "AviumUI 16.2.1 / enchilada Build #1 Status" >> "$STATUS_FILE"
+            echo "==================================================" >> "$STATUS_FILE"
+            echo "Stage: $stage" >> "$STATUS_FILE"
+            echo "Result: $result" >> "$STATUS_FILE"
+            echo "Current run: ${GITHUB_RUN_ID:-autopilot-run}" >> "$STATUS_FILE"
+            echo "Last update: $(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$STATUS_FILE"
+            echo "Current blocker: $blocker" >> "$STATUS_FILE"
+            echo "==================================================" >> "$STATUS_FILE"
             echo "--- STATUS UPDATED: Stage=$stage, Result=$result ---"
           }
 
@@ -138,7 +136,7 @@ S_EOF
 
           (
             while true; do
-              echo "=== METRIC SNAPSHOT $(date -u +%Y-%m-%dT%H:%M:%SZ) ===" >> "$metrics_log"
+              echo "=== METRIC SNAPSHOT $(date -u +'%Y-%m-%dT%H:%M:%SZ') ===" >> "$metrics_log"
               free -m >> "$metrics_log"
               df -h /tmp >> "$metrics_log"
               sleep 180
@@ -179,7 +177,7 @@ S_EOF
           fi
 
           echo "=== 5. COLLECTING ROM RELEASE ARTIFACTS ==="
-          rom_zips=($OUT_DIR/target/product/enchilada/*.zip)
+          rom_zips=( $OUT_DIR/target/product/enchilada/*.zip )
           if [ -e "${rom_zips[0]}" ]; then
             for z in "${rom_zips[@]}"; do
               if [[ "$z" != *"target_files"* && "$z" != *"ota"* ]]; then
