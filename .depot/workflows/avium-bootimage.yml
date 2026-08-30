@@ -1,0 +1,123 @@
+name: AviumUI First Bootimage Build
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: avium-enchilada-persistent-workspace
+  cancel-in-progress: false
+
+jobs:
+  bootimage:
+    runs-on: depot-ubuntu-24.04-16
+
+    steps:
+      - name: Mount persistent Android workspace
+        uses: depot/cache-mount@v1
+        with:
+          name: aviumui-aosp-workspace
+          path: /mnt/avium-cache
+
+      - name: Prepare build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc bison build-essential ccache curl flex g++-multilib \
+            gcc-multilib git git-lfs gnupg gperf imagemagick \
+            lib32readline-dev lib32z1-dev libelf-dev liblz4-tool \
+            libssl-dev libxml2 libxml2-utils lzop pngcrush \
+            rsync schedtool squashfs-tools xsltproc zip zlib1g-dev \
+            python3 python-is-python3 unzip wget
+
+          git lfs install
+          mkdir -p "$HOME/bin"
+          curl -o "$HOME/bin/repo" \
+            https://storage.googleapis.com/git-repo-downloads/repo
+          chmod +x "$HOME/bin/repo"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Verify storage and source prerequisites
+        run: |
+          echo "=== RUNNER HARDWARE & RESOURCES ==="
+          nproc
+          free -h
+          df -h /
+          df -h /tmp
+          echo "=== PERSISTENT CACHE ==="
+          df -h /mnt/avium-cache
+          test -d /mnt/avium-cache/android/avium/.repo
+          test -f /mnt/avium-cache/android/avium/build/envsetup.sh
+
+      - name: Build bootimage
+        run: |
+          export OUT_DIR=/tmp/avium-out
+          export TMPDIR=/tmp/avium-tmp
+          export CCACHE_DIR=/tmp/avium-ccache
+          export USE_CCACHE=1
+          export CCACHE_EXEC=/usr/bin/ccache
+          export BUILD_LOG_DIR=/mnt/avium-cache/build-logs
+          export PATH="$HOME/bin:$PATH"
+          mkdir -p "$OUT_DIR" "$TMPDIR" "$CCACHE_DIR" "$BUILD_LOG_DIR"
+
+          cd /mnt/avium-cache/android/avium
+          source build/envsetup.sh
+          lunch lineage_enchilada-bp4a-userdebug
+
+          echo "=== VERIFY TARGET ENVIRONMENT VARIABLES ==="
+          echo "TARGET_PRODUCT=$TARGET_PRODUCT"
+          echo "TARGET_BUILD_VARIANT=$TARGET_BUILD_VARIANT"
+          device_val=$(get_build_var TARGET_DEVICE)
+          arch_val=$(get_build_var TARGET_ARCH)
+          echo "TARGET_DEVICE=$device_val"
+          echo "TARGET_ARCH=$arch_val"
+          echo "OUT_DIR=$OUT_DIR"
+          echo "TMPDIR=$TMPDIR"
+
+          test "$TARGET_PRODUCT" = "lineage_enchilada"
+          test "$TARGET_BUILD_VARIANT" = "userdebug"
+          test "$device_val" = "enchilada"
+          test "$arch_val" = "arm64"
+          test "$OUT_DIR" = "/tmp/avium-out"
+          test "$TMPDIR" = "/tmp/avium-tmp"
+
+          timestamp=$(date -u +%Y%m%dT%H%M%SZ)
+          log_file="$BUILD_LOG_DIR/build1-bootimage-$timestamp.log"
+          echo "=== EXECUTING m -j8 bootimage ==="
+          echo "Log file: $log_file"
+
+          start_epoch=$(date +%s)
+          set +e
+          set -o pipefail
+
+          m -j8 bootimage 2>&1 | tee "$log_file"
+          build_status=${PIPESTATUS[0]}
+          set -e
+          end_epoch=$(date +%s)
+          runtime=$((end_epoch - start_epoch))
+
+          echo "=================================================="
+          echo "=== BOOTIMAGE BUILD RESULT ==="
+          echo "Exit status: $build_status"
+          echo "Wall seconds: ${runtime}s"
+          echo "Log path: $log_file"
+          echo "=== POST-BUILD RESOURCES ==="
+          free -h
+          df -h /
+          df -h /tmp
+          du -sh "$OUT_DIR" || true
+
+          if [ "$build_status" -eq 0 ]; then
+            boot_img="$OUT_DIR/target/product/enchilada/boot.img"
+            if [ -f "$boot_img" ]; then
+              echo "=== BOOTIMAGE ARTIFACT VERIFICATION ==="
+              echo "BOOT_IMG_PATH: $boot_img"
+              echo "BOOT_IMG_SIZE: $(stat -c %s "$boot_img") bytes ($(du -h "$boot_img" | cut -f1))"
+              echo "BOOT_IMG_SHA256: $(sha256sum "$boot_img" | cut -d' ' -f1)"
+              echo "BOOTIMAGE_VERIFICATION: PASS"
+            else
+              echo "ERROR: boot.img not found at $boot_img despite exit 0!"
+              build_status=1
+            fi
+          fi
+          echo "=================================================="
+          exit "$build_status"
