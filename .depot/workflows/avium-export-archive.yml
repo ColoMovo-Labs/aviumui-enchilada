@@ -1,0 +1,56 @@
+name: AviumUI Build1 Export Archive
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: avium-enchilada-persistent-workspace
+  cancel-in-progress: false
+
+jobs:
+  export:
+    runs-on: depot-ubuntu-24.04-16
+
+    steps:
+      - name: Mount persistent Android workspace
+        uses: depot/cache-mount@v1
+        with:
+          name: aviumui-aosp-workspace
+          path: /mnt/avium-cache
+
+      - name: Export archive and pinned manifest
+        run: |
+          set -eo pipefail
+          echo "=== 1. VERIFY PERSISTENT VOLUME FILES ==="
+          ls -la /mnt/avium-cache/evacuation/
+          ls -la /mnt/avium-cache/evacuation/build1/manifest/
+
+          EXPORT_DIR="$HOME/export"
+          mkdir -p "$EXPORT_DIR"
+
+          cp /mnt/avium-cache/evacuation/build1/manifest/build1-pinned-manifest.xml "$EXPORT_DIR/"
+          cp /mnt/avium-cache/evacuation/avium-build1-portable-state-20260904T140757Z.tar.zst "$EXPORT_DIR/"
+
+          echo "=== 2. VERIFY SHA256 CHECKSUMS ==="
+          sha256sum "$EXPORT_DIR"/build1-pinned-manifest.xml
+          sha256sum "$EXPORT_DIR"/avium-build1-portable-state-20260904T140757Z.tar.zst
+
+          echo "=== 3. OUTPUT BASE64 FOR RELIABLE EXTRACTION ==="
+          echo "--- BEGIN PINNED MANIFEST BASE64 ---"
+          base64 -w 0 "$EXPORT_DIR/build1-pinned-manifest.xml"
+          echo ""
+          echo "--- END PINNED MANIFEST BASE64 ---"
+
+          echo "--- BEGIN ARCHIVE BASE64 ---"
+          base64 -w 0 "$EXPORT_DIR/avium-build1-portable-state-20260904T140757Z.tar.zst"
+          echo ""
+          echo "--- END ARCHIVE BASE64 ---"
+
+      - name: Upload Artifacts to Depot CI
+        uses: actions/upload-artifact@v4
+        with:
+          name: build1-portable-archive
+          path: |
+            ~/export/build1-pinned-manifest.xml
+            ~/export/avium-build1-portable-state-20260904T140757Z.tar.zst
+          if-no-files-found: warn
