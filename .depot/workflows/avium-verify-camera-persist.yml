@@ -1,0 +1,167 @@
+name: AviumUI Verify Camera Persist Type
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: avium-enchilada-persistent-workspace
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: depot-ubuntu-24.04-16
+
+    steps:
+      - name: Mount persistent Android workspace
+        uses: depot/cache-mount@v1
+        with:
+          name: aviumui-aosp-workspace
+          path: /mnt/avium-cache
+
+      - name: Prepare build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc bison build-essential ccache curl flex g++-multilib \
+            gcc-multilib git git-lfs gnupg gperf imagemagick \
+            lib32readline-dev lib32z1-dev libelf-dev liblz4-tool \
+            libssl-dev libxml2 libxml2-utils lzop pngcrush \
+            rsync schedtool squashfs-tools xsltproc zip zlib1g-dev \
+            python3 python-is-python3 unzip wget zstd tar ripgrep
+
+          git lfs install
+          mkdir -p "$HOME/bin" "$HOME/.depot/bin"
+          curl -o "$HOME/bin/repo" \
+            https://storage.googleapis.com/git-repo-downloads/repo
+          chmod +x "$HOME/bin/repo"
+
+          curl -L https://depot.dev/install-cli.sh | sh
+          echo "$HOME/bin:$HOME/.depot/bin" >> "$GITHUB_PATH"
+
+      - name: Execute Fix, Commit, and Incremental Verification
+        shell: bash
+        run: |
+          set -eo pipefail
+
+          export PATH="$HOME/bin:$HOME/.depot/bin:$PATH"
+
+          STATUS_DIR="/mnt/avium-cache/status"
+          LOG_DIR="/mnt/avium-cache/build-logs"
+          RELEASE_DIR="/mnt/avium-cache/releases/build1"
+          RELEASE_BOOT_DIR="$RELEASE_DIR/bootimage"
+          FAILURE_DIR="/mnt/avium-cache/build-failures"
+          CHECKPOINT_DIR="/mnt/avium-cache/checkpoints/out"
+
+          mkdir -p "$STATUS_DIR" "$LOG_DIR" "$RELEASE_DIR" "$RELEASE_BOOT_DIR" "$FAILURE_DIR" "$CHECKPOINT_DIR"
+
+          SOURCE_ROOT="/mnt/avium-cache/android/avium"
+          TARGET_REPO="$SOURCE_ROOT/device/oneplus/sdm845-common"
+          cd "$TARGET_REPO"
+
+          echo "=================================================="
+          echo "=== STEP 1: PRE-MODIFICATION AUDIT ==="
+          echo "=================================================="
+          git config user.name "ColoMovo"
+          git config user.email "lolojicoco@outlook.com"
+          git status
+          git diff
+          echo "--- RECENT COMMITS ---"
+          git log -n 5 --oneline
+
+          echo "=================================================="
+          echo "=== STEP 2: APPLY CAMERA PERSIST FIX ==="
+          echo "=================================================="
+          # hal_camera_default.te
+          # vendor_persist_file -> persist_file
+          sed -i 's/vendor_persist_file/persist_file/g' sepolicy/vendor/hal_camera_default.te
+
+          echo "=================================================="
+          echo "=== STEP 3: VERIFY DIFF AND CHECK ==="
+          echo "=================================================="
+          git diff --check sepolicy/vendor/hal_camera_default.te
+          git diff sepolicy/vendor/hal_camera_default.te
+          rg -n 'vendor_persist_file' sepolicy/vendor/hal_camera_default.te || echo "CLEAN: vendor_persist_file eliminated from hal_camera_default.te!"
+
+          echo "=================================================="
+          echo "=== STEP 4: GIT COMMIT CAMERA PERSIST FIX ==="
+          echo "=================================================="
+          git add sepolicy/vendor/hal_camera_default.te
+          git commit -m "sdm845-common: sepolicy: fix camera persist type"
+          COMMIT_SHA=$(git rev-parse HEAD)
+          echo "COMMIT_CAMERA_PERSIST_SHA=$COMMIT_SHA"
+          git show --stat -p "$COMMIT_SHA"
+
+          echo "=================================================="
+          echo "=== STEP 5: SETUP OUT & RESTORE CHECKPOINT ==="
+          echo "=================================================="
+          cd "$SOURCE_ROOT"
+
+          export OUT_DIR=/tmp/avium-out
+          export TMPDIR=/tmp/avium-tmp
+          export CCACHE_DIR=/tmp/avium-ccache
+          export USE_CCACHE=1
+          export CCACHE_EXEC=/usr/bin/ccache
+
+          mkdir -p "$OUT_DIR" "$TMPDIR" "$CCACHE_DIR"
+
+          if [ -f "$CHECKPOINT_DIR/latest.tar.zst" ]; then
+            echo "Found checkpoint archive: $CHECKPOINT_DIR/latest.tar.zst"
+            if [ -f "$CHECKPOINT_DIR/latest.metadata" ]; then
+              cat "$CHECKPOINT_DIR/latest.metadata"
+            fi
+            echo "Extracting checkpoint to $OUT_DIR..."
+            tar --zstd -xf "$CHECKPOINT_DIR/latest.tar.zst" -C "$OUT_DIR" || true
+            echo "Checkpoint extracted. Logical size: $(du -sh "$OUT_DIR" 2>/dev/null | cut -f1)"
+          else
+            echo "No prior latest.tar.zst found in $CHECKPOINT_DIR."
+          fi
+
+          echo "=================================================="
+          echo "=== STEP 6: SETUP BUILD ENVIRONMENT ==="
+          echo "=================================================="
+          source build/envsetup.sh
+          lunch lineage_enchilada-bp4a-userdebug
+
+          echo "=================================================="
+          echo "=== STEP 7: INCREMENTAL RECOVERY SEPOLICY VALIDATION ==="
+          echo "=================================================="
+          cil_log="$LOG_DIR/build1-recovery-sepolicy-cil-$(date -u +%Y%m%dT%H%M%SZ).log"
+          set +e
+          m -j8 recovery_sepolicy.cil 2>&1 | tee "$cil_log"
+          cil_status=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$cil_status" -ne 0 ]; then
+            echo "FAILED: recovery_sepolicy.cil build failed with exit status $cil_status"
+            echo "=== EXTRACTING FIRST BLOCKER ==="
+            grep -E "ERROR '(unknown type|permission)'|checkpolicy:.*error" "$cil_log" | head -n 20 || true
+            tail -n 60 "$cil_log"
+            exit "$cil_status"
+          fi
+
+          echo "FIX_VERIFIED: recovery_sepolicy.cil checkpolicy passed with exit status 0!"
+
+          echo "=================================================="
+          echo "=== STEP 8: BUILD BOOTIMAGE TARGET ==="
+          echo "=================================================="
+          boot_img_target="$OUT_DIR/target/product/enchilada/boot.img"
+          boot_log="$LOG_DIR/build1-bootimage-verify-$(date -u +%Y%m%dT%H%M%SZ).log"
+          set +e
+          m -j8 bootimage 2>&1 | tee "$boot_log"
+          boot_status=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$boot_status" -ne 0 ] || [ ! -f "$boot_img_target" ]; then
+            echo "WARNING: Bootimage build stopped with status $boot_status"
+            echo "=== EXTRACTING FIRST BLOCKER ==="
+            grep -E "ERROR '(unknown type|permission)'|ninja: build stopped" "$boot_log" | head -n 20 || true
+            tail -n 60 "$boot_log"
+            exit "$boot_status"
+          fi
+
+          boot_size=$(stat -c %s "$boot_img_target")
+          boot_sha256=$(sha256sum "$boot_img_target" | cut -d' ' -f1)
+          echo "BOOTIMAGE_PASS: $boot_img_target ($boot_size bytes, SHA256: $boot_sha256)"
+          cp "$boot_img_target" "$RELEASE_BOOT_DIR/boot.img" || true
+          echo "$boot_sha256  boot.img" > "$RELEASE_BOOT_DIR/SHA256SUMS.txt" || true
+          echo "BOOTIMAGE_BUILD_PASS=YES"
