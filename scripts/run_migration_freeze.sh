@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
-export PATH="/root/bin:/root/.depot/bin:/root/.gemini/antigravity-cli/bin:/home/colomovo/.depot/bin:/home/colomovo/.local/bin:/home/colomovo/.local/bin:/home/colomovo/.depot/bin:/home/colomovo/.local/bin:/home/colomovo/.local/bin:/home/colomovo/bin:/usr/local/bin:/usr/bin"
+export PATH="$HOME/bin:$HOME/.depot/bin:$PATH"
 SOURCE_ROOT="/mnt/avium-cache/android/avium"
 EVAC_ROOT="/mnt/avium-cache/evacuation"
-BUNDLE_DIR="/build1"
+BUNDLE_DIR="$EVAC_ROOT/build1"
 
-rm -rf ""
-mkdir -p ""/{manifest,local_manifests,patches,repo-ledger,workflows,status,reports,log-index,artifacts,checkpoints}
+rm -rf "$BUNDLE_DIR"
+mkdir -p "$BUNDLE_DIR"/{manifest,local_manifests,patches,repo-ledger,workflows,status,reports,log-index,artifacts,checkpoints}
 
 echo "=================================================="
 echo "=== 1. AUDIT & RESOLVE DEVICE COMMON DIVERGENCE ==="
 echo "=================================================="
-TARGET_DEVICE_DIR="/device/oneplus/sdm845-common"
-cd ""
+TARGET_DEVICE_DIR="$SOURCE_ROOT/device/oneplus/sdm845-common"
+cd "$TARGET_DEVICE_DIR"
 
 echo "--- DEPOT WORKING TREE STATUS ---"
 git status --short
@@ -37,7 +37,8 @@ DEPOT_HEAD=$(git rev-parse HEAD)
 echo "DEPOT_HEAD: $DEPOT_HEAD"
 
 echo "--- FETCH GITHUB CANONICAL BRANCH ---"
-git remote add colomovo https://github.com/ColoMovo-Labs/android_device_oneplus_sdm845-common.git 2>/dev/null ||   git remote set-url colomovo https://github.com/ColoMovo-Labs/android_device_oneplus_sdm845-common.git
+git remote add colomovo https://github.com/ColoMovo-Labs/android_device_oneplus_sdm845-common.git 2>/dev/null || \
+  git remote set-url colomovo https://github.com/ColoMovo-Labs/android_device_oneplus_sdm845-common.git
 git fetch colomovo avium-16.2-build1
 
 GITHUB_HEAD=$(git rev-parse colomovo/avium-16.2-build1)
@@ -88,8 +89,8 @@ cat "$REP_FILE"
 echo "=================================================="
 echo "=== 2. AUDIT VENDOR REPOSITORY ==="
 echo "=================================================="
-TARGET_VENDOR_DIR="/vendor/oneplus/sdm845-common"
-cd ""
+TARGET_VENDOR_DIR="$SOURCE_ROOT/vendor/oneplus/sdm845-common"
+cd "$TARGET_VENDOR_DIR"
 git status --short
 git remote -v
 VENDOR_HEAD=$(git rev-parse HEAD)
@@ -99,7 +100,7 @@ git log -n 5 --oneline
 echo "=================================================="
 echo "=== 3. PINNED MANIFEST GENERATION ==="
 echo "=================================================="
-cd ""
+cd "$SOURCE_ROOT"
 
 repo manifest -r > "$BUNDLE_DIR/manifest/build1-pinned-manifest.xml"
 sha256sum "$BUNDLE_DIR/manifest/build1-pinned-manifest.xml" | tee "$BUNDLE_DIR/manifest/build1-pinned-manifest.xml.sha256"
@@ -116,16 +117,14 @@ fi
 echo "=================================================="
 echo "=== 5. GLOBAL REPOSITORY INVENTORY (all-project-heads.tsv) ==="
 echo "=================================================="
-printf "PATH	PROJECT	REMOTE	REVISION	HEAD	DIRTY
-" > "$BUNDLE_DIR/repo-ledger/all-project-heads.tsv"
+printf "PATH\tPROJECT\tREMOTE\tREVISION\tHEAD\tDIRTY\n" > "$BUNDLE_DIR/repo-ledger/all-project-heads.tsv"
 
 repo forall -c '
   DIRTY_FLAG="CLEAN"
   if ! git diff --quiet || ! git diff --cached --quiet || test -n "$(git status --porcelain)"; then
     DIRTY_FLAG="DIRTY"
   fi
-  printf "%s	%s	%s	%s	%s	%s
-" "$REPO_PATH" "$REPO_PROJECT" "$REPO_REMOTE" "$REPO_RREV" "$(git rev-parse HEAD)" "$DIRTY_FLAG"
+  printf "%s\t%s\t%s\t%s\t%s\t%s\n" "$REPO_PATH" "$REPO_PROJECT" "$REPO_REMOTE" "$REPO_RREV" "$(git rev-parse HEAD)" "$DIRTY_FLAG"
 ' >> "$BUNDLE_DIR/repo-ledger/all-project-heads.tsv"
 
 echo "Total projects audited: $(wc -l < "$BUNDLE_DIR/repo-ledger/all-project-heads.tsv")"
@@ -135,12 +134,12 @@ grep "DIRTY$" "$BUNDLE_DIR/repo-ledger/all-project-heads.tsv" | tee "$BUNDLE_DIR
 echo "=================================================="
 echo "=== 6. PERSIST BINARY DIFFS & PATCHES ==="
 echo "=================================================="
-while IFS=$'	' read -r r_path r_project r_remote r_rrev r_head r_dirty; do
+while IFS=$'\t' read -r r_path r_project r_remote r_rrev r_head r_dirty; do
   if [ "$r_dirty" = "DIRTY" ]; then
     safe_path=$(echo "$r_path" | tr '/' '_')
     patch_dir="$BUNDLE_DIR/patches/$safe_path"
     mkdir -p "$patch_dir"
-    cd "/$r_path"
+    cd "$SOURCE_ROOT/$r_path"
     git diff --binary > "$patch_dir/worktree.diff" || true
     git diff --cached --binary > "$patch_dir/index.diff" || true
     git status --porcelain > "$patch_dir/status.txt" || true
@@ -148,14 +147,14 @@ while IFS=$'	' read -r r_path r_project r_remote r_rrev r_head r_dirty; do
   fi
 done < <(grep "DIRTY$" "$BUNDLE_DIR/repo-ledger/all-project-heads.tsv" || true)
 
-cd ""
+cd "$TARGET_DEVICE_DIR"
 mkdir -p "$BUNDLE_DIR/patches/device_oneplus_sdm845-common/commits"
 git format-patch -5 -o "$BUNDLE_DIR/patches/device_oneplus_sdm845-common/commits" || true
 
 echo "=================================================="
 echo "=== 7. OUT CHECKPOINT AUDIT ==="
 echo "=================================================="
-cd ""
+cd "$SOURCE_ROOT"
 CHECKPOINT_FILE="/mnt/avium-cache/checkpoints/out/latest.tar.zst"
 CHECKPOINT_META="/mnt/avium-cache/checkpoints/out/latest.metadata"
 if [ -f "$CHECKPOINT_FILE" ]; then
@@ -175,8 +174,7 @@ fi
 echo "=================================================="
 echo "=== 8. INDEX BUILD LOGS ==="
 echo "=================================================="
-printf "LOG	STAGE	STATUS	SIZE	SHA256
-" > "$BUNDLE_DIR/log-index/index.tsv"
+printf "LOG\tSTAGE\tSTATUS\tSIZE\tSHA256\n" > "$BUNDLE_DIR/log-index/index.tsv"
 if [ -d /mnt/avium-cache/build-logs ]; then
   for logfile in /mnt/avium-cache/build-logs/*.log; do
     if [ -f "$logfile" ]; then
@@ -198,8 +196,7 @@ if [ -d /mnt/avium-cache/build-logs ]; then
       elif [[ "$fname" == *"kernel"* ]]; then
         fstage="kernel"
       fi
-      printf "%s	%s	%s	%s	%s
-" "$fname" "$fstage" "$fstatus" "$fsize" "$fsha" >> "$BUNDLE_DIR/log-index/index.tsv"
+      printf "%s\t%s\t%s\t%s\t%s\n" "$fname" "$fstage" "$fstatus" "$fsize" "$fsha" >> "$BUNDLE_DIR/log-index/index.tsv"
     fi
   done
 fi
@@ -225,7 +222,7 @@ echo "=================================================="
 echo "=== 10. PACKAGE PORTABLE STATE ARCHIVE ==="
 echo "=================================================="
 ARCH_NAME="avium-build1-portable-state-$(date -u +%Y%m%dT%H%M%SZ).tar.zst"
-cd ""
+cd "$EVAC_ROOT"
 sync
 sleep 2
 set +e
