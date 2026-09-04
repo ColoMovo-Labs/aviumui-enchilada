@@ -1,0 +1,243 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+export PATH="/root/bin:/root/.depot/bin:/root/.gemini/antigravity-cli/bin:/home/colomovo/.depot/bin:/home/colomovo/.local/bin:/home/colomovo/.local/bin:/home/colomovo/.depot/bin:/home/colomovo/.local/bin:/home/colomovo/.local/bin:/home/colomovo/bin:/usr/local/bin:/usr/bin"
+SOURCE_ROOT="/mnt/avium-cache/android/avium"
+EVAC_ROOT="/mnt/avium-cache/evacuation"
+BUNDLE_DIR="/build1"
+
+rm -rf ""
+mkdir -p ""/{manifest,local_manifests,patches,repo-ledger,workflows,status,reports,log-index,artifacts,checkpoints}
+
+echo "=================================================="
+echo "=== 1. AUDIT & RESOLVE DEVICE COMMON DIVERGENCE ==="
+echo "=================================================="
+TARGET_DEVICE_DIR="/device/oneplus/sdm845-common"
+cd ""
+
+echo "--- DEPOT WORKING TREE STATUS ---"
+git status --short
+DEPOT_STATUS=$(git status --porcelain)
+if [ -z "$DEPOT_STATUS" ]; then
+  DEPOT_DIRTY="NO"
+else
+  DEPOT_DIRTY="YES"
+fi
+
+echo "--- DEPOT BRANCHES ---"
+git branch -vv
+
+echo "--- DEPOT REMOTES ---"
+git remote -v
+
+echo "--- DEPOT RECENT 20 COMMITS ---"
+git log --oneline --decorate -20
+
+DEPOT_HEAD=$(git rev-parse HEAD)
+echo "DEPOT_HEAD: $DEPOT_HEAD"
+
+echo "--- FETCH GITHUB CANONICAL BRANCH ---"
+git remote add colomovo https://github.com/ColoMovo-Labs/android_device_oneplus_sdm845-common.git 2>/dev/null ||   git remote set-url colomovo https://github.com/ColoMovo-Labs/android_device_oneplus_sdm845-common.git
+git fetch colomovo avium-16.2-build1
+
+GITHUB_HEAD=$(git rev-parse colomovo/avium-16.2-build1)
+echo "GITHUB_HEAD: $GITHUB_HEAD"
+
+echo "--- DIVERGENCE COMPARISON GRAPH ---"
+git log --left-right --graph --oneline "$GITHUB_HEAD...$DEPOT_HEAD" || true
+
+echo "--- COMMITS ONLY ON GITHUB ---"
+git log --oneline "$DEPOT_HEAD..$GITHUB_HEAD" || true
+
+echo "--- COMMITS ONLY ON DEPOT ---"
+git log --oneline "$GITHUB_HEAD..$DEPOT_HEAD" || true
+
+echo "--- TREE CONTENT DIFF BETWEEN GITHUB HEAD AND DEPOT HEAD ---"
+DIFF_OUT=$(git diff "$GITHUB_HEAD" "$DEPOT_HEAD")
+if [ -z "$DIFF_OUT" ]; then
+  echo "IDENTICAL_TREE: The code trees of GitHub HEAD and Depot HEAD are 100% IDENTICAL!"
+  ALL_MODS_ON_GITHUB="YES"
+else
+  echo "DIFFERENCE DETECTED between GitHub HEAD and Depot HEAD:"
+  echo "$DIFF_OUT"
+  ALL_MODS_ON_GITHUB="NO"
+fi
+
+echo "--- SYNCHRONIZE DEPOT REPO TO GITHUB CANONICAL HEAD ---"
+git checkout -B avium-16.2-build1 "$GITHUB_HEAD"
+git reset --hard "$GITHUB_HEAD"
+FINAL_DEVICE_HEAD=$(git rev-parse HEAD)
+echo "FINAL_DEVICE_HEAD: $FINAL_DEVICE_HEAD"
+
+REP_FILE="$BUNDLE_DIR/reports/DEPOT_DEVICE_TREE_DIVERGENCE_REPORT.txt"
+echo "==================================================" > "$REP_FILE"
+echo "DEPOT_DEVICE_TREE_DIVERGENCE_REPORT" >> "$REP_FILE"
+echo "==================================================" >> "$REP_FILE"
+echo "GitHub HEAD: $GITHUB_HEAD" >> "$REP_FILE"
+echo "Depot HEAD (pre-sync): $DEPOT_HEAD" >> "$REP_FILE"
+echo "Depot HEAD (post-sync): $FINAL_DEVICE_HEAD" >> "$REP_FILE"
+echo "Working tree dirty: $DEPOT_DIRTY" >> "$REP_FILE"
+echo "Does GitHub contain every verified Build #1 modification: $ALL_MODS_ON_GITHUB" >> "$REP_FILE"
+if [ -z "$DIFF_OUT" ]; then
+  echo "Tree difference: NONE (100% identical tree)" >> "$REP_FILE"
+else
+  echo "Tree difference: DIVERGENT" >> "$REP_FILE"
+fi
+cat "$REP_FILE"
+
+echo "=================================================="
+echo "=== 2. AUDIT VENDOR REPOSITORY ==="
+echo "=================================================="
+TARGET_VENDOR_DIR="/vendor/oneplus/sdm845-common"
+cd ""
+git status --short
+git remote -v
+VENDOR_HEAD=$(git rev-parse HEAD)
+echo "DEPOT_VENDOR_HEAD: $VENDOR_HEAD"
+git log -n 5 --oneline
+
+echo "=================================================="
+echo "=== 3. PINNED MANIFEST GENERATION ==="
+echo "=================================================="
+cd ""
+
+repo manifest -r > "$BUNDLE_DIR/manifest/build1-pinned-manifest.xml"
+sha256sum "$BUNDLE_DIR/manifest/build1-pinned-manifest.xml" | tee "$BUNDLE_DIR/manifest/build1-pinned-manifest.xml.sha256"
+PINNED_SHA=$(cat "$BUNDLE_DIR/manifest/build1-pinned-manifest.xml.sha256" | cut -d' ' -f1)
+echo "PINNED_MANIFEST_SHA: $PINNED_SHA"
+
+echo "=================================================="
+echo "=== 4. ARCHIVE LOCAL MANIFESTS ==="
+echo "=================================================="
+if [ -d .repo/local_manifests ]; then
+  cp -rf .repo/local_manifests/*.xml "$BUNDLE_DIR/local_manifests/" 2>/dev/null || true
+fi
+
+echo "=================================================="
+echo "=== 5. GLOBAL REPOSITORY INVENTORY (all-project-heads.tsv) ==="
+echo "=================================================="
+printf "PATH	PROJECT	REMOTE	REVISION	HEAD	DIRTY
+" > "$BUNDLE_DIR/repo-ledger/all-project-heads.tsv"
+
+repo forall -c '
+  DIRTY_FLAG="CLEAN"
+  if ! git diff --quiet || ! git diff --cached --quiet || test -n "$(git status --porcelain)"; then
+    DIRTY_FLAG="DIRTY"
+  fi
+  printf "%s	%s	%s	%s	%s	%s
+" "$REPO_PATH" "$REPO_PROJECT" "$REPO_REMOTE" "$REPO_RREV" "$(git rev-parse HEAD)" "$DIRTY_FLAG"
+' >> "$BUNDLE_DIR/repo-ledger/all-project-heads.tsv"
+
+echo "Total projects audited: $(wc -l < "$BUNDLE_DIR/repo-ledger/all-project-heads.tsv")"
+echo "--- DIRTY REPOSITORIES ---"
+grep "DIRTY$" "$BUNDLE_DIR/repo-ledger/all-project-heads.tsv" | tee "$BUNDLE_DIR/repo-ledger/dirty-projects.tsv" || true
+
+echo "=================================================="
+echo "=== 6. PERSIST BINARY DIFFS & PATCHES ==="
+echo "=================================================="
+while IFS=$'	' read -r r_path r_project r_remote r_rrev r_head r_dirty; do
+  if [ "$r_dirty" = "DIRTY" ]; then
+    safe_path=$(echo "$r_path" | tr '/' '_')
+    patch_dir="$BUNDLE_DIR/patches/$safe_path"
+    mkdir -p "$patch_dir"
+    cd "/$r_path"
+    git diff --binary > "$patch_dir/worktree.diff" || true
+    git diff --cached --binary > "$patch_dir/index.diff" || true
+    git status --porcelain > "$patch_dir/status.txt" || true
+    echo "Backed up dirty binary patch for $r_path"
+  fi
+done < <(grep "DIRTY$" "$BUNDLE_DIR/repo-ledger/all-project-heads.tsv" || true)
+
+cd ""
+mkdir -p "$BUNDLE_DIR/patches/device_oneplus_sdm845-common/commits"
+git format-patch -5 -o "$BUNDLE_DIR/patches/device_oneplus_sdm845-common/commits" || true
+
+echo "=================================================="
+echo "=== 7. OUT CHECKPOINT AUDIT ==="
+echo "=================================================="
+cd ""
+CHECKPOINT_FILE="/mnt/avium-cache/checkpoints/out/latest.tar.zst"
+CHECKPOINT_META="/mnt/avium-cache/checkpoints/out/latest.metadata"
+if [ -f "$CHECKPOINT_FILE" ]; then
+  echo "VALID_OUT_CHECKPOINT_FOUND: $CHECKPOINT_FILE"
+  ls -lh "$CHECKPOINT_FILE"
+  sha256sum "$CHECKPOINT_FILE" | tee "$BUNDLE_DIR/checkpoints/latest.tar.zst.sha256"
+  if [ -f "$CHECKPOINT_META" ]; then
+    cp "$CHECKPOINT_META" "$BUNDLE_DIR/checkpoints/"
+    cat "$CHECKPOINT_META"
+  fi
+  echo "CHECKPOINT_STATUS=VALID"
+else
+  echo "No valid OUT checkpoint archive found at $CHECKPOINT_FILE"
+  echo "CHECKPOINT_STATUS=NONE"
+fi
+
+echo "=================================================="
+echo "=== 8. INDEX BUILD LOGS ==="
+echo "=================================================="
+printf "LOG	STAGE	STATUS	SIZE	SHA256
+" > "$BUNDLE_DIR/log-index/index.tsv"
+if [ -d /mnt/avium-cache/build-logs ]; then
+  for logfile in /mnt/avium-cache/build-logs/*.log; do
+    if [ -f "$logfile" ]; then
+      fname=$(basename "$logfile")
+      fsize=$(stat -c %s "$logfile")
+      fsha=$(sha256sum "$logfile" | cut -d' ' -f1)
+      fstatus="UNKNOWN"
+      fstage="build"
+      if grep -qi "checkpolicy: error" "$logfile" || grep -qi "FAILED:" "$logfile"; then
+        fstatus="FAIL"
+      fi
+      if grep -qi "#### build completed successfully" "$logfile" || grep -qi "checkpolicy passed" "$logfile"; then
+        fstatus="PASS"
+      fi
+      if [[ "$fname" == *"sepolicy"* ]]; then
+        fstage="sepolicy"
+      elif [[ "$fname" == *"bootimage"* ]]; then
+        fstage="bootimage"
+      elif [[ "$fname" == *"kernel"* ]]; then
+        fstage="kernel"
+      fi
+      printf "%s	%s	%s	%s	%s
+" "$fname" "$fstage" "$fstatus" "$fsize" "$fsha" >> "$BUNDLE_DIR/log-index/index.tsv"
+    fi
+  done
+fi
+cat "$BUNDLE_DIR/log-index/index.tsv"
+
+if [ -d /mnt/avium-cache/build-failures ]; then
+  cp -rf /mnt/avium-cache/build-failures/* "$BUNDLE_DIR/status/" 2>/dev/null || true
+fi
+
+echo "=================================================="
+echo "=== 9. ARTIFACT AUDIT ==="
+echo "=================================================="
+if [ -d /mnt/avium-cache/releases/build1 ]; then
+  cp -rf /mnt/avium-cache/releases/build1/* "$BUNDLE_DIR/artifacts/" 2>/dev/null || true
+  find "$BUNDLE_DIR/artifacts" -type f -exec sha256sum {} + > "$BUNDLE_DIR/artifacts/SHA256SUMS.txt" 2>/dev/null || true
+  echo "Artifacts preserved:"
+  cat "$BUNDLE_DIR/artifacts/SHA256SUMS.txt" || echo "None"
+else
+  echo "No releases directory."
+fi
+
+echo "=================================================="
+echo "=== 10. PACKAGE PORTABLE STATE ARCHIVE ==="
+echo "=================================================="
+ARCH_NAME="avium-build1-portable-state-$(date -u +%Y%m%dT%H%M%SZ).tar.zst"
+cd ""
+sync
+sleep 2
+set +e
+set +o pipefail
+tar --warning=no-file-changed -cf - build1 | zstd -9 -T0 > "$ARCH_NAME"
+set -e
+set -o pipefail
+sha256sum "$ARCH_NAME" | tee "${ARCH_NAME}.sha256"
+ARCH_SIZE=$(ls -lh "$ARCH_NAME" | awk '{print $5}')
+ARCH_SHA=$(cat "${ARCH_NAME}.sha256" | cut -d' ' -f1)
+
+echo "PORTABLE_ARCHIVE_PATH=$EVAC_ROOT/$ARCH_NAME"
+echo "PORTABLE_ARCHIVE_SIZE=$ARCH_SIZE"
+echo "PORTABLE_ARCHIVE_SHA=$ARCH_SHA"
+echo "MIGRATION_FREEZE_COMPLETE=YES"
