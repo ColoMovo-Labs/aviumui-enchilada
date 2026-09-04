@@ -134,8 +134,8 @@ grep "DIRTY$" "$BUNDLE_DIR/repo-ledger/all-project-heads.tsv" | tee "$BUNDLE_DIR
 echo "=================================================="
 echo "=== 6. PERSIST BINARY DIFFS & PATCHES ==="
 echo "=================================================="
-while IFS=$'\t' read -r r_path r_project r_remote r_rrev r_head r_dirty; do
-  if [ "$r_dirty" = "DIRTY" ]; then
+tail -n +2 "$BUNDLE_DIR/repo-ledger/all-project-heads.tsv" | grep -E '\tDIRTY$' | while IFS=$'\t' read -r r_path r_project r_remote r_rrev r_head r_dirty; do
+  if [ -n "$r_path" ] && [ -d "$SOURCE_ROOT/$r_path" ]; then
     safe_path=$(echo "$r_path" | tr '/' '_')
     patch_dir="$BUNDLE_DIR/patches/$safe_path"
     mkdir -p "$patch_dir"
@@ -145,7 +145,7 @@ while IFS=$'\t' read -r r_path r_project r_remote r_rrev r_head r_dirty; do
     git status --porcelain > "$patch_dir/status.txt" || true
     echo "Backed up dirty binary patch for $r_path"
   fi
-done < <(grep "DIRTY$" "$BUNDLE_DIR/repo-ledger/all-project-heads.tsv" || true)
+done
 
 cd "$TARGET_DEVICE_DIR"
 mkdir -p "$BUNDLE_DIR/patches/device_oneplus_sdm845-common/commits"
