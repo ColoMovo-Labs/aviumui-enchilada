@@ -1,0 +1,31 @@
+name: Latchkey Runner Smoke Test
+
+on:
+  push:
+    branches:
+      - ci/latchkey-smoke
+  workflow_dispatch:
+
+jobs:
+  smoke-test:
+    runs-on: [latchkey-small]
+    timeout-minutes: 10
+    steps:
+      - name: System Environment Audit
+        run: |
+          echo "=== 1. SYSTEM ==="
+          uname -a
+          echo "=== 2. CPU & CORES ==="
+          nproc
+          lscpu || true
+          echo "=== 3. MEMORY ==="
+          free -h
+          echo "=== 4. DISK & STORAGE ==="
+          df -h
+          echo "=== 5. TOOLCHAIN ==="
+          git --version || echo "git not found"
+          python3 --version || echo "python3 not found"
+          java -version 2>&1 || echo "java not found"
+          which repo || echo "repo not found"
+          which ccache || echo "ccache not found"
+          which ninja || echo "ninja not found"
