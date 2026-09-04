@@ -1,47 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Draft manifest — must be validated against the AviumUI 16.2 base manifest before use on Crave. -->
-<!--
-  NOTE ON REMOTES & PROVENANCE:
-  - AviumUI 16.2 default.xml defines:
-      <remote name="github" fetch=".." review="review.lineageos.org" />
-      <default revision="refs/heads/lineage-23.2" remote="github" />
-  - AviumUI snippets/avium.xml defines:
-      <remote name="avium" fetch="https://github.com/AviumUI" ... />
-
-  TODO before Crave build execution:
-  1. Confirm whether `github` (fetch="..") in AviumUI base manifest resolves `TheMuppets/*` cleanly.
-     If not, declare an explicit `<remote name="themuppets" fetch="https://github.com/TheMuppets" />`.
-  2. Confirm whether `LineageOS/android_hardware_oneplus` is already tracked in base manifests.
-     If already present, remove it from this local manifest to avoid duplicate project errors during `repo sync`.
-  3. Confirm the kernel revision tag (defaulting to refs/heads/lineage-23.2).
--->
+<!-- Candidate A Local Manifest for AviumUI 16.2 on OnePlus 6 (enchilada) -->
 <manifest>
 
-  <!-- Optional Explicit Remotes (Uncomment if Crave base manifest does not resolve cross-org GitHub paths) -->
-  <!--
-  <remote name="github-lineage"    fetch="https://github.com/LineageOS" />
-  <remote name="github-themuppets" fetch="https://github.com/TheMuppets" />
-  -->
+    <!-- OnePlus 6 device tree -->
+    <project
+        name="LineageOS/android_device_oneplus_enchilada"
+        path="device/oneplus/enchilada"
+        remote="github"
+        revision="lineage-23.2" />
 
-  <!-- Device Trees -->
-  <project path="device/oneplus/enchilada"
-           name="LineageOS/android_device_oneplus_enchilada"
-           remote="github"
-           revision="lineage-23.2" />
+    <!-- OnePlus SDM845 common tree -->
+    <project
+        name="ColoMovo-Labs/android_device_oneplus_sdm845-common"
+        path="device/oneplus/sdm845-common"
+        remote="github"
+        revision="avium-16.2-build1" />
 
-  <project path="device/oneplus/sdm845-common"
-           name="LineageOS/android_device_oneplus_sdm845-common"
-           remote="github"
-           revision="lineage-23.2" />
+    <!-- Kernel -->
+    <project
+        name="AviumUI-Devices/kernel_oneplus_sdm845"
+        path="kernel/oneplus/sdm845"
+        remote="github"
+        revision="avium-16.2" />
 
-  <!-- Kernel Source -->
-  <project path="kernel/oneplus/sdm845"
-           name="LineageOS/android_kernel_oneplus_sdm845"
-           remote="github"
-           revision="lineage-23.2" />
-
-  <!-- Hardware HALs -->
-  <!-- TODO: Verify if hardware/oneplus is already declared in AviumUI/LineageOS default manifest -->
     <!-- OnePlus hardware HALs -->
     <project
         name="LineageOS/android_hardware_oneplus"
@@ -56,16 +37,19 @@
         remote="github"
         revision="avium-16.2" />
 
-  <!-- Proprietary Vendor Blobs -->
-  <project path="vendor/oneplus/enchilada"
-           name="TheMuppets/proprietary_vendor_oneplus_enchilada"
-           remote="github"
-           revision="lineage-23.2" />
+    <!-- Proprietary vendor blobs -->
+    <project
+        name="TheMuppets/proprietary_vendor_oneplus_enchilada"
+        path="vendor/oneplus/enchilada"
+        remote="github"
+        revision="lineage-22.2"
+        clone-depth="1" />
 
-  <project path="vendor/oneplus/sdm845-common"
-           name="ColoMovo-Labs/proprietary_vendor_oneplus_sdm845-common"
-           remote="github"
-           revision="avium-16.2"
-           clone-depth="1" />
+    <project
+        name="ColoMovo-Labs/proprietary_vendor_oneplus_sdm845-common"
+        path="vendor/oneplus/sdm845-common"
+        remote="github"
+        revision="avium-16.2"
+        clone-depth="1" />
 
 </manifest>
