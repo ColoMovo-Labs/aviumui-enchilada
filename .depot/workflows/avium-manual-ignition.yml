@@ -1,0 +1,109 @@
+name: AviumUI Build #1 Manual Ignition Runner
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: avium-enchilada-persistent-workspace
+  cancel-in-progress: false
+
+jobs:
+  manual-ignition:
+    runs-on: depot-ubuntu-24.04-16
+
+    steps:
+      - name: Mount persistent Android workspace
+        uses: depot/cache-mount@v1
+        with:
+          name: aviumui-aosp-workspace
+          path: /mnt/avium-cache
+
+      - name: Prepare build dependencies and tools
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc bison build-essential ccache curl flex g++-multilib \
+            gcc-multilib git git-lfs gnupg gperf imagemagick \
+            lib32readline-dev lib32z1-dev libelf-dev liblz4-tool \
+            libssl-dev libxml2 libxml2-utils lzop pngcrush \
+            rsync schedtool squashfs-tools xsltproc zip zlib1g-dev \
+            python3 python-is-python3 unzip wget tmux htop ncdu btop
+
+          git lfs install
+          mkdir -p "$HOME/bin"
+          curl -fsSL -o "$HOME/bin/repo" \
+            https://storage.googleapis.com/git-repo-downloads/repo
+          chmod +x "$HOME/bin/repo"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Verify source tree and prepare local workspace
+        run: |
+          set -euo pipefail
+          export OUT_DIR=/tmp/avium-out
+          export TMPDIR=/tmp/avium-tmp
+          export CCACHE_DIR=/tmp/avium-ccache
+          export BUILD_LOG_DIR=/mnt/avium-cache/build-logs
+          mkdir -p "$OUT_DIR" "$TMPDIR" "$CCACHE_DIR" "$BUILD_LOG_DIR"
+
+          echo "=== RUNNER HARDWARE ENVIRONMENT ==="
+          nproc
+          free -h
+          df -h /
+          df -h /tmp
+          df -h /mnt/avium-cache
+
+          echo "=== VERIFY AUTHORITATIVE SOURCE TREE ==="
+          source_root=/mnt/avium-cache/android/avium
+          test -d "$source_root/.repo"
+          test -f "$source_root/build/envsetup.sh"
+          echo "Source tree intact and authoritative at: $source_root"
+          echo "Local ephemeral fast-disk OUT_DIR ready at: $OUT_DIR"
+          echo "CCACHE directory ready at: $CCACHE_DIR"
+
+          cat << 'ENV_EOF' > /tmp/setup_build_env.sh
+          #!/bin/bash
+          export OUT_DIR=/tmp/avium-out
+          export TMPDIR=/tmp/avium-tmp
+          export CCACHE_DIR=/tmp/avium-ccache
+          export USE_CCACHE=1
+          export CCACHE_EXEC=/usr/bin/ccache
+          export BUILD_LOG_DIR=/mnt/avium-cache/build-logs
+          export PATH="$HOME/bin:$PATH"
+          cd /mnt/avium-cache/android/avium
+          source build/envsetup.sh
+          lunch lineage_enchilada-bp4a-userdebug
+          echo "=================================================="
+          echo "Build environment loaded for lineage_enchilada."
+          echo "To execute manual ignition:"
+          echo "  m -j8 nothing 2>&1 | tee \$BUILD_LOG_DIR/m-nothing-\$(date +%s).log"
+          echo "=================================================="
+          ENV_EOF
+          chmod +x /tmp/setup_build_env.sh
+
+          echo "Helper script ready at: /tmp/setup_build_env.sh"
+
+      - name: Wait for manual SSH ignition
+        run: |
+          echo "=================================================="
+          echo "MANUAL IGNITION RUNNER IS READY"
+          echo "Persistent workspace mounted at: /mnt/avium-cache"
+          echo "Local hot OUT_DIR ready at: /tmp/avium-out"
+          echo "Source tree: /mnt/avium-cache/android/avium"
+          echo "Awaiting user SSH connection to execute m nothing..."
+          echo "=================================================="
+
+          # Keep runner alive for up to 2.5 hours (9000 seconds)
+          # Emits heartbeat every 10 minutes so log remains healthy
+          start_time=$(date +%s)
+          max_seconds=9000
+          while :; do
+            current_time=$(date +%s)
+            elapsed=$((current_time - start_time))
+            if [ "$elapsed" -ge "$max_seconds" ]; then
+              echo "Max runner lease time reached ($elapsed s). Exiting."
+              break
+            fi
+            echo "[HEARTBEAT $(date -Is)] Runner alive and ready for manual SSH ignition (elapsed: ${elapsed}s / ${max_seconds}s)"
+            sleep 600
+          done

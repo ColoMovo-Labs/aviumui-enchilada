@@ -1,0 +1,72 @@
+name: AviumUI SEPolicy Investigation
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: avium-enchilada-persistent-workspace
+  cancel-in-progress: false
+
+jobs:
+  investigate-sepolicy:
+    runs-on: depot-ubuntu-24.04-16
+
+    steps:
+      - name: Mount persistent Android workspace
+        uses: depot/cache-mount@v1
+        with:
+          name: aviumui-aosp-workspace
+          path: /mnt/avium-cache
+
+      - name: Precise SEPolicy Investigation Part 2
+        shell: bash
+        run: |
+          set -u -o pipefail
+          SOURCE_ROOT="/mnt/avium-cache/android/avium"
+          cd "$SOURCE_ROOT" || { echo "Cannot cd to $SOURCE_ROOT"; exit 1; }
+
+          echo "=================================================="
+          echo "=== 1. LEGACY COMMON FILE.TE ==="
+          echo "=================================================="
+          cat device/qcom/sepolicy_vndr/legacy-um/legacy/vendor/common/file.te || echo "No legacy file.te"
+
+          echo ""
+          echo "=================================================="
+          echo "=== 2. GREP BATTERY_SUPPLY IN LEGACY-UM ==="
+          echo "=================================================="
+          grep -rn "battery_supply" device/qcom/sepolicy_vndr/legacy-um/legacy/ || true
+
+          echo ""
+          echo "=================================================="
+          echo "=== 3. GREP BATTERY_SUPPLY IN GENERIC ==="
+          echo "=================================================="
+          grep -rn "battery_supply" device/qcom/sepolicy_vndr/legacy-um/generic/ || true
+
+          echo ""
+          echo "=================================================="
+          echo "=== 4. REMOTES FOR SEPOLICY PROJECTS ==="
+          echo "=================================================="
+          echo "--- device/qcom/sepolicy_vndr ---"
+          git -C device/qcom/sepolicy_vndr remote -v || true
+          git -C device/qcom/sepolicy_vndr branch -a || true
+          echo "--- device/lineage/sepolicy ---"
+          git -C device/lineage/sepolicy remote -v || true
+          git -C device/lineage/sepolicy branch -a || true
+
+          echo ""
+          echo "=================================================="
+          echo "=== 5. CHECK BUILD-FAILURES LOG ==="
+          echo "=================================================="
+          if [ -d /mnt/avium-cache/build-failures ]; then
+            for f in $(find /mnt/avium-cache/build-failures -type f); do
+              echo "=== Failure log: $f ==="
+              cat "$f"
+            done
+          fi
+
+          echo ""
+          echo "=================================================="
+          echo "=== 6. CHECK DASHD USAGE IN ENCHILADA / RECOVERY ==="
+          echo "=================================================="
+          grep -rn "dashd" device/oneplus/
+          find device/oneplus -name "*recovery*"

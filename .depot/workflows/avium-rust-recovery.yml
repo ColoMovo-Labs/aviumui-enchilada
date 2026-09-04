@@ -1,0 +1,157 @@
+name: AviumUI Rust checkout recovery and full sync
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: avium-enchilada-persistent-workspace
+  cancel-in-progress: false
+
+jobs:
+  recover-and-sync:
+    runs-on: depot-ubuntu-24.04-16
+
+    steps:
+      - name: Mount persistent Android workspace
+        uses: depot/cache-mount@v1
+        with:
+          name: aviumui-aosp-workspace
+          path: /mnt/avium-cache
+
+      - name: Prepare build dependencies and repo tool
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc bison build-essential ccache curl flex g++-multilib \
+            gcc-multilib git git-lfs gnupg gperf imagemagick \
+            lib32readline-dev lib32z1-dev libelf-dev liblz4-tool \
+            libssl-dev libxml2 libxml2-utils lzop pngcrush \
+            rsync schedtool squashfs-tools xsltproc zip zlib1g-dev \
+            python3 python-is-python3 unzip wget
+
+          git lfs install
+          mkdir -p "$HOME/bin"
+          curl -fsSL -o "$HOME/bin/repo" \
+            https://storage.googleapis.com/git-repo-downloads/repo
+          chmod +x "$HOME/bin/repo"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Inspect and ensure Rust checkout state
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/bin:$PATH"
+          source_root=/mnt/avium-cache/android/avium
+          project=prebuilts/rust
+          worktree="$source_root/$project"
+          expected_gitdir="$source_root/.repo/projects/prebuilts/rust.git"
+          target_ref="eaf5f0747eaafadf4c75af7354aae3e59a7adfe5"
+
+          echo "=== 1. CHECK WRITER PROCESSES ==="
+          persistent_writers=0
+          process_rows="$(pgrep -af 'repo|git' || true)"
+          if test -z "$process_rows"; then
+            echo 'No repo/git processes found.'
+          else
+            while IFS= read -r row; do
+              pid=${row%% *}
+              cwd=$(readlink "/proc/$pid/cwd" 2>/dev/null || printf UNKNOWN)
+              case "$cwd" in
+                "$source_root"|"$source_root"/*)
+                  scope=PERSISTENT_SOURCE_TREE
+                  persistent_writers=1
+                  ;;
+                *) scope=UNRELATED_TO_PERSISTENT_SOURCE_TREE ;;
+              esac
+              printf 'PID=%s scope=%s cwd=%s cmd=%s\n' "$pid" "$scope" "$cwd" "$row"
+            done <<< "$process_rows"
+          fi
+          test "$persistent_writers" -eq 0 || { echo "ERROR: Active writer processes detected on source tree"; exit 1; }
+
+          echo "=== 2. VERIFY RUST WORKTREE ==="
+          test -d "$source_root/.repo"
+          test -d "$worktree"
+
+          # Clear stale index.lock if 0-byte
+          if test -f "$expected_gitdir/index.lock" && test "$(stat -c '%s' "$expected_gitdir/index.lock")" = 0; then
+            echo "Removing stale 0-byte index.lock: $expected_gitdir/index.lock"
+            rm -f "$expected_gitdir/index.lock"
+          fi
+
+          target_commit=$(git -C "$worktree" rev-parse "${target_ref}^{commit}")
+          rust_head=$(git -C "$worktree" rev-parse HEAD)
+          echo "Target tag/ref: $target_ref"
+          echo "Target commit SHA: $target_commit"
+          echo "Current HEAD: $rust_head"
+
+          status_count=$(git -C "$worktree" status --porcelain=v1 -uno | wc -l)
+          echo "Dirty status count: $status_count"
+
+          if test "$rust_head" != "$target_commit" || test "$status_count" -gt 0; then
+            echo "Worktree not clean or HEAD mismatch, running targeted force-checkout..."
+            cd "$source_root"
+            repo sync \
+              -c \
+              --no-clone-bundle \
+              --no-tags \
+              --optimized-fetch \
+              --prune \
+              -j1 \
+              --fail-fast \
+              --force-checkout \
+              prebuilts/rust
+            rust_head=$(git -C "$worktree" rev-parse HEAD)
+          fi
+
+          test "$rust_head" = "$target_commit"
+          echo "RUST_VERIFIED_CLEAN_AT_TARGET=YES"
+
+      - name: Verify six-project serial targeted sync
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/bin:$PATH"
+          cd /mnt/avium-cache/android/avium
+
+          echo "Running serial targeted sync across all 6 previously interrupted projects..."
+          repo sync \
+            -c \
+            --no-clone-bundle \
+            --no-tags \
+            --optimized-fetch \
+            --prune \
+            -j1 \
+            --fail-fast \
+            external/google-cloud-java \
+            external/guava \
+            external/guice \
+            external/gwp_asan \
+            prebuilts/clang/host/linux-x86 \
+            prebuilts/rust
+
+          echo "=================================================="
+          echo "CHECKOUT_RECOVERY_COMPLETE"
+          echo "All 6 projects verified in clean synchronized state."
+          echo "=================================================="
+
+      - name: Full incremental repo sync
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/bin:$PATH"
+          cd /mnt/avium-cache/android/avium
+
+          echo "Running full incremental repo sync (-j8)..."
+          repo sync \
+            -c \
+            --no-clone-bundle \
+            --no-tags \
+            --optimized-fetch \
+            --prune \
+            -j8
+
+          echo "=================================================="
+          echo "SOURCE_SYNC_COMPLETE"
+          echo "READY_FOR_FIRST_MANUAL_M_NOTHING"
+          echo "=================================================="
