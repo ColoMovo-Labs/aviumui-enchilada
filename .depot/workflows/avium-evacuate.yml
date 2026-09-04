@@ -38,6 +38,7 @@ jobs:
           SOURCE_ROOT="/mnt/avium-cache/android/avium"
           BUNDLE_DIR="/mnt/avium-cache/evacuation/build1"
 
+          rm -rf "$BUNDLE_DIR"
           mkdir -p "$BUNDLE_DIR"/{manifest,patches,repos,workflows,logs,status,artifacts,checkpoints}
 
           echo "=================================================="
@@ -48,7 +49,8 @@ jobs:
           sha256sum "$BUNDLE_DIR/manifest/build1-pinned-manifest.xml" | tee "$BUNDLE_DIR/manifest/build1-pinned-manifest.xml.sha256"
           
           if [ -d .repo/local_manifests ]; then
-            cp -r .repo/local_manifests "$BUNDLE_DIR/manifest/"
+            mkdir -p "$BUNDLE_DIR/manifest/local_manifests"
+            cp -f .repo/local_manifests/*.xml "$BUNDLE_DIR/manifest/local_manifests/" 2>/dev/null || true
           fi
 
           echo "=================================================="
@@ -198,7 +200,11 @@ jobs:
           cd /mnt/avium-cache/evacuation
           sync
           sleep 2
-          tar --warning=no-file-changed -cf - build1 | zstd -9 -T0 > "$ARCH_NAME" || true
+          set +e
+          set +o pipefail
+          tar --warning=no-file-changed -cf - build1 | zstd -9 -T0 > "$ARCH_NAME"
+          set -e
+          set -o pipefail
           sha256sum "$ARCH_NAME" | tee "${ARCH_NAME}.sha256"
           ls -lh "$ARCH_NAME"
 
