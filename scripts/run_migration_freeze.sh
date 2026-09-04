@@ -134,18 +134,23 @@ grep "DIRTY$" "$BUNDLE_DIR/repo-ledger/all-project-heads.tsv" | tee "$BUNDLE_DIR
 echo "=================================================="
 echo "=== 6. PERSIST BINARY DIFFS & PATCHES ==="
 echo "=================================================="
-tail -n +2 "$BUNDLE_DIR/repo-ledger/all-project-heads.tsv" | grep -E '\tDIRTY$' | while IFS=$'\t' read -r r_path r_project r_remote r_rrev r_head r_dirty; do
-  if [ -n "$r_path" ] && [ -d "$SOURCE_ROOT/$r_path" ]; then
+set +e
+set +o pipefail
+while IFS=$'\t' read -r r_path r_project r_remote r_rrev r_head r_dirty; do
+  [ "$r_path" = "PATH" ] && continue
+  if [ "$r_dirty" = "DIRTY" ] && [ -d "$SOURCE_ROOT/$r_path" ]; then
     safe_path=$(echo "$r_path" | tr '/' '_')
     patch_dir="$BUNDLE_DIR/patches/$safe_path"
     mkdir -p "$patch_dir"
     cd "$SOURCE_ROOT/$r_path"
-    git diff --binary > "$patch_dir/worktree.diff" || true
-    git diff --cached --binary > "$patch_dir/index.diff" || true
-    git status --porcelain > "$patch_dir/status.txt" || true
+    git diff --binary > "$patch_dir/worktree.diff" 2>/dev/null || true
+    git diff --cached --binary > "$patch_dir/index.diff" 2>/dev/null || true
+    git status --porcelain > "$patch_dir/status.txt" 2>/dev/null || true
     echo "Backed up dirty binary patch for $r_path"
   fi
-done
+done < "$BUNDLE_DIR/repo-ledger/all-project-heads.tsv"
+set -e
+set -o pipefail
 
 cd "$TARGET_DEVICE_DIR"
 mkdir -p "$BUNDLE_DIR/patches/device_oneplus_sdm845-common/commits"
