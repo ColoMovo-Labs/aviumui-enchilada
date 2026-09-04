@@ -23,11 +23,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git git-lfs zstd tar curl ripgrep jq
           git lfs install
-          mkdir -p "/root/bin" "/root/.depot/bin"
-          curl -o "/root/bin/repo" https://storage.googleapis.com/git-repo-downloads/repo
-          chmod +x "/root/bin/repo"
+          mkdir -p "$HOME/bin" "$HOME/.depot/bin"
+          curl -o "$HOME/bin/repo" https://storage.googleapis.com/git-repo-downloads/repo
+          chmod +x "$HOME/bin/repo"
           curl -L https://depot.dev/install-cli.sh | sh
-          echo "/root/bin:/root/.depot/bin" >> ""
+          echo "$HOME/bin:$HOME/.depot/bin" >> "$GITHUB_PATH"
 
       - name: Execute Migration Freeze & Full Evacuation
         shell: bash
