@@ -1,0 +1,205 @@
+name: AviumUI Build 1 Depot Evacuation and State Preservation
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: avium-enchilada-persistent-workspace
+  cancel-in-progress: false
+
+jobs:
+  evacuate:
+    runs-on: depot-ubuntu-24.04-16
+
+    steps:
+      - name: Mount persistent Android workspace
+        uses: depot/cache-mount@v1
+        with:
+          name: aviumui-aosp-workspace
+          path: /mnt/avium-cache
+
+      - name: Prepare basic dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git git-lfs zstd tar curl ripgrep jq
+          git lfs install
+          mkdir -p "$HOME/bin" "$HOME/.depot/bin"
+          curl -o "$HOME/bin/repo" https://storage.googleapis.com/git-repo-downloads/repo
+          chmod +x "$HOME/bin/repo"
+          curl -L https://depot.dev/install-cli.sh | sh
+          echo "$HOME/bin:$HOME/.depot/bin" >> "$GITHUB_PATH"
+
+      - name: Execute Evacuation Bundle Creation
+        shell: bash
+        run: |
+          set -eo pipefail
+
+          export PATH="$HOME/bin:$HOME/.depot/bin:$PATH"
+          SOURCE_ROOT="/mnt/avium-cache/android/avium"
+          BUNDLE_DIR="/mnt/avium-cache/evacuation/build1"
+
+          mkdir -p "$BUNDLE_DIR"/{manifest,patches,repos,workflows,logs,status,artifacts,checkpoints}
+
+          echo "=================================================="
+          echo "=== 1. PINNED MANIFEST & LOCAL MANIFESTS ==="
+          echo "=================================================="
+          cd "$SOURCE_ROOT"
+          repo manifest -r > "$BUNDLE_DIR/manifest/build1-pinned-manifest.xml"
+          sha256sum "$BUNDLE_DIR/manifest/build1-pinned-manifest.xml" | tee "$BUNDLE_DIR/manifest/build1-pinned-manifest.xml.sha256"
+          
+          if [ -d .repo/local_manifests ]; then
+            cp -r .repo/local_manifests "$BUNDLE_DIR/manifest/"
+          fi
+
+          echo "=================================================="
+          echo "=== 2. AUDIT DIRTY REPOSITORIES & HEAD LEDGER ==="
+          echo "=================================================="
+          repo forall -c '
+            if ! git diff --quiet || ! git diff --cached --quiet || test -n "$(git status --porcelain)"; then
+              echo "PROJECT=$REPO_PROJECT"
+              echo "PATH=$REPO_PATH"
+              echo "HEAD=$(git rev-parse HEAD)"
+              git status --short
+              echo "-----------------------------------"
+            fi
+          ' > "$BUNDLE_DIR/repos/dirty-repos.txt"
+
+          cat "$BUNDLE_DIR/repos/dirty-repos.txt"
+
+          repo forall -c '
+            printf "%s\t%s\t%s\n" "$REPO_PATH" "$REPO_PROJECT" "$(git rev-parse HEAD)"
+          ' > "$BUNDLE_DIR/repos/all-project-heads.tsv"
+
+          echo "Total tracked projects in workspace: $(wc -l < "$BUNDLE_DIR/repos/all-project-heads.tsv")"
+
+          echo "=================================================="
+          echo "=== 3. BACKUP MODIFIED REPOSITORIES & PATCHES ==="
+          echo "=================================================="
+          while IFS= read -r line; do
+            if [[ "$line" =~ ^PATH=(.*) ]]; then
+              rpath="${BASH_REMATCH[1]}"
+              safe_name=$(echo "$rpath" | tr '/' '_')
+              echo "Backing up patch for $rpath..."
+              mkdir -p "$BUNDLE_DIR/patches/$safe_name"
+              git -C "$rpath" diff > "$BUNDLE_DIR/patches/$safe_name/unstaged.patch" || true
+              git -C "$rpath" diff --cached > "$BUNDLE_DIR/patches/$safe_name/cached.patch" || true
+              git -C "$rpath" diff --binary HEAD > "$BUNDLE_DIR/patches/$safe_name/full_diff.patch" || true
+              git -C "$rpath" status --short > "$BUNDLE_DIR/patches/$safe_name/status.txt" || true
+              git -C "$rpath" log -n 5 --oneline > "$BUNDLE_DIR/patches/$safe_name/log.txt" || true
+              git -C "$rpath" remote -v > "$BUNDLE_DIR/patches/$safe_name/remotes.txt" || true
+              git -C "$rpath" rev-parse HEAD > "$BUNDLE_DIR/patches/$safe_name/HEAD.txt" || true
+            fi
+          done < "$BUNDLE_DIR/repos/dirty-repos.txt"
+
+          echo "=================================================="
+          echo "=== 4. SPECIAL HANDLING FOR SDM845-COMMON ==="
+          echo "=================================================="
+          sdm_path="device/oneplus/sdm845-common"
+          git -C "$sdm_path" log --oneline --decorate -30 > "$BUNDLE_DIR/repos/sdm845-common-log30.txt"
+          git -C "$sdm_path" status --short > "$BUNDLE_DIR/repos/sdm845-common-status.txt"
+          git -C "$sdm_path" remote -v > "$BUNDLE_DIR/repos/sdm845-common-remotes.txt"
+          git -C "$sdm_path" rev-parse HEAD | tee "$BUNDLE_DIR/repos/sdm845-common-HEAD.txt"
+
+          mkdir -p "$BUNDLE_DIR/patches/device_oneplus_sdm845-common"
+          git -C "$sdm_path" diff --binary HEAD~3..HEAD > "$BUNDLE_DIR/patches/device_oneplus_sdm845-common/build1-recent-commits.patch"
+          git -C "$sdm_path" format-patch -3 HEAD -o "$BUNDLE_DIR/patches/device_oneplus_sdm845-common/"
+
+          echo "=================================================="
+          echo "=== 5. BACKUP STATUS & BUILD FAILURES ==="
+          echo "=================================================="
+          if [ -d /mnt/avium-cache/status ]; then
+            cp -r /mnt/avium-cache/status/* "$BUNDLE_DIR/status/" 2>/dev/null || true
+          fi
+          if [ -d /mnt/avium-cache/build-failures ]; then
+            mkdir -p "$BUNDLE_DIR/status/build-failures"
+            cp -r /mnt/avium-cache/build-failures/* "$BUNDLE_DIR/status/build-failures/" 2>/dev/null || true
+          fi
+
+          echo "=================================================="
+          echo "=== 6. INDEX BUILD LOGS ==="
+          echo "=================================================="
+          if [ -d /mnt/avium-cache/build-logs ]; then
+            > "$BUNDLE_DIR/logs/index.txt"
+            for f in /mnt/avium-cache/build-logs/*; do
+              if [ -f "$f" ]; then
+                fname=$(basename "$f")
+                fsize=$(stat -c %s "$f")
+                fsha=$(sha256sum "$f" | cut -d' ' -f1)
+                fstatus="UNKNOWN"
+                if grep -qi "error:" "$f" || grep -qi "failed" "$f"; then
+                  fstatus="FAIL"
+                elif grep -qi "built successfully" "$f" || grep -qi "checkpolicy passed" "$f"; then
+                  fstatus="PASS"
+                fi
+                echo -e "$fname\t$fsize\t$fstatus\t$fsha" >> "$BUNDLE_DIR/logs/index.txt"
+              fi
+            done
+            cp -r /mnt/avium-cache/build-logs/build1-recovery-sepolicy-cil* "$BUNDLE_DIR/logs/" 2>/dev/null || true
+            cp -r /mnt/avium-cache/build-logs/build1-bacon* "$BUNDLE_DIR/logs/" 2>/dev/null || true
+          fi
+
+          echo "=================================================="
+          echo "=== 7. ARTIFACTS & CHECKPOINTS ==="
+          echo "=================================================="
+          if [ -d /mnt/avium-cache/releases/build1 ]; then
+            cp -r /mnt/avium-cache/releases/build1/* "$BUNDLE_DIR/artifacts/" 2>/dev/null || true
+            cd "$BUNDLE_DIR/artifacts"
+            find . -type f -exec sha256sum {} + > "$BUNDLE_DIR/artifacts/SHA256SUMS.txt" 2>/dev/null || true
+            cd "$SOURCE_ROOT"
+          fi
+
+          if [ -d /mnt/avium-cache/checkpoints/out ]; then
+            cp -r /mnt/avium-cache/checkpoints/out/* "$BUNDLE_DIR/checkpoints/" 2>/dev/null || true
+          fi
+
+          echo "=================================================="
+          echo "=== 8. GENERATE INVENTORY.MD ==="
+          echo "=================================================="
+          cat << 'INV' > "$BUNDLE_DIR/INVENTORY.md"
+# Build #1 Evacuation Inventory & Ledger
+
+- **Date**: 2026-09-04
+- **ROM**: AviumUI 16.2.1 (Vanilla, WITH_GMS=false)
+- **Base Platform**: Android 16 QPR2 / BP4A (BP4A.251205.006)
+- **Target Device**: OnePlus 6 (`enchilada`)
+- **Common Tree**: `sdm845-common`
+- **Lunch Target**: `lineage_enchilada-bp4a-userdebug`
+
+## 📌 Verified Progress & Milestones
+1. **repo sync**: PASS (120GB AOSP + LineageOS tree fully synchronized)
+2. **Standalone Kernel**: PASS (Linux 4.19.325 Clang 20 LLVM=1, Image.gz-dtb generated)
+3. **Soong Build Graph**: PASS (Completed without OOM on 16 vCPU runner)
+4. **Ninja Build Execution**: PASS (149,000+ rules parsed, reached recovery sepolicy compilation)
+
+## 🛠️ Resolved Build Blockers in Build #1
+1. **Missing hardware/dolby**: Fixed via local manifest pointing to `AviumUI-Devices/hardware_dolby@avium-16.2`.
+2. **Duplicate libqti-perfd-client**: Removed duplicate prebuilt in vendor tree (`ColoMovo-Labs/proprietary_vendor_oneplus_sdm845-common@avium-16.2`).
+3. **Namespace visibility**: Added `hardware/qcom-caf/common/libqti-perfd-client` into vendor `soong_namespace.imports`.
+4. **SEPolicy dashd types**: Fixed `vendor_sysfs_battery_supply` & `vendor_sysfs_usb_supply` in `dashd.te` (`9dad3ae3c06497144e9845182e23dda80ece7937`).
+5. **SEPolicy camera perf types**: Fixed `vendor_hal_perf_default` & `vendor_hal_perf_hwservice` in `hal_cameraHIDL_default.te` (`976f86714a5212067a19a89792d4c8f5608b7c4c`).
+6. **SEPolicy legacy QCOM alignment**: Aligned `hal_fingerprint_device.te`, `hal_ifaa_default.te`, `file_contexts` (`77184f1578e577b4ea7803c218b791ea7e0fec02`).
+
+## ⛔ Current Blocker
+- **Target**: `device/oneplus/sdm845-common/sepolicy/vendor/hal_camera_default.te:12`
+- **Error**: `unknown type vendor_persist_file`
+- **Root Cause**: In Qualcomm legacy-um sepolicy, partition type is `persist_file` rather than `vendor_persist_file`.
+
+## 📦 Evacuated Assets
+- **Pinned Manifest**: `manifest/build1-pinned-manifest.xml`
+- **Project HEADs**: `repos/all-project-heads.tsv`
+- **Patches**: `patches/`
+- **Failure Logs**: `status/build-failures/`
+INV
+
+          echo "=================================================="
+          echo "=== 9. PACKAGE PORTABLE STATE ARCHIVE ==="
+          echo "=================================================="
+          ARCH_NAME="avium-build1-portable-state-$(date -u +%Y%m%dT%H%M%SZ).tar.zst"
+          cd /mnt/avium-cache/evacuation
+          tar -cf - build1 | zstd -19 -T0 > "$ARCH_NAME"
+          sha256sum "$ARCH_NAME" | tee "${ARCH_NAME}.sha256"
+          ls -lh "$ARCH_NAME"
+
+          echo "PORTABLE_ARCHIVE_PATH=/mnt/avium-cache/evacuation/$ARCH_NAME"
+          echo "PORTABLE_ARCHIVE_SHA=$(cat ${ARCH_NAME}.sha256 | cut -d' ' -f1)"
+          echo "EVACUATION_COMPLETE=YES"
