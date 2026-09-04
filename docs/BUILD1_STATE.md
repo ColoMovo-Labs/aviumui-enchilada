@@ -59,10 +59,21 @@
 
 ## 4. Authoritative Pinned Repositories & Forks
 
-* **Manifests**: `https://github.com/ColoMovo-Labs/aviumui-enchilada-manifests` (branch: `main`, SHA: `5e7e5120d165a7983ae71adc2733eed3933f900a`)
-* **Device Tree (`sdm845-common`)**: `https://github.com/ColoMovo-Labs/android_device_oneplus_sdm845-common` (branch: `avium-16.2-build1`)
+* **Manifests**: `https://github.com/ColoMovo-Labs/aviumui-enchilada-manifests` (branch: `main`, SHA: `885178b3dfbb7241f70e8fe07c6916e64c20e1f3`)
+* **Device Tree (`sdm845-common`)**: `https://github.com/ColoMovo-Labs/android_device_oneplus_sdm845-common` (branch: `avium-16.2-build1`, SHA: `9e6cf2e25e68570f622a0e62d1bc061809f7fac4`)
 * **Device Tree (`enchilada`)**: `https://github.com/LineageOS/android_device_oneplus_enchilada` (branch: `lineage-23.2`)
 * **Kernel Tree**: `https://github.com/LineageOS/android_kernel_oneplus_sdm845` (branch: `lineage-23.2`)
 * **Vendor Tree**: `https://github.com/ColoMovo-Labs/proprietary_vendor_oneplus_sdm845-common` (branch: `avium-16.2`, SHA: `256177534d7f8fd531336814984fabbfca8a9442`)
 * **Hardware Dolby**: `https://github.com/AviumUI-Devices/hardware_dolby` (branch: `avium-16.2`)
-* **Main Repo / CI**: `https://github.com/ColoMovo-Labs/aviumui-enchilada` (branch: `main`)
+* **Main Repo / CI**: `https://github.com/ColoMovo-Labs/aviumui-enchilada` (branch: `main`, SHA: `556c427d21c346cb58858e7f402345ead26fe3f6`)
+
+---
+
+## 5. Depot Evacuation Deliverables
+
+* **Portable State Archive**: `/mnt/avium-cache/evacuation/avium-build1-portable-state-20260904T131141Z.tar.zst`
+  - Size: 149 KiB
+  - SHA256: `1ea71fa1e56fee0d20ffe2eb5e687bae2e56c7172afc739326d158239f751cbb`
+* **Pinned Full Manifest**: `/mnt/avium-cache/evacuation/build1/manifest/build1-pinned-manifest.xml`
+  - SHA256: `71084b1c2693b7dabb539795be981cbde7a10901e9284f7941607da9aa644c0e`
+* **Workflow Run**: Depot CI Run `tn7pbr5hfh` (Status: `FINISHED`)
