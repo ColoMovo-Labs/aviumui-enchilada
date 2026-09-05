@@ -2,7 +2,9 @@
 set -euo pipefail
 
 SOURCE_ROOT="${1:-/mnt/android/avium}"
-META_DIR="${2:-/home/runner/work/aviumui-enchilada/aviumui-enchilada/avium-metadata}"
+META_DIR="${2:-${GITHUB_WORKSPACE:-/home/runner/_work/aviumui-enchilada/aviumui-enchilada}/avium-metadata}"
+[ ! -d "$META_DIR" ] && META_DIR=$(find /home/runner -maxdepth 4 -type d -name "avium-metadata" 2>/dev/null | head -n 1)
+echo "fix_known_blockers using META_DIR: $META_DIR"
 cd "$SOURCE_ROOT"
 
 echo "============================================================"

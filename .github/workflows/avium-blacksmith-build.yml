@@ -80,7 +80,9 @@ jobs:
           git config --global user.email "colomovo@users.noreply.github.com"
           git config --global color.ui false
 
-          META_DIR="/home/runner/work/aviumui-enchilada/aviumui-enchilada/avium-metadata"
+          META_DIR="${GITHUB_WORKSPACE:-/home/runner/_work/aviumui-enchilada/aviumui-enchilada}/avium-metadata"
+          [ ! -d "$META_DIR" ] && META_DIR=$(find /home/runner -maxdepth 4 -type d -name "avium-metadata" 2>/dev/null | head -n 1)
+          echo "Using META_DIR: $META_DIR"
 
           repo init -u https://github.com/ColoMovo-Labs/aviumui-enchilada-manifests.git -b main \
             -m build1-pinned-manifest.xml \
@@ -111,7 +113,9 @@ jobs:
           echo "=================================================="
           echo "=== 6. APPLYING PATCHES & RESOLVING 4 BLOCKERS ==="
           echo "=================================================="
-          META_DIR="/home/runner/work/aviumui-enchilada/aviumui-enchilada/avium-metadata"
+          META_DIR="${GITHUB_WORKSPACE:-/home/runner/_work/aviumui-enchilada/aviumui-enchilada}/avium-metadata"
+          [ ! -d "$META_DIR" ] && META_DIR=$(find /home/runner -maxdepth 4 -type d -name "avium-metadata" 2>/dev/null | head -n 1)
+          echo "Using META_DIR: $META_DIR"
           cd /mnt/android/avium
 
           if [ -f "$META_DIR/scripts/fix_known_blockers.sh" ]; then
