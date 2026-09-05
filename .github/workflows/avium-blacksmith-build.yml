@@ -139,7 +139,7 @@ jobs:
           echo "=== 8. SINGLE-MODULE VERIFICATION ==="
           echo "=================================================="
           export PATH="$HOME/bin:$PATH"
-          export OUT_DIR=/mnt/android/avium/out
+          unset OUT_DIR
           export TMPDIR=/mnt/android/tmp
           export CCACHE_DIR=/mnt/android/ccache
           export USE_CCACHE=1
@@ -169,7 +169,7 @@ jobs:
           echo "=== 9. FULL BACON BUILD (-j16, kernel -j8, -k 0) ==="
           echo "=================================================="
           export PATH="$HOME/bin:$PATH"
-          export OUT_DIR=/mnt/android/avium/out
+          unset OUT_DIR
           export TMPDIR=/mnt/android/tmp
           export CCACHE_DIR=/mnt/android/ccache
           export USE_CCACHE=1

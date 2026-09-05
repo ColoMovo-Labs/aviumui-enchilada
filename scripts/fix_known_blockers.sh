@@ -103,5 +103,14 @@ else
 fi
 
 echo "============================================================"
-echo "=== 3. ALL KNOWN BLOCKER CONFIGURATIONS APPLIED ==="
+echo "=== 3. HARDENING SOONG ci_tests FOR HOST TESTS ==="
+echo "============================================================"
+CI_TEST_ZIP="$SOURCE_ROOT/build/soong/ci_tests/ci_test_package_zip.go"
+if [ -f "$CI_TEST_ZIP" ]; then
+  echo "[SOONG] Applying filepath.IsAbs safeguard to $CI_TEST_ZIP..."
+  sed -i 's/if strings.HasPrefix(f, "out") {/if strings.HasPrefix(f, "out") || filepath.IsAbs(f) {/' "$CI_TEST_ZIP" || true
+fi
+
+echo "============================================================"
+echo "=== 4. ALL KNOWN BLOCKER CONFIGURATIONS APPLIED ==="
 echo "============================================================"
