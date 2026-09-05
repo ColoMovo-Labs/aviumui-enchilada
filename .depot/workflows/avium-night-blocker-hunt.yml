@@ -1,4 +1,4 @@
-name: AviumUI Night Blocker Hunt and Build
+name: AviumUI Full Blocker Sweep & RAM-First Build
 
 on:
   workflow_dispatch:
@@ -9,10 +9,13 @@ concurrency:
 
 jobs:
   blocker-hunt:
-    runs-on: depot-ubuntu-24.04-32
+    runs-on: depot-ubuntu-24.04-64
     timeout-minutes: 720
 
     steps:
+      - name: Checkout aviumui-enchilada repo (for patches & scripts)
+        uses: actions/checkout@v4
+
       - name: Mount persistent Android workspace
         uses: depot/cache-mount@v1
         with:
@@ -39,7 +42,7 @@ jobs:
           curl -L https://depot.dev/install-cli.sh | sh
           echo "$HOME/bin:$HOME/.depot/bin" >> "$GITHUB_PATH"
 
-      - name: Sync Working Tree & Execute Build Pipeline
+      - name: Execute RAM-First Build & Full Blocker Sweep
         shell: bash
         run: |
           set -eo pipefail
@@ -56,120 +59,228 @@ jobs:
 
           SOURCE_ROOT="/mnt/avium-cache/android/avium"
           TARGET_REPO="$SOURCE_ROOT/device/oneplus/sdm845-common"
+          DISPLAY_REPO="$SOURCE_ROOT/hardware/qcom-caf/sdm845/display"
 
           echo "=================================================="
-          echo "=== 1. UPDATE DEVICE TREE TO avium-16.2-work ==="
+          echo "=== 1. VERIFY HARDWARE & RUNNER RESOURCES ==="
           echo "=================================================="
-          cd "$TARGET_REPO"
-          git fetch https://github.com/ColoMovo-Labs/android_device_oneplus_sdm845-common.git avium-16.2-work
-          git checkout -B avium-16.2-work FETCH_HEAD
-          HEAD_SHA=$(git rev-parse HEAD)
-          echo "TARGET_REPO HEAD: $HEAD_SHA"
-          git log -n 3 --oneline
+          nproc
+          free -h
+          df -h
+
+          TOTAL_MEM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+          echo "MemTotal: $TOTAL_MEM_KB KB"
 
           echo "=================================================="
-          echo "=== 2. SETUP OUT & CACHES ==="
+          echo "=== 2. SETUP RAM-FIRST TMPFS ARCHITECTURE ==="
           echo "=================================================="
-          cd "$SOURCE_ROOT"
+          # 256GB RAM runner: 144G OUT_DIR, 24G TMPDIR, 8G CCACHE
+          # 128GB RAM runner: 80G OUT_DIR, 16G TMPDIR, 6G CCACHE
+          if [ "$TOTAL_MEM_KB" -gt 200000000 ]; then
+            OUT_SIZE="144G"
+            TMP_SIZE="24G"
+            CCACHE_SIZE="8G"
+          else
+            OUT_SIZE="80G"
+            TMP_SIZE="16G"
+            CCACHE_SIZE="6G"
+          fi
+
+          echo "Configuring RAM mounts: OUT=$OUT_SIZE, TMP=$TMP_SIZE, CCACHE=$CCACHE_SIZE"
+
+          sudo mkdir -p /tmp/avium-out /tmp/avium-build-tmp /tmp/avium-ccache
+          sudo mount -t tmpfs -o size="$OUT_SIZE",uid=$(id -u),gid=$(id -g),mode=0755 tmpfs /tmp/avium-out
+          sudo mount -t tmpfs -o size="$TMP_SIZE",uid=$(id -u),gid=$(id -g),mode=1777 tmpfs /tmp/avium-build-tmp
+          sudo mount -t tmpfs -o size="$CCACHE_SIZE",uid=$(id -u),gid=$(id -g),mode=0755 tmpfs /tmp/avium-ccache
+
+          findmnt /tmp/avium-out
+          findmnt /tmp/avium-build-tmp
+          findmnt /tmp/avium-ccache
 
           export OUT_DIR=/tmp/avium-out
-          export TMPDIR=/tmp/avium-tmp
+          export TMPDIR=/tmp/avium-build-tmp
           export CCACHE_DIR=/tmp/avium-ccache
           export USE_CCACHE=1
           export CCACHE_EXEC=/usr/bin/ccache
 
-          mkdir -p "$OUT_DIR" "$TMPDIR" "$CCACHE_DIR"
+          ccache -M "$CCACHE_SIZE"
 
-          # Restore checkpoint from persistent storage to fast local SSD
-          if [ -d "/mnt/avium-cache/checkpoints/bacon-current/out" ] && [ -n "$(ls -A /mnt/avium-cache/checkpoints/bacon-current/out 2>/dev/null)" ]; then
-            echo "=== RESTORING OUT_DIR FROM PERSISTENT CHECKPOINT ==="
-            time rsync -aH /mnt/avium-cache/checkpoints/bacon-current/out/ "$OUT_DIR/"
-            echo "OUT_DIR restored successfully: $(du -sh $OUT_DIR | cut -f1)"
-          fi
-
+          # Restore CCACHE seed only (clean fresh OUT_DIR)
           if [ -d "/mnt/avium-cache/checkpoints/bacon-current/ccache" ] && [ -n "$(ls -A /mnt/avium-cache/checkpoints/bacon-current/ccache 2>/dev/null)" ]; then
-            echo "=== RESTORING CCACHE FROM PERSISTENT CHECKPOINT ==="
-            time rsync -aH /mnt/avium-cache/checkpoints/bacon-current/ccache/ "$CCACHE_DIR/"
-            echo "CCACHE restored successfully: $(du -sh $CCACHE_DIR | cut -f1)"
-          fi
-
-          # Start background low-priority preseed loop for the current run
-          if [ -f "/mnt/avium-cache/checkpoints/preseed_loop.sh" ]; then
-            nohup /bin/bash /mnt/avium-cache/checkpoints/preseed_loop.sh > /dev/null 2>&1 &
-            echo "Background checkpoint preseed daemon started (PID: $!)"
+            echo "=== SEEDING CCACHE FROM PERSISTENT CHECKPOINT ==="
+            time rsync -aH /mnt/avium-cache/checkpoints/bacon-current/ccache/ "$CCACHE_DIR/" || true
+            echo "CCACHE seeded: $(du -sh $CCACHE_DIR | cut -f1)"
           fi
 
           echo "=================================================="
-          echo "=== 3. SETUP BUILD ENVIRONMENT ==="
+          echo "=== 3. UPDATE WORKING REPOSITORIES & PATCHES ==="
           echo "=================================================="
+          # 3.1 Update sdm845-common
+          cd "$TARGET_REPO"
+          git fetch https://github.com/ColoMovo-Labs/android_device_oneplus_sdm845-common.git avium-16.2-work
+          git checkout -B avium-16.2-work FETCH_HEAD
+          echo "sdm845-common HEAD: $(git rev-parse HEAD)"
+
+          # 3.2 Apply Display HAL gpu_tonemapper patch
+          cd "$DISPLAY_REPO"
+          PATCH_FILE="$GITHUB_WORKSPACE/patches/hardware_qcom-caf_sdm845_display/0001-sdm845-display-adapt-gpu_tonemapper-to-current-ION-A.patch"
+          if [ -f "$PATCH_FILE" ]; then
+            echo "Applying Display HAL patch from $PATCH_FILE..."
+            if git apply --check "$PATCH_FILE" 2>/dev/null; then
+              git apply "$PATCH_FILE"
+              git -c user.name="ColoMovo" -c user.email="lolojicoco@outlook.com" commit -am "sdm845: display: adapt gpu_tonemapper to current ION ABI" || true
+              echo "Display HAL patch successfully applied and committed."
+            elif git log -n 5 | grep -q "adapt gpu_tonemapper to current ION ABI"; then
+              echo "Display HAL patch already present in git log."
+            else
+              echo "Display HAL patch check failed, checking git status..."
+              git status
+            fi
+          else
+            echo "WARNING: Patch file not found at $PATCH_FILE"
+          fi
+          echo "DISPLAY_REPO HEAD: $(git rev-parse HEAD)"
+
+          echo "=================================================="
+          echo "=== 4. START RAM SAFETY WATCHDOG ==="
+          echo "=================================================="
+          RAM_LOG="$LOG_DIR/ram_watchdog-$(date -u +%Y%m%dT%H%M%SZ).log"
+          cat <<'WATCHDOG' > /tmp/ram_watchdog.sh
+          #!/bin/bash
+          LOG="$1"
+          while true; do
+            AVAIL_KB=$(grep MemAvailable /proc/meminfo | awk '{print $2}')
+            AVAIL_GB=$(( AVAIL_KB / 1024 / 1024 ))
+            DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+            echo "$DATE | MemAvailable: ${AVAIL_GB} GiB" >> "$LOG"
+            if [ "$AVAIL_GB" -lt 48 ]; then
+              echo "$DATE | [CRITICAL] Low RAM (${AVAIL_GB} GiB)! Dropping CCACHE caches..." >> "$LOG"
+              ccache -c || true
+            fi
+            sleep 15
+          done
+          WATCHDOG
+          chmod +x /tmp/ram_watchdog.sh
+          nohup /tmp/ram_watchdog.sh "$RAM_LOG" >/dev/null 2>&1 &
+          WATCHDOG_PID=$!
+          echo "RAM Watchdog started (PID: $WATCHDOG_PID, logging to $RAM_LOG)"
+
+          echo "=================================================="
+          echo "=== 5. SETUP BUILD ENVIRONMENT ==="
+          echo "=================================================="
+          cd "$SOURCE_ROOT"
           source build/envsetup.sh
           lunch lineage_enchilada-bp4a-userdebug
 
           JOBS=$(nproc)
-          echo "Detected $JOBS vCPUs on runner. Configuring concurrency -j$JOBS"
+          echo "Configuring concurrency -j$JOBS"
 
           echo "=================================================="
-          echo "=== 4. STEP A: VALIDATE RECOVERY SEPOLICY ==="
+          echo "=== 6. PHASE 0: COMPILE libgpu_tonemapper STANDALONE ==="
           echo "=================================================="
-          cil_log="$LOG_DIR/night-recovery-sepolicy-$(date -u +%Y%m%dT%H%M%SZ).log"
+          tonemapper_log="$LOG_DIR/phase0-gpu-tonemapper-$(date -u +%Y%m%dT%H%M%SZ).log"
           set +e
-          m -j"$JOBS" recovery_sepolicy.cil 2>&1 | tee "$cil_log"
-          cil_status=${PIPESTATUS[0]}
+          m -j"$JOBS" libgpu_tonemapper 2>&1 | tee "$tonemapper_log"
+          tonemapper_status=${PIPESTATUS[0]}
           set -e
 
-          if [ "$cil_status" -ne 0 ]; then
-            echo "FAILED: recovery_sepolicy.cil failed with status $cil_status"
-            echo "=== FIRST REAL BLOCKER ==="
-            grep -E "ERROR '(unknown type|permission)'|checkpolicy:.*error" "$cil_log" | head -n 20 || true
-            tail -n 60 "$cil_log"
-            exit "$cil_status"
+          if [ "$tonemapper_status" -ne 0 ]; then
+            echo "FAILED: libgpu_tonemapper build failed with status $tonemapper_status"
+            grep -E "FAILED:|error:" "$tonemapper_log" | head -n 30 || true
+            echo "PHASE_0_TONEMAPPER=FAIL" > "$STATUS_DIR/phase0.status"
+          else
+            echo "SUCCESS: libgpu_tonemapper compiled successfully!"
+            echo "PHASE_0_TONEMAPPER=PASS" > "$STATUS_DIR/phase0.status"
           fi
 
-          echo "SEPOLICY_VALIDATION_PASS: recovery_sepolicy.cil checkpolicy passed!"
-
           echo "=================================================="
-          echo "=== 5. STEP B: BUILD BOOTIMAGE ==="
+          echo "=== 7. PHASE 1: STATIC PREFLIGHT (m nothing & SELinux) ==="
           echo "=================================================="
-          boot_log="$LOG_DIR/night-bootimage-$(date -u +%Y%m%dT%H%M%SZ).log"
-          boot_target="$OUT_DIR/target/product/enchilada/boot.img"
+          preflight_log="$LOG_DIR/phase1-preflight-$(date -u +%Y%m%dT%H%M%SZ).log"
           set +e
-          m -j"$JOBS" TARGET_KERNEL_ADDITIONAL_FLAGS="-j8" bootimage 2>&1 | tee "$boot_log"
-          boot_status=${PIPESTATUS[0]}
+          m -j"$JOBS" nothing 2>&1 | tee "$preflight_log"
+          nothing_status=${PIPESTATUS[0]}
+          m -j"$JOBS" recovery_sepolicy.cil 2>&1 | tee -a "$preflight_log"
+          sepolicy_status=${PIPESTATUS[0]}
           set -e
 
-          if [ "$boot_status" -ne 0 ] || [ ! -f "$boot_target" ]; then
-            echo "WARNING: Bootimage build stopped with status $boot_status"
-            echo "=== FIRST REAL BLOCKER ==="
-            grep -E "ERROR '(unknown type|permission)'|ninja: build stopped" "$boot_log" | head -n 20 || true
-            tail -n 60 "$boot_log"
-            exit "$boot_status"
-          fi
-
-          boot_sha=$(sha256sum "$boot_target" | cut -d' ' -f1)
-          echo "BOOTIMAGE_PASS: $boot_target (SHA256: $boot_sha)"
-          cp "$boot_target" "$RELEASE_BOOT_DIR/boot.img" || true
-          echo "$boot_sha  boot.img" > "$RELEASE_BOOT_DIR/SHA256SUMS.txt" || true
+          echo "m nothing status: $nothing_status, recovery_sepolicy.cil status: $sepolicy_status"
 
           echo "=================================================="
-          echo "=== 6. STEP C: FULL ROM BUILD (m bacon) ==="
+          echo "=== 8. PHASE 7: FULL BLOCKER SWEEP (m -k 0 bacon) ==="
           echo "=================================================="
-          bacon_log="$LOG_DIR/night-bacon-$(date -u +%Y%m%dT%H%M%SZ).log"
+          sweep_log="$LOG_DIR/blocker-sweep-bacon-$(date -u +%Y%m%dT%H%M%SZ).log"
           set +e
-          m -j"$JOBS" TARGET_KERNEL_ADDITIONAL_FLAGS="-j8" bacon 2>&1 | tee "$bacon_log"
-          bacon_status=${PIPESTATUS[0]}
+          m -k 0 -j"$JOBS" TARGET_KERNEL_ADDITIONAL_FLAGS="-j16" bacon 2>&1 | tee "$sweep_log"
+          sweep_status=${PIPESTATUS[0]}
           set -e
 
-          if [ "$bacon_status" -ne 0 ]; then
-            echo "FULL_ROM_BUILD_STOPPED: m bacon exited with status $bacon_status"
-            echo "=== FIRST REAL BLOCKER ==="
-            grep -E "FAILED:|ninja: build stopped|checkpolicy:.*error" "$bacon_log" | head -n 20 || true
-            tail -n 60 "$bacon_log"
-            exit "$bacon_status"
-          fi
-
-          echo "ROM_BUILD_PASS=YES"
+          echo "=================================================="
+          echo "=== 9. HARVEST BUILD ARTIFACTS & PARSE BLOCKERS ==="
+          echo "=================================================="
+          # Check for flashable ROM ZIP
           rom_zip=$(find "$OUT_DIR/target/product/enchilada" -maxdepth 1 -name "lineage-*.zip" -o -name "avium-*.zip" 2>/dev/null | head -n 1)
           if [ -n "$rom_zip" ]; then
+            echo "SUCCESS: ROM ZIP PRODUCED: $rom_zip"
             sha256sum "$rom_zip" | tee "$RELEASE_DIR/ROM_SHA256.txt"
             cp "$rom_zip" "$RELEASE_DIR/" || true
+            echo "ROM_BUILD_OUTCOME=SUCCESS" > "$STATUS_DIR/rom_outcome.status"
+          else
+            echo "ROM ZIP NOT PRODUCED YET (sweep_status=$sweep_status)"
+            echo "ROM_BUILD_OUTCOME=BLOCKERS_FOUND" > "$STATUS_DIR/rom_outcome.status"
           fi
+
+          # Also check boot.img
+          boot_img="$OUT_DIR/target/product/enchilada/boot.img"
+          if [ -f "$boot_img" ]; then
+            boot_sha=$(sha256sum "$boot_img" | cut -d' ' -f1)
+            echo "BOOTIMAGE_READY: $boot_img (SHA256: $boot_sha)"
+            cp "$boot_img" "$RELEASE_BOOT_DIR/boot.img" || true
+            echo "$boot_sha  boot.img" > "$RELEASE_BOOT_DIR/SHA256SUMS.txt" || true
+          fi
+
+          # Generate FULL_BLOCKER_MATRIX.md
+          BLOCKER_MATRIX="$STATUS_DIR/FULL_BLOCKER_MATRIX.md"
+          echo "# AviumUI Enchilada - Full Blocker Sweep Report" > "$BLOCKER_MATRIX"
+          echo "Generated at: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$BLOCKER_MATRIX"
+          echo "Runner: $(nproc) vCPUs, $(free -h | grep Mem: | awk '{print $2}') RAM" >> "$BLOCKER_MATRIX"
+          echo "Sweep Exit Status: $sweep_status" >> "$BLOCKER_MATRIX"
+          echo "" >> "$BLOCKER_MATRIX"
+          echo "## Discovered Failures (FAILED: targets)" >> "$BLOCKER_MATRIX"
+          echo '```text' >> "$BLOCKER_MATRIX"
+          grep -A 2 "^FAILED:" "$sweep_log" | head -n 100 >> "$BLOCKER_MATRIX" || echo "No FAILED lines found" >> "$BLOCKER_MATRIX"
+          echo '```' >> "$BLOCKER_MATRIX"
+          echo "" >> "$BLOCKER_MATRIX"
+          echo "## Compilation Errors (error: lines)" >> "$BLOCKER_MATRIX"
+          echo '```text' >> "$BLOCKER_MATRIX"
+          grep -E "error:.*" "$sweep_log" | head -n 100 >> "$BLOCKER_MATRIX" || echo "No error lines found" >> "$BLOCKER_MATRIX"
+          echo '```' >> "$BLOCKER_MATRIX"
+
+          echo "Blocker Matrix written to $BLOCKER_MATRIX"
+          cat "$BLOCKER_MATRIX"
+
+          # Sync CCACHE to persistent cache for future acceleration
+          echo "=== SYNCING CCACHE TO PERSISTENT STORAGE ==="
+          mkdir -p /mnt/avium-cache/checkpoints/bacon-current/ccache
+          rsync -aH --delete "$CCACHE_DIR/" /mnt/avium-cache/checkpoints/bacon-current/ccache/ || true
+          echo "CCACHE sync completed."
+
+          echo "=================================================="
+          echo "=== 10. SENTINEL STANDBY LOOP (CONTAINER PROTECTION) ==="
+          echo "=================================================="
+          echo "BLOCKER SWEEP FINISHED. Entering Sentinel Standby Loop."
+          echo "The runner will NOT exit automatically, preventing container teardown."
+          echo "To terminate the runner, create /mnt/avium-cache/TERMINATE_RUNNER"
+          touch "$STATUS_DIR/SENTINEL_STANDBY_ACTIVE"
+
+          rm -f /mnt/avium-cache/TERMINATE_RUNNER
+          STANDBY_COUNT=0
+          while [ ! -f "/mnt/avium-cache/TERMINATE_RUNNER" ]; do
+            STANDBY_COUNT=$((STANDBY_COUNT + 1))
+            if [ $((STANDBY_COUNT % 20)) -eq 0 ]; then
+              echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Sentinel standby active... ($STANDBY_COUNT * 30s elapsed)"
+            fi
+            sleep 30
+          done
+
+          echo "TERMINATE_RUNNER detected. Exiting gracefully."
