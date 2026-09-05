@@ -3,6 +3,10 @@ name: AviumUI Blacksmith Clean Reproduction & Full Bacon
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+  actions: read
+
 concurrency:
   group: avium-blacksmith-build
   cancel-in-progress: false
@@ -60,7 +64,7 @@ jobs:
           echo "=== 3. SETUP DISK-FIRST NVMe DIRECTORIES ==="
           echo "=================================================="
           # Create workspace on root NVMe filesystem (avoiding tmpfs RAM limit)
-          sudo mkdir -p /mnt/android/avium /mnt/android/out /mnt/android/ccache /mnt/android/tmp
+          sudo mkdir -p /mnt/android/avium /mnt/android/out /mnt/android/ccache /mnt/android/tmp /mnt/android/release_artifacts
           sudo chown -R runner:docker /mnt/android
           df -hT /mnt/android
 
@@ -79,7 +83,7 @@ jobs:
           META_DIR="/home/runner/work/aviumui-enchilada/aviumui-enchilada/avium-metadata"
 
           repo init -u https://github.com/ColoMovo-Labs/aviumui-enchilada-manifests.git -b main \
-            -m manifests/build1-pinned-manifest.xml \
+            -m build1-pinned-manifest.xml \
             --depth=1 --git-lfs --no-clone-bundle
 
           # Inject local_manifests
@@ -110,20 +114,8 @@ jobs:
           META_DIR="/home/runner/work/aviumui-enchilada/aviumui-enchilada/avium-metadata"
           cd /mnt/android/avium
 
-          # 1. Apply Display gpu_tonemapper fix
-          if [ -d "hardware/qcom-caf/sdm845/display" ]; then
-            cd hardware/qcom-caf/sdm845/display
-            PATCH_FILE="$META_DIR/patches/hardware_qcom-caf_sdm845_display/0001-sdm845-display-adapt-gpu_tonemapper-to-current-ION-A.patch"
-            if [ -f "$PATCH_FILE" ]; then
-              echo "Applying display gpu_tonemapper patch..."
-              git apply --check "$PATCH_FILE" && git apply "$PATCH_FILE" || true
-            fi
-            cd /mnt/android/avium
-          fi
-
-          # 2. Run fix_known_blockers.sh
           if [ -f "$META_DIR/scripts/fix_known_blockers.sh" ]; then
-            bash "$META_DIR/scripts/fix_known_blockers.sh" /mnt/android/avium
+            bash "$META_DIR/scripts/fix_known_blockers.sh" /mnt/android/avium "$META_DIR"
           fi
 
       - name: Configure NVMe Ccache (50GB)
@@ -157,7 +149,16 @@ jobs:
           echo "=== Verifying B01: libgralloccore ==="
           m -j16 libgralloccore
 
-          echo "=== Single-module checks complete. Ready for Full Bacon. ==="
+          echo "=== Verifying B02: libqti-perfd ==="
+          m -j16 libqti-perfd
+
+          echo "=== Verifying B03: libqti-iopd & libqti-iopd-client ==="
+          m -j16 libqti-iopd libqti-iopd-client
+
+          echo "=== Verifying B04: libwfdservice ==="
+          m -j16 libwfdservice
+
+          echo "=== Single-module checks complete. All 4 blockers PASS! Ready for Full Bacon. ==="
 
       - name: "Phase 2: Full Bacon Build (-j16, kernel -j8, -k 0)"
         run: |
@@ -186,21 +187,71 @@ jobs:
           echo "=================================================="
           echo "=== 10. ARTIFACT PRESERVATION & VERIFICATION ==="
           echo "=================================================="
+          REL_DIR="/mnt/android/release_artifacts"
           OUT_ENCHILADA="/mnt/android/out/target/product/enchilada"
+          mkdir -p "$REL_DIR"
+
+          # 1. Collect Logs
+          echo "=== Collecting Build Logs ==="
+          if [ -f "/mnt/android/bacon_build.log" ]; then
+            pigz -c "/mnt/android/bacon_build.log" > "$REL_DIR/bacon_build.log.gz" || true
+          fi
+          if [ -f "/mnt/android/out/soong.log" ]; then
+            pigz -c "/mnt/android/out/soong.log" > "$REL_DIR/soong.log.gz" || true
+          fi
+          if [ -f "/mnt/android/out/.ninja_log" ]; then
+            pigz -c "/mnt/android/out/.ninja_log" > "$REL_DIR/ninja_build.log.gz" || true
+          fi
+
+          # 2. Collect Images & ROM
           if [ -d "$OUT_ENCHILADA" ]; then
             cd "$OUT_ENCHILADA"
-            echo "=== Partition Images & Artifacts ==="
-            ls -lh *.img kernel *.txt *.json 2>/dev/null || true
+            echo "=== Preserving Partition Images ==="
+            for img in boot.img dtbo.img vendor_boot.img recovery.img vbmeta.img vbmeta_system.img android-info.txt; do
+              if [ -f "$img" ]; then
+                cp -f "$img" "$REL_DIR/"
+                sha256sum "$img" > "$REL_DIR/$img.sha256"
+              fi
+            done
 
-            ZIP_FILE=$(ls -1 AviumUI-*.zip 2>/dev/null | head -n 1)
-            if [ -n "$ZIP_FILE" ]; then
+            ZIP_FILE=$(ls -1 AviumUI-*.zip 2>/dev/null | head -n 1 || true)
+            if [ -n "$ZIP_FILE" ] && [ -f "$ZIP_FILE" ]; then
               echo "SUCCESS: FINAL ROM ZIP PRODUCED: $ZIP_FILE"
+              sync
+              sleep 2
               sha256sum "$ZIP_FILE" > "$ZIP_FILE.sha256"
-              cat "$ZIP_FILE.sha256"
+              cp -f "$ZIP_FILE" "$REL_DIR/"
+              cp -f "$ZIP_FILE.sha256" "$REL_DIR/"
+              
+              # Verify copied file
+              cd "$REL_DIR"
+              sha256sum -c "$ZIP_FILE.sha256"
+              echo "=== Copied ROM ZIP verified match ==="
             else
               echo "STATUS: Intermediate / Blocker state (no final ZIP produced yet)"
             fi
           fi
 
+          echo "=== Release Artifacts Summary ==="
+          ls -lh "$REL_DIR"
+
           echo "=== Ccache Statistics ==="
           ccache -s
+
+          # 3. Create GitHub Release if ROM ZIP exists
+          if [ -n "${ZIP_FILE:-}" ] && [ -f "$REL_DIR/$ZIP_FILE" ]; then
+            echo "Creating GitHub Release for completed ROM..."
+            RELEASE_TAG="avium-16.2.1-enchilada-build-${{ github.run_id }}"
+            gh release create "$RELEASE_TAG" "$REL_DIR"/* \
+              --title "AviumUI 16.2.1 enchilada - Build ${{ github.run_id }}" \
+              --notes "Official clean build from Blacksmith runner. Includes ROM zip, boot images, and logs." || true
+          fi
+
+      - name: Upload Build Artifacts & Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: blacksmith-build-${{ github.run_id }}-artifacts
+          path: |
+            /mnt/android/release_artifacts/*
+          if-no-files-found: warn

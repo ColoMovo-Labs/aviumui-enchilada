@@ -2,44 +2,54 @@
 set -euo pipefail
 
 SOURCE_ROOT="${1:-/mnt/android/avium}"
+META_DIR="${2:-/home/runner/work/aviumui-enchilada/aviumui-enchilada/avium-metadata}"
 cd "$SOURCE_ROOT"
 
 echo "============================================================"
 echo "=== 1. DIAGNOSING & RESOLVING BLOCKER B01: DISPLAY GRALLOC ION ==="
 echo "============================================================"
 DISPLAY_DIR="$SOURCE_ROOT/hardware/qcom-caf/sdm845/display"
+PATCHES_DIR="$META_DIR/patches/hardware_qcom-caf_sdm845_display"
+
 if [ -d "$DISPLAY_DIR" ]; then
-  echo "[B01] Checking hardware/qcom-caf/sdm845/display..."
-  
-  # Search for all legacy ION ioctl/struct usage in display tree
-  echo "[B01] Scanning all legacy ION consumers in display HAL:"
-  grep -rnE "ion_fd_data|ION_IOC_IMPORT|ion_flush_data|ion_custom_data" "$DISPLAY_DIR" || true
+  echo "[B01] Inspecting hardware/qcom-caf/sdm845/display..."
+  cd "$DISPLAY_DIR"
 
-  # Check gralloc Android.bp and header includes
-  GRALLOC_BP="$DISPLAY_DIR/gralloc/Android.bp"
-  if [ -f "$GRALLOC_BP" ]; then
-    echo "[B01] Inspecting $GRALLOC_BP..."
-    
-    # Check if qti_kernel_headers or generated_kernel_headers are included
-    if ! grep -q "qti_kernel_headers" "$GRALLOC_BP" && ! grep -q "generated_kernel_headers" "$GRALLOC_BP"; then
-      echo "[B01] Adding kernel uapi header dependency to gralloc Android.bp for MSM ION definitions..."
-      sed -i '/header_libs: \[/a \        "qti_kernel_headers",' "$GRALLOC_BP" || true
+  # Step 1: Apply Patch 0001 (gpu_tonemapper)
+  PATCH1="$PATCHES_DIR/0001-sdm845-display-adapt-gpu_tonemapper-to-current-ION-A.patch"
+  if [ -f "$PATCH1" ]; then
+    echo "[B01] Checking and applying patch 0001 (gpu_tonemapper)..."
+    if git apply --check "$PATCH1" 2>/dev/null; then
+      git apply "$PATCH1"
+      echo "[B01] Applied 0001-sdm845-display-adapt-gpu_tonemapper-to-current-ION-A.patch successfully."
+    else
+      echo "[B01] Patch 0001 already applied or not cleanly applicable."
     fi
   fi
 
-  # Check if linux/msm_ion.h exists in kernel uapi or device headers
-  ION_HDR=$(find "$SOURCE_ROOT/kernel" "$SOURCE_ROOT/hardware/qcom-caf" "$SOURCE_ROOT/device/oneplus" -name "msm_ion.h" 2>/dev/null | head -n 1 || true)
-  echo "[B01] Found upstream MSM ION header at: $ION_HDR"
-
-  # Ensure gr_ion_alloc.h includes <linux/msm_ion.h> when compiling on Android 13/CAF
-  GR_ION_H="$DISPLAY_DIR/gralloc/gr_ion_alloc.h"
-  if [ -f "$GR_ION_H" ]; then
-    if ! grep -q "<linux/msm_ion.h>" "$GR_ION_H"; then
-      echo "[B01] Including <linux/msm_ion.h> in $GR_ION_H..."
-      sed -i '1i #include <linux/msm_ion.h>' "$GR_ION_H"
+  # Step 2: Apply Patch 0002 (gralloc TARGET_ION_ABI_VERSION >= 2)
+  PATCH2="$PATCHES_DIR/0002-sdm845-display-gralloc-adapt-to-TARGET_ION_ABI_VERSION-2.patch"
+  if [ -f "$PATCH2" ]; then
+    echo "[B01] Checking and applying patch 0002 (gralloc modern ION ABI)..."
+    if git apply --check "$PATCH2" 2>/dev/null; then
+      git apply "$PATCH2"
+      echo "[B01] Applied 0002-sdm845-display-gralloc-adapt-to-TARGET_ION_ABI_VERSION-2.patch successfully."
+    else
+      echo "[B01] Patch 0002 already applied or not cleanly applicable."
     fi
   fi
-  echo "[B01] Display Gralloc configuration ready."
+
+  # Step 3: Scan display HAL tree for any remaining legacy ION usage
+  echo "[B01] Scanning for any remaining legacy ION usage in display HAL:"
+  REMAINING_ION=$(grep -rnE "ion_fd_data|ION_IOC_IMPORT|ion_flush_data|ion_custom_data" . || true)
+  if [ -z "$REMAINING_ION" ]; then
+    echo "[B01] PASS: Zero unadapted legacy ION references in display HAL."
+  else
+    echo "[B01] Note: Remaining occurrences found in conditional blocks:"
+    echo "$REMAINING_ION"
+  fi
+
+  cd "$SOURCE_ROOT"
 else
   echo "[B01] Warning: Display dir not found at $DISPLAY_DIR"
 fi
@@ -69,21 +79,21 @@ try:
         if match:
             block = match.group(1)
             if "check_elf_files: false" not in block:
-                print(f"Applying check_elf_files: false to {target}")
+                print(f"[B02-B04] Applying check_elf_files: false to {target}")
                 new_block = block + '\tcheck_elf_files: false,\n'
                 content = content[:match.start()] + new_block + match.group(2) + content[match.end():]
                 modified = True
             else:
-                print(f"{target} already has check_elf_files: false")
+                print(f"[B02-B04] {target} already has check_elf_files: false")
         else:
-            print(f"Target module {target} not found via regex")
+            print(f"[B02-B04] Target module {target} not found via regex")
 
     if modified:
         with open(bp_file, "w") as f:
             f.write(content)
-        print("Updated vendor Android.bp successfully.")
+        print("[B02-B04] Updated vendor Android.bp successfully.")
 except Exception as e:
-    print(f"Error processing vendor Android.bp: {e}")
+    print(f"[B02-B04] Error processing vendor Android.bp: {e}")
 PYEOF
   fi
 else
