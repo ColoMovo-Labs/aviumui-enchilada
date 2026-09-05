@@ -88,9 +88,7 @@ jobs:
             -m build1-pinned-manifest.xml \
             --depth=1 --git-lfs --no-clone-bundle
 
-          # Inject local_manifests
-          mkdir -p .repo/local_manifests
-          cp -f "$META_DIR/local_manifests/enchilada.xml" .repo/local_manifests/
+          # Note: build1-pinned-manifest.xml already includes all enchilada projects pinned to exact commit revisions.
 
           echo "=== Verified Pinned Manifest Hash ==="
           sha256sum .repo/manifest.xml
