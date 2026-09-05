@@ -7,8 +7,8 @@
   
   <default remote="github" revision="refs/heads/lineage-23.2" sync-j="4" sync-c="true"/>
   
-  <project name="AviumUI-Devices/device_oneplus_sdm845-common" path="device/oneplus/sdm845-common" revision="f94d5eeb1b411dfbb4ecfafea5d04ea31e5e0a35" upstream="avium-16.2" dest-branch="avium-16.2" groups="local::enchilada"/>
-  <project name="AviumUI-Devices/hardware_dolby" path="hardware/dolby" revision="2e50f1a14ef24efd923f19ca0da101064f4cfd8a" upstream="avium-16.2" dest-branch="avium-16.2" groups="local::enchilada"/>
+  <project name="ColoMovo-Labs/android_device_oneplus_sdm845-common" path="device/oneplus/sdm845-common" revision="f94d5eeb1b411dfbb4ecfafea5d04ea31e5e0a35" upstream="avium-16.2" dest-branch="avium-16.2" groups="local::enchilada"/>
+  <project name="AviumUI-Devices/hardware_dolby" path="hardware/dolby" revision="157bf19d8fa9c83c3696f2b013101154558c0f3f" upstream="avium-16.2" dest-branch="avium-16.2" groups="local::enchilada"/>
   <project name="AviumUI-Devices/kernel_oneplus_sdm845" path="kernel/oneplus/sdm845" revision="53b798328231b5e75ff1df2b6b031a8618ac8084" upstream="avium-16.2" dest-branch="avium-16.2" groups="local::enchilada"/>
   <project name="ColoMovo-Labs/proprietary_vendor_oneplus_sdm845-common" path="vendor/oneplus/sdm845-common" revision="256177534d7f8fd531336814984fabbfca8a9442" upstream="avium-16.2" dest-branch="avium-16.2" groups="local::enchilada" clone-depth="1"/>
   <project name="LineageOS/android_bionic" path="bionic" revision="ff9fe01e7e1e81febaf32b15fa561aec480a112c" upstream="refs/heads/lineage-23.2" dest-branch="refs/heads/lineage-23.2" groups="pdk"/>
@@ -278,7 +278,7 @@
     <linkfile src="target" dest="build/target"/>
     <linkfile src="tools" dest="build/tools"/>
   </project>
-  <project name="android_build_soong" path="build/soong" remote="avium" revision="e27bd033986c0d9a07b16242340c3ef9571eb2e8" upstream="refs/heads/avium-16.2" dest-branch="refs/heads/avium-16.2" groups="pdk,tradefed">
+  <project name="android_build_soong" path="build/soong" remote="avium" revision="2e5b2070e5c672dce237ef0118e1d7bb43f6773d" upstream="refs/heads/avium-16.2" dest-branch="refs/heads/avium-16.2" groups="pdk,tradefed">
     <linkfile src="root.bp" dest="Android.bp"/>
     <linkfile src="bootstrap.bash" dest="bootstrap.bash"/>
   </project>
@@ -325,7 +325,7 @@
   <project name="android_system_security" path="system/security" remote="avium" revision="13c7946e5cb6abec857da20e934185e3b3d4427d" upstream="refs/heads/avium-16.2" dest-branch="refs/heads/avium-16.2" groups="pdk"/>
   <project name="android_system_sepolicy" path="system/sepolicy" remote="avium" revision="4a20f6188e7b36f5aa5df8ca0f4339b6c4a1b3c1" upstream="refs/heads/avium-16.2" dest-branch="refs/heads/avium-16.2"/>
   <project name="android_vendor_avium" path="vendor/avium" remote="avium" revision="8812dce06ac6af3e74975dd9a71b3ea21002d6d2" upstream="refs/heads/avium-16.2" dest-branch="refs/heads/avium-16.2"/>
-  <project name="android_vendor_lineage" path="vendor/lineage" remote="avium" revision="025613a89bea4fd08e53c95e669d16325e2c2683" upstream="refs/heads/avium-16.2" dest-branch="refs/heads/avium-16.2"/>
+  <project name="android_vendor_lineage" path="vendor/lineage" remote="avium" revision="a05455c1d4f0f69580cd0acdd67b117ecb9c232d" upstream="refs/heads/avium-16.2" dest-branch="refs/heads/avium-16.2"/>
   <project name="android_vendor_qcom_opensource_display-core" path="hardware/qcom-caf/sm8750/display/core" remote="avium" revision="0c47d4c97cc144ce21696648f89a1f02849ba1b4" upstream="avium-16.2-caf-sm8750" dest-branch="avium-16.2-caf-sm8750" groups="qcom"/>
   <project name="device/common" remote="aosp" revision="9e48dd8859c3eb6b911bcc9d1ce48a4278bd03f5" upstream="refs/tags/android-16.0.0_r4" dest-branch="refs/tags/android-16.0.0_r4" groups="pdk,pdk-cw-fs"/>
   <project name="device/generic/arm64" remote="aosp" revision="71380158d818de918338e34a9cb72316fe3cfa4e" upstream="refs/tags/android-16.0.0_r4" dest-branch="refs/tags/android-16.0.0_r4" groups="pdk"/>
