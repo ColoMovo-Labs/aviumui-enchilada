@@ -80,6 +80,25 @@ jobs:
 
           mkdir -p "$OUT_DIR" "$TMPDIR" "$CCACHE_DIR"
 
+          # Restore checkpoint from persistent storage to fast local SSD
+          if [ -d "/mnt/avium-cache/checkpoints/bacon-current/out" ] && [ -n "$(ls -A /mnt/avium-cache/checkpoints/bacon-current/out 2>/dev/null)" ]; then
+            echo "=== RESTORING OUT_DIR FROM PERSISTENT CHECKPOINT ==="
+            time rsync -aHAX /mnt/avium-cache/checkpoints/bacon-current/out/ "$OUT_DIR/"
+            echo "OUT_DIR restored successfully: $(du -sh $OUT_DIR | cut -f1)"
+          fi
+
+          if [ -d "/mnt/avium-cache/checkpoints/bacon-current/ccache" ] && [ -n "$(ls -A /mnt/avium-cache/checkpoints/bacon-current/ccache 2>/dev/null)" ]; then
+            echo "=== RESTORING CCACHE FROM PERSISTENT CHECKPOINT ==="
+            time rsync -aHAX /mnt/avium-cache/checkpoints/bacon-current/ccache/ "$CCACHE_DIR/"
+            echo "CCACHE restored successfully: $(du -sh $CCACHE_DIR | cut -f1)"
+          fi
+
+          # Start background low-priority preseed loop for the current run
+          if [ -f "/mnt/avium-cache/checkpoints/preseed_loop.sh" ]; then
+            nohup /bin/bash /mnt/avium-cache/checkpoints/preseed_loop.sh > /dev/null 2>&1 &
+            echo "Background checkpoint preseed daemon started (PID: $!)"
+          fi
+
           echo "=================================================="
           echo "=== 3. SETUP BUILD ENVIRONMENT ==="
           echo "=================================================="
