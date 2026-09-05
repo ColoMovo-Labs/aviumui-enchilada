@@ -142,28 +142,73 @@ jobs:
           echo "DISPLAY_REPO HEAD: $(git rev-parse HEAD)"
 
           echo "=================================================="
-          echo "=== 4. START RAM SAFETY WATCHDOG ==="
+          echo "=== 4. START MULTI-TIER RAM SAFETY WATCHDOG ==="
           echo "=================================================="
           RAM_LOG="$LOG_DIR/ram_watchdog-$(date -u +%Y%m%dT%H%M%SZ).log"
           cat <<'WATCHDOG' > /tmp/ram_watchdog.sh
           #!/bin/bash
           LOG="$1"
+          OUT_DIR="$2"
+          SPILL_BASE="/var/avium-spill-target"
+          mkdir -p "$SPILL_BASE" || true
+
+          TICK=0
           while true; do
             AVAIL_KB=$(grep MemAvailable /proc/meminfo | awk '{print $2}')
             AVAIL_GB=$(( AVAIL_KB / 1024 / 1024 ))
             DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-            echo "$DATE | MemAvailable: ${AVAIL_GB} GiB" >> "$LOG"
-            if [ "$AVAIL_GB" -lt 48 ]; then
-              echo "$DATE | [CRITICAL] Low RAM (${AVAIL_GB} GiB)! Dropping CCACHE caches..." >> "$LOG"
+            TICK=$(( TICK + 1 ))
+
+            # Multi-tier thresholds:
+            # Green (>96G): nominal
+            # Watch (80–96G): 告警
+            # Prepare spill (64–80G): 识别并准备 spill destination
+            # Active RAM rescue (48–64G): 把 cold OUT subtrees 通过已验证的 rsync + bind-mount 溢出到 root filesystem
+            # Critical (<48G): 紧急动作
+
+            if [ "$AVAIL_GB" -ge 96 ]; then
+              if [ $(( TICK % 4 )) -eq 0 ]; then
+                echo "$DATE | [GREEN] Nominal: MemAvailable=${AVAIL_GB} GiB" >> "$LOG"
+              fi
+            elif [ "$AVAIL_GB" -ge 80 ]; then
+              echo "$DATE | [WATCH] Memory dropping: MemAvailable=${AVAIL_GB} GiB" >> "$LOG"
+            elif [ "$AVAIL_GB" -ge 64 ]; then
+              echo "$DATE | [PREPARE SPILL] MemAvailable=${AVAIL_GB} GiB. Monitoring candidates for spillover to root." >> "$LOG"
+              mkdir -p "$SPILL_BASE" || true
+            elif [ "$AVAIL_GB" -ge 48 ]; then
+              echo "$DATE | [ACTIVE RAM RESCUE] MemAvailable=${AVAIL_GB} GiB! Executing RAM rescue: flushing ccache..." >> "$LOG"
+              ccache -c || true
+              # Check candidate A: KERNEL_OBJ
+              KERNEL_OBJ="$OUT_DIR/target/product/enchilada/obj/KERNEL_OBJ"
+              if [ -d "$KERNEL_OBJ" ] && [ ! -L "$KERNEL_OBJ" ] && ! mountpoint -q "$KERNEL_OBJ"; then
+                echo "$DATE | [ACTIVE RAM RESCUE] Relocating KERNEL_OBJ to disk ($SPILL_BASE/KERNEL_OBJ)..." >> "$LOG"
+                mkdir -p "$SPILL_BASE/KERNEL_OBJ"
+                rsync -aH "$KERNEL_OBJ/" "$SPILL_BASE/KERNEL_OBJ/" && \
+                mount --bind "$SPILL_BASE/KERNEL_OBJ" "$KERNEL_OBJ" && \
+                echo "$DATE | [ACTIVE RAM RESCUE] KERNEL_OBJ successfully mounted from disk." >> "$LOG" || true
+              fi
+              # Check candidate B: external/rust
+              RUST_OBJ="$OUT_DIR/soong/.intermediates/external/rust"
+              if [ -d "$RUST_OBJ" ] && [ ! -L "$RUST_OBJ" ] && ! mountpoint -q "$RUST_OBJ"; then
+                echo "$DATE | [ACTIVE RAM RESCUE] Relocating external/rust to disk ($SPILL_BASE/external-rust)..." >> "$LOG"
+                mkdir -p "$SPILL_BASE/external-rust"
+                rsync -aH "$RUST_OBJ/" "$SPILL_BASE/external-rust/" && \
+                mount --bind "$SPILL_BASE/external-rust" "$RUST_OBJ" && \
+                echo "$DATE | [ACTIVE RAM RESCUE] external/rust successfully mounted from disk." >> "$LOG" || true
+              fi
+            else
+              echo "$DATE | [CRITICAL] Low RAM (${AVAIL_GB} GiB)! Emergency cache flush and sync..." >> "$LOG"
+              sync || true
+              echo 3 > /proc/sys/vm/drop_caches || true
               ccache -c || true
             fi
             sleep 15
           done
           WATCHDOG
           chmod +x /tmp/ram_watchdog.sh
-          nohup /tmp/ram_watchdog.sh "$RAM_LOG" >/dev/null 2>&1 &
+          nohup /tmp/ram_watchdog.sh "$RAM_LOG" "$OUT_DIR" >/dev/null 2>&1 &
           WATCHDOG_PID=$!
-          echo "RAM Watchdog started (PID: $WATCHDOG_PID, logging to $RAM_LOG)"
+          echo "Multi-tier RAM Watchdog started (PID: $WATCHDOG_PID, logging to $RAM_LOG)"
 
           echo "=================================================="
           echo "=== 5. SETUP BUILD ENVIRONMENT ==="
@@ -211,8 +256,29 @@ jobs:
           echo "=================================================="
           sweep_log="$LOG_DIR/blocker-sweep-bacon-$(date -u +%Y%m%dT%H%M%SZ).log"
           set +e
-          m -k 0 -j"$JOBS" TARGET_KERNEL_ADDITIONAL_FLAGS="-j16" bacon 2>&1 | tee "$sweep_log"
-          sweep_status=${PIPESTATUS[0]}
+          # Concurrency: userland -j64, kernel subbuild strictly -j8 (mitigating modbuiltin sigsegv)
+          m -k 0 -j"$JOBS" TARGET_KERNEL_ADDITIONAL_FLAGS="-j8" bacon 2>&1 | tee "$sweep_log" &
+          BUILD_PID=$!
+
+          # Verify Ninja keep-going flag propagation
+          echo "Checking Ninja process invocation to verify keep-going (-k 0)..."
+          for i in {1..60}; do
+            NINJA_PROC=$(ps aux | grep -v grep | grep "[n]inja" || true)
+            if [ -n "$NINJA_PROC" ]; then
+              echo "=== NINJA PROCESS DETECTED ==="
+              echo "$NINJA_PROC"
+              if echo "$NINJA_PROC" | grep -E -q "\-k 0|-k0"; then
+                echo "KEEP-GOING VERIFIED: Ninja is actively running with keep-going enabled (-k 0)."
+              else
+                echo "NOTE: Ninja command line detected: $NINJA_PROC"
+              fi
+              break
+            fi
+            sleep 2
+          done
+
+          wait "$BUILD_PID"
+          sweep_status=$?
           set -e
 
           echo "=================================================="
@@ -265,22 +331,40 @@ jobs:
           rsync -aH --delete "$CCACHE_DIR/" /mnt/avium-cache/checkpoints/bacon-current/ccache/ || true
           echo "CCACHE sync completed."
 
+          # Check if build succeeded with flashable ZIP
+          if [ -n "$rom_zip" ]; then
+            echo "SUCCESS: Flashable ROM ZIP produced ($rom_zip). Skipping standby and exiting cleanly."
+            exit 0
+          fi
+
           echo "=================================================="
-          echo "=== 10. SENTINEL STANDBY LOOP (CONTAINER PROTECTION) ==="
+          echo "=== 10. BOUNDED SENTINEL FOR DIAGNOSTICS ==="
           echo "=================================================="
-          echo "BLOCKER SWEEP FINISHED. Entering Sentinel Standby Loop."
-          echo "The runner will NOT exit automatically, preventing container teardown."
-          echo "To terminate the runner, create /mnt/avium-cache/TERMINATE_RUNNER"
+          # 60 minute bounded diagnostic window
+          STANDBY_MINUTES=60
+          START_TIME=$(date +%s)
+          EXPIRE_TIME=$(( START_TIME + STANDBY_MINUTES * 60 ))
+          EXPIRES_AT=$(date -u -d "@$EXPIRE_TIME" +%Y-%m-%dT%H:%M:%SZ)
+          echo "BLOCKER SWEEP COMPLETE. Entering Bounded Sentinel Window."
+          echo "expiresAt: $EXPIRES_AT ($STANDBY_MINUTES minutes total window)"
+          echo "To terminate early, run: touch /mnt/avium-cache/TERMINATE_RUNNER"
           touch "$STATUS_DIR/SENTINEL_STANDBY_ACTIVE"
 
           rm -f /mnt/avium-cache/TERMINATE_RUNNER
-          STANDBY_COUNT=0
-          while [ ! -f "/mnt/avium-cache/TERMINATE_RUNNER" ]; do
-            STANDBY_COUNT=$((STANDBY_COUNT + 1))
-            if [ $((STANDBY_COUNT % 20)) -eq 0 ]; then
-              echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Sentinel standby active... ($STANDBY_COUNT * 30s elapsed)"
+          while true; do
+            NOW=$(date +%s)
+            if [ "$NOW" -ge "$EXPIRE_TIME" ]; then
+              echo "Bounded sentinel window ($STANDBY_MINUTES min) expired at $(date -u +%Y-%m-%dT%H:%M:%SZ). Terminating runner."
+              break
             fi
-            sleep 30
+            REMAINING=$(( (EXPIRE_TIME - NOW) / 60 ))
+            if [ -f "/mnt/avium-cache/TERMINATE_RUNNER" ]; then
+              echo "TERMINATE_RUNNER detected at $(date -u +%Y-%m-%dT%H:%M:%SZ). Exiting gracefully."
+              rm -f /mnt/avium-cache/TERMINATE_RUNNER || true
+              break
+            fi
+            echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Sentinel standby active... remainingMinutes: $REMAINING (expiresAt: $EXPIRES_AT)"
+            sleep 60
           done
 
-          echo "TERMINATE_RUNNER detected. Exiting gracefully."
+          echo "Sentinel window concluded. Exiting runner."
