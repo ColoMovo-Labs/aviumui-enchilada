@@ -112,5 +112,14 @@ if [ -f "$CI_TEST_ZIP" ]; then
 fi
 
 echo "============================================================"
-echo "=== 4. ALL KNOWN BLOCKER CONFIGURATIONS APPLIED ==="
+echo "=== 4. REMOVING NON-EXISTENT LunarisDolby FROM dolby.mk ==="
+echo "============================================================"
+DOLBY_MK="$SOURCE_ROOT/hardware/dolby/dolby.mk"
+if [ -f "$DOLBY_MK" ]; then
+  echo "[DOLBY] Removing non-existent LunarisDolby from $DOLBY_MK..."
+  sed -i '/LunarisDolby/d' "$DOLBY_MK" || true
+fi
+
+echo "============================================================"
+echo "=== 5. ALL KNOWN BLOCKER CONFIGURATIONS APPLIED ==="
 echo "============================================================"
