@@ -9,7 +9,7 @@ concurrency:
 
 jobs:
   blocker-hunt:
-    runs-on: depot-ubuntu-24.04-16
+    runs-on: depot-ubuntu-24.04-32
     timeout-minutes: 720
 
     steps:
@@ -83,13 +83,13 @@ jobs:
           # Restore checkpoint from persistent storage to fast local SSD
           if [ -d "/mnt/avium-cache/checkpoints/bacon-current/out" ] && [ -n "$(ls -A /mnt/avium-cache/checkpoints/bacon-current/out 2>/dev/null)" ]; then
             echo "=== RESTORING OUT_DIR FROM PERSISTENT CHECKPOINT ==="
-            time rsync -aHAX /mnt/avium-cache/checkpoints/bacon-current/out/ "$OUT_DIR/"
+            time rsync -aH /mnt/avium-cache/checkpoints/bacon-current/out/ "$OUT_DIR/"
             echo "OUT_DIR restored successfully: $(du -sh $OUT_DIR | cut -f1)"
           fi
 
           if [ -d "/mnt/avium-cache/checkpoints/bacon-current/ccache" ] && [ -n "$(ls -A /mnt/avium-cache/checkpoints/bacon-current/ccache 2>/dev/null)" ]; then
             echo "=== RESTORING CCACHE FROM PERSISTENT CHECKPOINT ==="
-            time rsync -aHAX /mnt/avium-cache/checkpoints/bacon-current/ccache/ "$CCACHE_DIR/"
+            time rsync -aH /mnt/avium-cache/checkpoints/bacon-current/ccache/ "$CCACHE_DIR/"
             echo "CCACHE restored successfully: $(du -sh $CCACHE_DIR | cut -f1)"
           fi
 
