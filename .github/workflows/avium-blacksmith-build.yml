@@ -1,0 +1,206 @@
+name: AviumUI Blacksmith Clean Reproduction & Full Bacon
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: avium-blacksmith-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: blacksmith-16vcpu-ubuntu-2404
+    timeout-minutes: 720
+
+    steps:
+      - name: System & Disk Pre-Flight Check
+        run: |
+          echo "=================================================="
+          echo "=== 1. BLACKSMITH HARDWARE & NVMe PRE-FLIGHT ==="
+          echo "=================================================="
+          echo "=== CPU INFO ==="
+          nproc
+          lscpu | head -n 25
+
+          echo "=== MEMORY ==="
+          free -h
+
+          echo "=== NVMe DISK ==="
+          df -hT
+          lsblk
+
+      - name: Install Build Dependencies & Tools
+        run: |
+          echo "=================================================="
+          echo "=== 2. INSTALLING BUILD DEPENDENCIES ==="
+          echo "=================================================="
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc bison build-essential ccache curl flex g++-multilib \
+            gcc-multilib git git-lfs gnupg gperf imagemagick \
+            lib32readline-dev lib32z1-dev libelf-dev liblz4-tool \
+            libssl-dev libxml2 libxml2-utils lzop pngcrush \
+            rsync schedtool squashfs-tools xsltproc zip zlib1g-dev \
+            python3 python-is-python3 unzip wget zstd tar ripgrep pigz jq
+
+          git lfs install
+          mkdir -p "$HOME/bin"
+          curl -sLo "$HOME/bin/repo" https://storage.googleapis.com/git-repo-downloads/repo
+          chmod +x "$HOME/bin/repo"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Checkout AviumUI Repository (Metadata & Workflows)
+        uses: actions/checkout@v4
+        with:
+          path: avium-metadata
+
+      - name: Setup Disk-First Directories on NVMe
+        run: |
+          echo "=================================================="
+          echo "=== 3. SETUP DISK-FIRST NVMe DIRECTORIES ==="
+          echo "=================================================="
+          # Create workspace on root NVMe filesystem (avoiding tmpfs RAM limit)
+          sudo mkdir -p /mnt/android/avium /mnt/android/out /mnt/android/ccache /mnt/android/tmp
+          sudo chown -R runner:docker /mnt/android
+          df -hT /mnt/android
+
+      - name: Initialize Repo with Pinned Manifest
+        run: |
+          echo "=================================================="
+          echo "=== 4. INITIALIZING REPO WITH PINNED MANIFEST ==="
+          echo "=================================================="
+          export PATH="$HOME/bin:$PATH"
+          cd /mnt/android/avium
+
+          git config --global user.name "ColoMovo"
+          git config --global user.email "colomovo@users.noreply.github.com"
+          git config --global color.ui false
+
+          META_DIR="/home/runner/work/aviumui-enchilada/aviumui-enchilada/avium-metadata"
+
+          repo init -u https://github.com/ColoMovo-Labs/aviumui-enchilada-manifests.git -b main \
+            -m manifests/build1-pinned-manifest.xml \
+            --depth=1 --git-lfs --no-clone-bundle
+
+          # Inject local_manifests
+          mkdir -p .repo/local_manifests
+          cp -f "$META_DIR/local_manifests/enchilada.xml" .repo/local_manifests/
+
+          echo "=== Verified Pinned Manifest Hash ==="
+          sha256sum .repo/manifest.xml
+
+      - name: Synchronize Source Repositories (-j16)
+        run: |
+          echo "=================================================="
+          echo "=== 5. SYNCING ANDROID SOURCE TREE ==="
+          echo "=================================================="
+          export PATH="$HOME/bin:$PATH"
+          cd /mnt/android/avium
+
+          repo sync -c --no-clone-bundle --no-tags --optimized-fetch --force-sync -j16
+
+          echo "=== Storage after source sync ==="
+          df -hT /mnt/android
+
+      - name: Apply Established Patches & Blocker Resolutions
+        run: |
+          echo "=================================================="
+          echo "=== 6. APPLYING PATCHES & RESOLVING 4 BLOCKERS ==="
+          echo "=================================================="
+          META_DIR="/home/runner/work/aviumui-enchilada/aviumui-enchilada/avium-metadata"
+          cd /mnt/android/avium
+
+          # 1. Apply Display gpu_tonemapper fix
+          if [ -d "hardware/qcom-caf/sdm845/display" ]; then
+            cd hardware/qcom-caf/sdm845/display
+            PATCH_FILE="$META_DIR/patches/hardware_qcom-caf_sdm845_display/0001-sdm845-display-adapt-gpu_tonemapper-to-current-ION-A.patch"
+            if [ -f "$PATCH_FILE" ]; then
+              echo "Applying display gpu_tonemapper patch..."
+              git apply --check "$PATCH_FILE" && git apply "$PATCH_FILE" || true
+            fi
+            cd /mnt/android/avium
+          fi
+
+          # 2. Run fix_known_blockers.sh
+          if [ -f "$META_DIR/scripts/fix_known_blockers.sh" ]; then
+            bash "$META_DIR/scripts/fix_known_blockers.sh" /mnt/android/avium
+          fi
+
+      - name: Configure NVMe Ccache (50GB)
+        run: |
+          echo "=================================================="
+          echo "=== 7. CONFIGURING NVMe CCACHE (50GB) ==="
+          echo "=================================================="
+          export CCACHE_DIR=/mnt/android/ccache
+          export USE_CCACHE=1
+          export CCACHE_EXEC=/usr/bin/ccache
+          ccache -M 50G
+          ccache -z
+          ccache -s
+
+      - name: Phase 1: Test Compile Single Blocker Modules
+        run: |
+          echo "=================================================="
+          echo "=== 8. SINGLE-MODULE VERIFICATION ==="
+          echo "=================================================="
+          export PATH="$HOME/bin:$PATH"
+          export OUT_DIR=/mnt/android/out
+          export TMPDIR=/mnt/android/tmp
+          export CCACHE_DIR=/mnt/android/ccache
+          export USE_CCACHE=1
+          export CCACHE_EXEC=/usr/bin/ccache
+
+          cd /mnt/android/avium
+          source build/envsetup.sh
+          breakfast enchilada
+
+          echo "=== Verifying B01: libgralloccore ==="
+          m -j16 libgralloccore
+
+          echo "=== Single-module checks complete. Ready for Full Bacon. ==="
+
+      - name: Phase 2: Full Bacon Build (-j16, kernel -j8, -k 0)
+        run: |
+          echo "=================================================="
+          echo "=== 9. FULL BACON BUILD (-j16, kernel -j8, -k 0) ==="
+          echo "=================================================="
+          export PATH="$HOME/bin:$PATH"
+          export OUT_DIR=/mnt/android/out
+          export TMPDIR=/mnt/android/tmp
+          export CCACHE_DIR=/mnt/android/ccache
+          export USE_CCACHE=1
+          export CCACHE_EXEC=/usr/bin/ccache
+
+          cd /mnt/android/avium
+          source build/envsetup.sh
+          breakfast enchilada
+
+          # Kernel sub-build fixed to -j8; AOSP -j16; keep-going -k 0
+          m -k 0 -j16 TARGET_KERNEL_ADDITIONAL_FLAGS="-j8" bacon 2>&1 | tee /mnt/android/bacon_build.log
+
+      - name: Artifact Preservation & Reporting
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "=================================================="
+          echo "=== 10. ARTIFACT PRESERVATION & VERIFICATION ==="
+          echo "=================================================="
+          OUT_ENCHILADA="/mnt/android/out/target/product/enchilada"
+          if [ -d "$OUT_ENCHILADA" ]; then
+            cd "$OUT_ENCHILADA"
+            echo "=== Partition Images & Artifacts ==="
+            ls -lh *.img kernel *.txt *.json 2>/dev/null || true
+
+            ZIP_FILE=$(ls -1 AviumUI-*.zip 2>/dev/null | head -n 1)
+            if [ -n "$ZIP_FILE" ]; then
+              echo "SUCCESS: FINAL ROM ZIP PRODUCED: $ZIP_FILE"
+              sha256sum "$ZIP_FILE" > "$ZIP_FILE.sha256"
+              cat "$ZIP_FILE.sha256"
+            else
+              echo "STATUS: Intermediate / Blocker state (no final ZIP produced yet)"
+            fi
+          fi
+
+          echo "=== Ccache Statistics ==="
+          ccache -s
