@@ -138,7 +138,7 @@ jobs:
           ccache -z
           ccache -s
 
-      - name: Phase 1: Test Compile Single Blocker Modules
+      - name: "Phase 1: Test Compile Single Blocker Modules"
         run: |
           echo "=================================================="
           echo "=== 8. SINGLE-MODULE VERIFICATION ==="
@@ -159,7 +159,7 @@ jobs:
 
           echo "=== Single-module checks complete. Ready for Full Bacon. ==="
 
-      - name: Phase 2: Full Bacon Build (-j16, kernel -j8, -k 0)
+      - name: "Phase 2: Full Bacon Build (-j16, kernel -j8, -k 0)"
         run: |
           echo "=================================================="
           echo "=== 9. FULL BACON BUILD (-j16, kernel -j8, -k 0) ==="
