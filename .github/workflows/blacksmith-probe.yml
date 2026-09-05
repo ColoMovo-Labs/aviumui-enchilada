@@ -1,0 +1,25 @@
+name: Blacksmith Probe
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe runner
+        run: |
+          echo "=== CPU ==="
+          nproc
+          lscpu | head -30
+
+          echo "=== MEMORY ==="
+          free -h
+
+          echo "=== DISK ==="
+          df -hT
+          lsblk
+
+          echo "=== SYSTEM ==="
+          uname -a
