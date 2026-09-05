@@ -50,15 +50,17 @@ diff --git a/gralloc/gr_ion_alloc.cpp b/gralloc/gr_ion_alloc.cpp
 index 33a13ab..e132edf 100644
 --- a/gralloc/gr_ion_alloc.cpp
 +++ b/gralloc/gr_ion_alloc.cpp
-@@ -29,25 +29,30 @@
+@@ -29,25 +29,32 @@
  
  #define DEBUG 0
  #define ATRACE_TAG (ATRACE_TAG_GRAPHICS | ATRACE_TAG_HAL)
 +#include <sys/ioctl.h>
 +#include <sys/mman.h>
 +#include <linux/msm_ion.h>
++#include <unistd.h>
 +#if TARGET_ION_ABI_VERSION >= 2
 +#include <linux/dma-buf.h>
++typedef int ion_user_handle_t;
 +#include <ion/ion.h>
 +#endif
 +#include <stdlib.h>

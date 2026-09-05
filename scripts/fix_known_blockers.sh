@@ -41,6 +41,14 @@ if [ -d "$DISPLAY_DIR" ]; then
     fi
   fi
 
+  # Ensure ion_user_handle_t is defined before <ion/ion.h> in gr_ion_alloc.cpp
+  if [ -f "gralloc/gr_ion_alloc.cpp" ]; then
+    if grep -q "<ion/ion.h>" "gralloc/gr_ion_alloc.cpp" && ! grep -q "ion_user_handle_t" "gralloc/gr_ion_alloc.cpp"; then
+      echo "[B01] Ensuring typedef int ion_user_handle_t in gralloc/gr_ion_alloc.cpp..."
+      sed -i 's|#include <ion/ion.h>|typedef int ion_user_handle_t;\n#include <ion/ion.h>|' "gralloc/gr_ion_alloc.cpp"
+    fi
+  fi
+
   # Step 3: Scan display HAL tree for any remaining legacy ION usage
   echo "[B01] Scanning for any remaining legacy ION usage in display HAL:"
   REMAINING_ION=$(grep -rnE "ion_fd_data|ION_IOC_IMPORT|ion_flush_data|ion_custom_data" . || true)
