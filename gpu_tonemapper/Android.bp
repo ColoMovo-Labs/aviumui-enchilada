@@ -20,6 +20,7 @@ cc_library_shared {
         "-Wall",
         "-Wno-unused-parameter",
         "-DLOG_TAG=\"GPU_TONEMAPPER\"",
+        "-DTARGET_ION_ABI_VERSION=1",
     ],
 
     srcs: [
