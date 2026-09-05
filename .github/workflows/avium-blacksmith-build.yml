@@ -101,7 +101,8 @@ jobs:
           export PATH="$HOME/bin:$PATH"
           cd /mnt/android/avium
 
-          repo sync -c --no-clone-bundle --no-tags --optimized-fetch --force-sync -j16
+          repo sync -c --no-clone-bundle --no-tags --optimized-fetch --force-sync -j16 || \
+          repo sync -c --no-clone-bundle --no-tags --optimized-fetch --force-sync -j4
 
           echo "=== Storage after source sync ==="
           df -hT /mnt/android

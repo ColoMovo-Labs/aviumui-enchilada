@@ -76,14 +76,14 @@ try:
     modified = False
 
     for target in targets:
-        pattern = re.compile(rf'(cc_prebuilt_library_shared\s*\{{[^}}]*?name:\s*"{target}"[^}}]*?)(\}})', re.DOTALL)
+        pattern = re.compile(rf'(cc_prebuilt_library_shared\s*\{{[^}}]*?name:\s*"{target}",)')
         match = pattern.search(content)
         if match:
-            block = match.group(1)
-            if "check_elf_files: false" not in block:
+            # Check if check_elf_files already set nearby
+            following = content[match.end():match.end() + 200]
+            if "check_elf_files: false" not in following:
                 print(f"[B02-B04] Applying check_elf_files: false to {target}")
-                new_block = block + '\tcheck_elf_files: false,\n'
-                content = content[:match.start()] + new_block + match.group(2) + content[match.end():]
+                content = content[:match.end()] + '\n\tcheck_elf_files: false,' + content[match.end():]
                 modified = True
             else:
                 print(f"[B02-B04] {target} already has check_elf_files: false")
