@@ -1,0 +1,156 @@
+name: AviumUI Night Blocker Hunt and Build
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: avium-enchilada-persistent-workspace
+  cancel-in-progress: false
+
+jobs:
+  blocker-hunt:
+    runs-on: depot-ubuntu-24.04-16
+    timeout-minutes: 720
+
+    steps:
+      - name: Mount persistent Android workspace
+        uses: depot/cache-mount@v1
+        with:
+          name: aviumui-aosp-workspace
+          path: /mnt/avium-cache
+
+      - name: Prepare build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc bison build-essential ccache curl flex g++-multilib \
+            gcc-multilib git git-lfs gnupg gperf imagemagick \
+            lib32readline-dev lib32z1-dev libelf-dev liblz4-tool \
+            libssl-dev libxml2 libxml2-utils lzop pngcrush \
+            rsync schedtool squashfs-tools xsltproc zip zlib1g-dev \
+            python3 python-is-python3 unzip wget zstd tar ripgrep
+
+          git lfs install
+          mkdir -p "$HOME/bin" "$HOME/.depot/bin"
+          curl -o "$HOME/bin/repo" \
+            https://storage.googleapis.com/git-repo-downloads/repo
+          chmod +x "$HOME/bin/repo"
+
+          curl -L https://depot.dev/install-cli.sh | sh
+          echo "$HOME/bin:$HOME/.depot/bin" >> "$GITHUB_PATH"
+
+      - name: Sync Working Tree & Execute Build Pipeline
+        shell: bash
+        run: |
+          set -eo pipefail
+
+          export PATH="$HOME/bin:$HOME/.depot/bin:$PATH"
+
+          STATUS_DIR="/mnt/avium-cache/status"
+          LOG_DIR="/mnt/avium-cache/build-logs"
+          RELEASE_DIR="/mnt/avium-cache/releases/build1"
+          RELEASE_BOOT_DIR="$RELEASE_DIR/bootimage"
+          FAILURE_DIR="/mnt/avium-cache/build-failures"
+
+          mkdir -p "$STATUS_DIR" "$LOG_DIR" "$RELEASE_DIR" "$RELEASE_BOOT_DIR" "$FAILURE_DIR"
+
+          SOURCE_ROOT="/mnt/avium-cache/android/avium"
+          TARGET_REPO="$SOURCE_ROOT/device/oneplus/sdm845-common"
+
+          echo "=================================================="
+          echo "=== 1. UPDATE DEVICE TREE TO avium-16.2-work ==="
+          echo "=================================================="
+          cd "$TARGET_REPO"
+          git fetch https://github.com/ColoMovo-Labs/android_device_oneplus_sdm845-common.git avium-16.2-work
+          git checkout -B avium-16.2-work FETCH_HEAD
+          HEAD_SHA=$(git rev-parse HEAD)
+          echo "TARGET_REPO HEAD: $HEAD_SHA"
+          git log -n 3 --oneline
+
+          echo "=================================================="
+          echo "=== 2. SETUP OUT & CACHES ==="
+          echo "=================================================="
+          cd "$SOURCE_ROOT"
+
+          export OUT_DIR=/tmp/avium-out
+          export TMPDIR=/tmp/avium-tmp
+          export CCACHE_DIR=/tmp/avium-ccache
+          export USE_CCACHE=1
+          export CCACHE_EXEC=/usr/bin/ccache
+
+          mkdir -p "$OUT_DIR" "$TMPDIR" "$CCACHE_DIR"
+
+          echo "=================================================="
+          echo "=== 3. SETUP BUILD ENVIRONMENT ==="
+          echo "=================================================="
+          source build/envsetup.sh
+          lunch lineage_enchilada-bp4a-userdebug
+
+          JOBS=$(nproc)
+          echo "Detected $JOBS vCPUs on runner. Configuring concurrency -j$JOBS"
+
+          echo "=================================================="
+          echo "=== 4. STEP A: VALIDATE RECOVERY SEPOLICY ==="
+          echo "=================================================="
+          cil_log="$LOG_DIR/night-recovery-sepolicy-$(date -u +%Y%m%dT%H%M%SZ).log"
+          set +e
+          m -j"$JOBS" recovery_sepolicy.cil 2>&1 | tee "$cil_log"
+          cil_status=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$cil_status" -ne 0 ]; then
+            echo "FAILED: recovery_sepolicy.cil failed with status $cil_status"
+            echo "=== FIRST REAL BLOCKER ==="
+            grep -E "ERROR '(unknown type|permission)'|checkpolicy:.*error" "$cil_log" | head -n 20 || true
+            tail -n 60 "$cil_log"
+            exit "$cil_status"
+          fi
+
+          echo "SEPOLICY_VALIDATION_PASS: recovery_sepolicy.cil checkpolicy passed!"
+
+          echo "=================================================="
+          echo "=== 5. STEP B: BUILD BOOTIMAGE ==="
+          echo "=================================================="
+          boot_log="$LOG_DIR/night-bootimage-$(date -u +%Y%m%dT%H%M%SZ).log"
+          boot_target="$OUT_DIR/target/product/enchilada/boot.img"
+          set +e
+          m -j"$JOBS" TARGET_KERNEL_ADDITIONAL_FLAGS="-j8" bootimage 2>&1 | tee "$boot_log"
+          boot_status=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$boot_status" -ne 0 ] || [ ! -f "$boot_target" ]; then
+            echo "WARNING: Bootimage build stopped with status $boot_status"
+            echo "=== FIRST REAL BLOCKER ==="
+            grep -E "ERROR '(unknown type|permission)'|ninja: build stopped" "$boot_log" | head -n 20 || true
+            tail -n 60 "$boot_log"
+            exit "$boot_status"
+          fi
+
+          boot_sha=$(sha256sum "$boot_target" | cut -d' ' -f1)
+          echo "BOOTIMAGE_PASS: $boot_target (SHA256: $boot_sha)"
+          cp "$boot_target" "$RELEASE_BOOT_DIR/boot.img" || true
+          echo "$boot_sha  boot.img" > "$RELEASE_BOOT_DIR/SHA256SUMS.txt" || true
+
+          echo "=================================================="
+          echo "=== 6. STEP C: FULL ROM BUILD (m bacon) ==="
+          echo "=================================================="
+          bacon_log="$LOG_DIR/night-bacon-$(date -u +%Y%m%dT%H%M%SZ).log"
+          set +e
+          m -j"$JOBS" TARGET_KERNEL_ADDITIONAL_FLAGS="-j8" bacon 2>&1 | tee "$bacon_log"
+          bacon_status=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$bacon_status" -ne 0 ]; then
+            echo "FULL_ROM_BUILD_STOPPED: m bacon exited with status $bacon_status"
+            echo "=== FIRST REAL BLOCKER ==="
+            grep -E "FAILED:|ninja: build stopped|checkpolicy:.*error" "$bacon_log" | head -n 20 || true
+            tail -n 60 "$bacon_log"
+            exit "$bacon_status"
+          fi
+
+          echo "ROM_BUILD_PASS=YES"
+          rom_zip=$(find "$OUT_DIR/target/product/enchilada" -maxdepth 1 -name "lineage-*.zip" -o -name "avium-*.zip" 2>/dev/null | head -n 1)
+          if [ -n "$rom_zip" ]; then
+            sha256sum "$rom_zip" | tee "$RELEASE_DIR/ROM_SHA256.txt"
+            cp "$rom_zip" "$RELEASE_DIR/" || true
+          fi
