@@ -64,7 +64,7 @@ jobs:
           echo "=== 3. SETUP DISK-FIRST NVMe DIRECTORIES ==="
           echo "=================================================="
           # Create workspace on root NVMe filesystem (avoiding tmpfs RAM limit)
-          sudo mkdir -p /mnt/android/avium /mnt/android/out /mnt/android/ccache /mnt/android/tmp /mnt/android/release_artifacts
+          sudo mkdir -p /mnt/android/avium /mnt/android/ccache /mnt/android/tmp /mnt/android/release_artifacts
           sudo chown -R runner:docker /mnt/android
           df -hT /mnt/android
 
@@ -139,7 +139,7 @@ jobs:
           echo "=== 8. SINGLE-MODULE VERIFICATION ==="
           echo "=================================================="
           export PATH="$HOME/bin:$PATH"
-          export OUT_DIR=/mnt/android/out
+          export OUT_DIR=/mnt/android/avium/out
           export TMPDIR=/mnt/android/tmp
           export CCACHE_DIR=/mnt/android/ccache
           export USE_CCACHE=1
@@ -169,7 +169,7 @@ jobs:
           echo "=== 9. FULL BACON BUILD (-j16, kernel -j8, -k 0) ==="
           echo "=================================================="
           export PATH="$HOME/bin:$PATH"
-          export OUT_DIR=/mnt/android/out
+          export OUT_DIR=/mnt/android/avium/out
           export TMPDIR=/mnt/android/tmp
           export CCACHE_DIR=/mnt/android/ccache
           export USE_CCACHE=1
@@ -191,7 +191,7 @@ jobs:
           echo "=== 10. ARTIFACT PRESERVATION & VERIFICATION ==="
           echo "=================================================="
           REL_DIR="/mnt/android/release_artifacts"
-          OUT_ENCHILADA="/mnt/android/out/target/product/enchilada"
+          OUT_ENCHILADA="/mnt/android/avium/out/target/product/enchilada"
           mkdir -p "$REL_DIR"
 
           # 1. Collect Logs
@@ -199,11 +199,11 @@ jobs:
           if [ -f "/mnt/android/bacon_build.log" ]; then
             pigz -c "/mnt/android/bacon_build.log" > "$REL_DIR/bacon_build.log.gz" || true
           fi
-          if [ -f "/mnt/android/out/soong.log" ]; then
-            pigz -c "/mnt/android/out/soong.log" > "$REL_DIR/soong.log.gz" || true
+          if [ -f "/mnt/android/avium/out/soong.log" ]; then
+            pigz -c "/mnt/android/avium/out/soong.log" > "$REL_DIR/soong.log.gz" || true
           fi
-          if [ -f "/mnt/android/out/.ninja_log" ]; then
-            pigz -c "/mnt/android/out/.ninja_log" > "$REL_DIR/ninja_build.log.gz" || true
+          if [ -f "/mnt/android/avium/out/.ninja_log" ]; then
+            pigz -c "/mnt/android/avium/out/.ninja_log" > "$REL_DIR/ninja_build.log.gz" || true
           fi
 
           # 2. Collect Images & ROM
