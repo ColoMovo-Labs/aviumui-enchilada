@@ -36,7 +36,9 @@ jobs:
           echo "=== 2. INSTALLING CLOUD AUDIT TOOLING ==="
           echo "=================================================="
           sudo apt-get update -qq
-          sudo apt-get install -y -qq curl python3 p7zip-full cpio file jq tar gzip
+          sudo apt-get install -y -qq curl python3 p7zip-full cpio file jq tar gzip erofs-utils
+          sudo modprobe erofs || true
+          sudo modprobe loop || true
 
           # 1. Install Android unpack_bootimg.py
           echo "[*] Downloading unpack_bootimg.py..."
