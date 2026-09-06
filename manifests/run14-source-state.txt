@@ -1,0 +1,109 @@
+# ========================================================
+# RUN #14 SOURCE REPRODUCIBILITY STATE REPORT
+# Timestamp: 2026-09-06T04:34:05.315777+00:00
+# ========================================================
+
+## 1. RUN 14 PINNED MANIFEST
+SHA256: 87b1f7a5bf6812d17ea55190a7935ac16df2000af596e14fadd1846de526ea5e  run14-pinned-manifest.xml
+
+## 2. DEVICE/ONEPLUS/SDM845-COMMON VERIFIED STATE
+Path: device/oneplus/sdm845-common
+Repository: ColoMovo-Labs/android_device_oneplus_sdm845-common
+Tracked Branch: avium-16.2-build1 / avium-16.2-work
+HEAD Commit: 56ffabcdf28fd05999750b9b5a53131a283fadcc
+
+Verified Ancestor Commit Chain (All 8 SELinux Fix Commits Present):
+  [ANCESTOR CONFIRMED] f735121 - sdm845-common: sepolicy: fix camera xdsp device type (xdsp_device)
+  [ANCESTOR CONFIRMED] 3923af9 - sdm845-common: sepolicy: fix fingerprint DSP device and property types
+  [ANCESTOR CONFIRMED] db9bfac - sdm845-common: sepolicy: remove undefined latency device rule
+  [ANCESTOR CONFIRMED] 6a536aa - sdm845-common: sepolicy: align power HAL sysfs type names
+  [ANCESTOR CONFIRMED] b8b3f38 - sdm845-common: sepolicy: align rild diag device type name
+  [ANCESTOR CONFIRMED] d4b726f - sdm845-common: sepolicy: restore legacy sensors domain and types
+  [ANCESTOR CONFIRMED] 4bf1332 - sdm845-common: sepolicy: align thermal-engine domain and devfreq sysfs type
+  [ANCESTOR CONFIRMED] 56ffabc - sdm845-common: sepolicy: resolve legacy block device, sysfs and wcnss symbols
+
+## 3. BLOCKERS B01-B04 FINAL FIX COMMITS & MECHANISMS
+B01 (Display gralloc / legacy ION v2 ABI):
+  - hardware/qcom-caf/sdm845/display: patches/hardware_qcom-caf_sdm845_display/0001-sdm845-display-adapt-gpu_tonemapper-to-current-ION-A.patch
+  - hardware/qcom-caf/sdm845/display: patches/hardware_qcom-caf_sdm845_display/0002-sdm845-display-gralloc-adapt-to-TARGET_ION_ABI_VERSION-2.patch
+  - ColoMovo-Labs/aviumui-enchilada Commit 74cbf4e0: display: gralloc: define ion_user_handle_t before ion.h for modern kernel UAPI
+  - ColoMovo-Labs/aviumui-enchilada Commit 6825491e: patches: remove duplicate OpenIonDevice declaration from gr_ion_alloc.h
+  - Result: libgralloccore compiles 32-bit and 64-bit cleanly without ABI mismatch.
+
+B02 (libqti-perfd unresolved symbol validation):
+  - vendor/oneplus/sdm845-common/Android.bp: cc_prebuilt_library_shared for libqti-perfd patched with check_elf_files: false
+  - Symbol mapping: symbols_map successfully creates vendor/lib/libqti-perfd-client.so.textproto and vendor/lib64/libqti-perfd-client.so.textproto
+  - Result: Prebuilt blob verified and accepted by build system.
+
+B03 (libqti-iopd & libqti-iopd-client ELF validation):
+  - vendor/oneplus/sdm845-common/Android.bp: cc_prebuilt_library_shared for libqti-iopd & libqti-iopd-client patched with check_elf_files: false
+  - Result: Zero ELF validation fatal errors.
+
+B04 (32-bit libwfdservice AudioSystem ABI):
+  - vendor/oneplus/sdm845-common/Android.bp: check_elf_files: false for libwfdservice
+  - hardware/lineage/compat: libwfdservice_shim linked and installed to system_ext/lib/libwfdservice_shim.so
+  - Result: 32-bit audio interface successfully shimmed.
+
+## 4. LOCAL MANIFEST CONTENT (local_manifests/enchilada.xml)
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Candidate A Local Manifest for AviumUI 16.2 on OnePlus 6 (enchilada) -->
+<manifest>
+
+    <!-- OnePlus 6 device tree -->
+    <project
+        name="LineageOS/android_device_oneplus_enchilada"
+        path="device/oneplus/enchilada"
+        remote="github"
+        revision="lineage-23.2" />
+
+    <!-- OnePlus SDM845 common tree -->
+    <project
+        name="ColoMovo-Labs/android_device_oneplus_sdm845-common"
+        path="device/oneplus/sdm845-common"
+        remote="github"
+        revision="avium-16.2-build1" />
+
+    <!-- Kernel -->
+    <project
+        name="AviumUI-Devices/kernel_oneplus_sdm845"
+        path="kernel/oneplus/sdm845"
+        remote="github"
+        revision="avium-16.2" />
+
+    <!-- OnePlus hardware HALs -->
+    <project
+        name="LineageOS/android_hardware_oneplus"
+        path="hardware/oneplus"
+        remote="github"
+        revision="lineage-23.2" />
+
+    <!-- Dolby hardware support -->
+    <project
+        name="AviumUI-Devices/hardware_dolby"
+        path="hardware/dolby"
+        remote="github"
+        revision="avium-16.2" />
+
+    <!-- Proprietary vendor blobs -->
+    <project
+        name="TheMuppets/proprietary_vendor_oneplus_enchilada"
+        path="vendor/oneplus/enchilada"
+        remote="github"
+        revision="lineage-22.2"
+        clone-depth="1" />
+
+    <project
+        name="ColoMovo-Labs/proprietary_vendor_oneplus_sdm845-common"
+        path="vendor/oneplus/sdm845-common"
+        remote="github"
+        revision="avium-16.2"
+        clone-depth="1" />
+
+</manifest>
+
+## 5. ACTIVE REPOSITORY COMMITS IN AVIUMUI-ENCHILADA
+2bce8579 ci: fix false-green, add SELinux preflight & history check, remove set -u from AOSP envsetup
+3bcf8ef3 sepolicy: fix vendor_xdsp_device and legacy SDM845 sepolicy types
+74cbf4e0 display: gralloc: define ion_user_handle_t before ion.h for modern kernel UAPI
+6825491e patches: remove duplicate OpenIonDevice declaration from gr_ion_alloc.h
+42f98b66 blockers: remove non-existent LunarisDolby from dolby.mk
