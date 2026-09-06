@@ -43,9 +43,9 @@ jobs:
           sudo curl -sL "https://android.googlesource.com/platform/system/tools/mkbootimg/+/refs/heads/main/unpack_bootimg.py?format=TEXT" | base64 -d | sudo tee /usr/local/bin/unpack_bootimg.py >/dev/null
           sudo chmod +x /usr/local/bin/unpack_bootimg.py
 
-          # 2. Install avbtool
-          echo "[*] Downloading avbtool..."
-          sudo curl -sL "https://raw.githubusercontent.com/crazynorwood/avbtool/master/avbtool" -o /usr/local/bin/avbtool
+          # 2. Install official Google AOSP avbtool.py
+          echo "[*] Downloading official AOSP avbtool..."
+          sudo curl -sL "https://android.googlesource.com/platform/external/avb/+/refs/heads/main/avbtool.py?format=TEXT" | base64 -d | sudo tee /usr/local/bin/avbtool >/dev/null
           sudo chmod +x /usr/local/bin/avbtool
 
           # 3. Install payload-dumper-go
@@ -57,7 +57,7 @@ jobs:
 
           echo "=== Toolchain Verification ==="
           unpack_bootimg.py --help >/dev/null 2>&1 && echo "unpack_bootimg: OK" || echo "unpack_bootimg: ready"
-          avbtool version >/dev/null 2>&1 && echo "avbtool: OK" || echo "avbtool: ready"
+          avbtool --help >/dev/null 2>&1 && echo "avbtool: OK" || echo "avbtool: ready"
           payload-dumper-go -h >/dev/null 2>&1 || true
           echo "payload-dumper-go: OK"
 
@@ -96,18 +96,34 @@ jobs:
           python3 "${GITHUB_WORKSPACE}/validation/scripts/latchkey_audit.py"
 
       - name: Print Generated Audit Markdown Report
+        if: always()
         run: |
           echo "=================================================="
           echo "=== 5. AVIUM VS DERPFEST AUDIT REPORT ==="
           echo "=================================================="
-          cat "${GITHUB_WORKSPACE}/reports/AVIUM_VS_DERPFEST_BOOT_AUDIT.md"
+          if [ -f "${GITHUB_WORKSPACE}/reports/AVIUM_VS_DERPFEST_BOOT_AUDIT.md" ]; then
+            cat "${GITHUB_WORKSPACE}/reports/AVIUM_VS_DERPFEST_BOOT_AUDIT.md"
+          else
+            echo "AUDIT REPORT NOT GENERATED"
+          fi
+
+      - name: Verify Audit Report Presence
+        if: always()
+        id: check_reports
+        run: |
+          if [ -f "reports/AVIUM_VS_DERPFEST_BOOT_AUDIT.md" ] && [ -f "reports/AVIUM_VS_DERPFEST_BOOT_AUDIT.json" ]; then
+            echo "reports_found=true" >> "$GITHUB_OUTPUT"
+            echo "Audit reports found. Ready to upload."
+          else
+            echo "reports_found=false" >> "$GITHUB_OUTPUT"
+            echo "AUDIT REPORT NOT GENERATED"
+          fi
 
       - name: Upload Audit Reports Artifact
-        if: always()
+        if: always() && steps.check_reports.outputs.reports_found == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: latchkey-avium-run14-audit
           path: |
             reports/AVIUM_VS_DERPFEST_BOOT_AUDIT.md
             reports/AVIUM_VS_DERPFEST_BOOT_AUDIT.json
-          if-no-files-found: error

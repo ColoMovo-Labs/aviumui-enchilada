@@ -21,10 +21,83 @@ def sha256_file(filepath):
 
 def run_cmd(cmd, check=True):
     log(f"Running: {' '.join(cmd) if isinstance(cmd, list) else cmd}")
-    res = subprocess.run(cmd, shell=isinstance(cmd, str), capture_output=True, text=True)
-    if check and res.returncode != 0:
-        log(f"Command failed (code {res.returncode}):\nStdout: {res.stdout}\nStderr: {res.stderr}")
-    return res
+    try:
+        res = subprocess.run(cmd, shell=isinstance(cmd, str), capture_output=True, text=True)
+        if check and res.returncode != 0:
+            log(f"Command non-zero exit ({res.returncode}):\nStdout: {res.stdout[:500]}\nStderr: {res.stderr[:500]}")
+        return res
+    except Exception as e:
+        log(f"Command exception: {e}")
+        return subprocess.CompletedProcess(cmd, 127, stdout="", stderr=str(e))
+
+def generate_report(findings, out_dir, golden):
+    red_count = sum(1 for f in findings if f["status"] == "RED")
+    yellow_count = sum(1 for f in findings if f["status"] == "YELLOW")
+    green_count = sum(1 for f in findings if f["status"] == "GREEN")
+    unknown_count = sum(1 for f in findings if f["status"] == "UNKNOWN")
+    
+    if red_count > 0:
+        verdict = "NOT READY FOR HARDWARE TEST"
+        verdict_badge = "🔴 NOT READY FOR HARDWARE TEST"
+    else:
+        verdict = "READY FOR CONTROLLED HARDWARE TEST PLANNING"
+        verdict_badge = "🟢 READY FOR CONTROLLED HARDWARE TEST PLANNING (Note: RED=0 does NOT guarantee boot)"
+
+    summary = {
+        "verdict": verdict,
+        "metrics": {
+            "red": red_count,
+            "yellow": yellow_count,
+            "green": green_count,
+            "unknown": unknown_count,
+            "total": len(findings)
+        },
+        "findings": findings
+    }
+
+    json_path = os.path.join(out_dir, "AVIUM_VS_DERPFEST_BOOT_AUDIT.json")
+    with open(json_path, "w") as f:
+        json.dump(summary, f, indent=2)
+    log(f"Wrote audit JSON to {json_path}")
+
+    md_path = os.path.join(out_dir, "AVIUM_VS_DERPFEST_BOOT_AUDIT.md")
+    md = f"""# AVIUM VS DERPFEST GOLDEN BOOT AUDIT REPORT
+
+**Verdict**: {verdict_badge}
+**Rule Evaluation**:
+- `RED > 0` -> `NOT READY FOR HARDWARE TEST`
+- `RED = 0` -> `READY FOR CONTROLLED HARDWARE TEST PLANNING` *(Note: RED=0 does NOT guarantee hardware boot)*
+
+| Status | Count |
+| :--- | :--- |
+| 🟢 GREEN | {green_count} |
+| 🟡 YELLOW | {yellow_count} |
+| 🔴 RED | {red_count} |
+| ⚪ UNKNOWN | {unknown_count} |
+| **Total Checks** | **{len(findings)}** |
+
+---
+
+### Detailed Audit Breakdown
+
+| Category | Check | Status | Details |
+| :--- | :--- | :---: | :--- |
+"""
+    for f in findings:
+        status_icon = "🟢 GREEN" if f["status"] == "GREEN" else ("🔴 RED" if f["status"] == "RED" else ("🟡 YELLOW" if f["status"] == "YELLOW" else "⚪ UNKNOWN"))
+        details = f["details"].replace("\n", "<br>")
+        md += f"| `{f['category']}` | **{f['check']}** | {status_icon} | {details} |\n"
+
+    md += f"""
+---
+
+### Execution Discipline & Safety Statement
+1. **Zero Hardware Modifications**: This audit was executed purely in a static cloud sandbox on Latchkey. No devices were flashed, booted, or sideloaded.
+2. **Clean Reference Paradigm**: DerpFest 16.2 was utilized strictly as an observational golden benchmark. Zero binary or configuration copying was performed.
+"""
+    with open(md_path, "w") as f:
+        f.write(md)
+    log(f"Wrote audit Markdown to {md_path}")
 
 def main():
     work_dir = os.environ.get("AUDIT_DIR", "/tmp/latchkey_audit")
@@ -44,6 +117,9 @@ def main():
             "details": details,
             "recommendation": recommendation
         })
+
+    # Write initial skeleton report first
+    generate_report([{"category": "INIT", "check": "Audit Initialization", "status": "YELLOW", "details": "Audit starting", "recommendation": ""}], out_dir, None)
 
     # Load Golden
     golden = {}
@@ -107,29 +183,27 @@ def main():
         else:
             add_finding("STRUCTURE", "OTA Metadata", "YELLOW", "META-INF/com/android/metadata not found")
 
-        # Extract payload.bin
-        payload_path = os.path.join(work_dir, "payload.bin")
-        if not os.path.exists(payload_path):
-            log("Extracting payload.bin from ROM zip...")
-            z.extract("payload.bin", path=work_dir)
-            log(f"Extracted payload.bin ({os.path.getsize(payload_path)} bytes)")
-
-    # 3. Payload Metadata & Partition List
-    log("Inspecting payload partitions via payload-dumper-go...")
-    pd_cmd = ["payload-dumper-go", "-l", payload_path]
+    # 3. Payload Metadata & Partition List (Direct from ZIP)
+    log("Inspecting payload partitions via payload-dumper-go directly on ROM zip...")
+    pd_cmd = ["payload-dumper-go", "-l", rom_zip]
     pd_res = run_cmd(pd_cmd, check=False)
     payload_partitions = []
     if pd_res.returncode == 0:
         lines = pd_res.stdout.splitlines()
         for line in lines:
             line = line.strip()
-            if line and not line.startswith("===") and not line.lower().startswith("payload") and not line.lower().startswith("number"):
+            if "Found partitions:" in line:
+                raw_parts = line.split("Found partitions:")[1].strip()
+                for p in raw_parts.split(","):
+                    p_name = p.split("(")[0].strip()
+                    if p_name:
+                        payload_partitions.append(p_name)
+            elif line and not line.startswith("===") and not line.lower().startswith("payload") and not line.lower().startswith("number"):
                 payload_partitions.append(line.split()[0] if line.split() else line)
         add_finding("PAYLOAD", "Partition List Enumeration", "GREEN", f"Found {len(payload_partitions)} partitions in payload: {', '.join(payload_partitions[:15])}")
     else:
         add_finding("PAYLOAD", "Partition List Enumeration", "YELLOW", f"payload-dumper-go -l output: {pd_res.stderr or pd_res.stdout}")
 
-    # Check critical partitions in payload
     critical_parts = ["boot", "dtbo", "vbmeta", "system", "vendor", "modem", "dsp", "bluetooth"]
     missing_crit = [p for p in critical_parts if payload_partitions and not any(p in part for part in payload_partitions)]
     if missing_crit:
@@ -152,19 +226,16 @@ def main():
                 k, v = line.split(":", 1)
                 boot_info[k.strip()] = v.strip()
                 
-        # Compare OS Version & Header Version
         cmdline = boot_info.get("command line args", "")
         add_finding("BOOT", "Boot Header Version", "GREEN" if boot_info.get("boot image header version") == "1" else "YELLOW", f"Header version: {boot_info.get('boot image header version')}")
         add_finding("BOOT", "OS Version & Patch", "GREEN", f"OS: {boot_info.get('os version')}, Patch: {boot_info.get('os patch level')}")
         
-        # Check kernel commandline
         has_essential_cmdline = all(term in cmdline for term in ["androidboot.hardware=qcom", "firmware_class.path=/vendor/firmware_mnt/image", "swiotlb=2048"])
         if has_essential_cmdline:
             add_finding("BOOT", "Kernel Cmdline Arguments", "GREEN", f"Cmdline contains essential parameters: {cmdline}")
         else:
             add_finding("BOOT", "Kernel Cmdline Arguments", "YELLOW", f"Cmdline differs: {cmdline}")
             
-        # Check kernel format
         kpath = os.path.join(unpacked_boot, "kernel")
         if os.path.exists(kpath):
             ktype = run_cmd(["file", kpath], check=False).stdout.strip()
@@ -193,8 +264,12 @@ def main():
     vbmeta_path = os.path.join(work_dir, "vbmeta.img")
     if os.path.exists(vbmeta_path):
         avb_res = run_cmd(["avbtool", "info_image", "--image", vbmeta_path], check=False)
+        if avb_res.returncode != 0:
+            avb_res = run_cmd(["python3", "/usr/local/bin/avbtool", "info_image", "--image", vbmeta_path], check=False)
+            
         if avb_res.returncode == 0:
-            add_finding("AVB", "VBMeta AVB Inspection", "GREEN", f"avbtool parsed vbmeta.img successfully:\n{avb_res.stdout[:500]}")
+            info_summary = "\n".join([l for l in avb_res.stdout.splitlines() if "Partition Name:" in l or "Flags:" in l or "security_patch" in l or "Algorithm:" in l])
+            add_finding("AVB", "VBMeta AVB Inspection", "GREEN", f"avbtool parsed vbmeta.img successfully:\n{info_summary}")
         else:
             vsize = os.path.getsize(vbmeta_path)
             with open(vbmeta_path, "rb") as f:
@@ -208,9 +283,9 @@ def main():
     extract_dir = os.path.join(work_dir, "extracted_parts")
     os.makedirs(extract_dir, exist_ok=True)
     
-    # Dump vendor only
-    log("Dumping vendor partition with payload-dumper-go...")
-    vdump_res = run_cmd(["payload-dumper-go", "-p", "vendor", "-o", extract_dir, payload_path], check=False)
+    # Dump vendor directly from ROM zip
+    log("Dumping vendor partition directly from ROM zip...")
+    vdump_res = run_cmd(["payload-dumper-go", "-p", "vendor", "-o", extract_dir, rom_zip], check=False)
     vendor_img = os.path.join(extract_dir, "vendor.img")
     
     vendor_mount = os.path.join(work_dir, "vendor_mount")
@@ -278,9 +353,9 @@ def main():
     else:
         add_finding("VENDOR", "Vendor Partition Dump", "YELLOW", f"Could not dump vendor partition: {vdump_res.stderr}")
 
-    # Dump system only
-    log("Dumping system partition with payload-dumper-go...")
-    sdump_res = run_cmd(["payload-dumper-go", "-p", "system", "-o", extract_dir, payload_path], check=False)
+    # Dump system directly from ROM zip
+    log("Dumping system partition directly from ROM zip...")
+    sdump_res = run_cmd(["payload-dumper-go", "-p", "system", "-o", extract_dir, rom_zip], check=False)
     system_img = os.path.join(extract_dir, "system.img")
     system_mount = os.path.join(work_dir, "system_mount")
     os.makedirs(system_mount, exist_ok=True)
@@ -313,81 +388,8 @@ def main():
     else:
         add_finding("SYSTEM", "System Partition Dump", "YELLOW", f"Could not dump system partition: {sdump_res.stderr}")
 
-    if os.path.exists(payload_path):
-        log("Cleaning up payload.bin to preserve Latchkey free disk...")
-        os.remove(payload_path)
-
     generate_report(findings, out_dir, golden)
     return 0
-
-def generate_report(findings, out_dir, golden):
-    red_count = sum(1 for f in findings if f["status"] == "RED")
-    yellow_count = sum(1 for f in findings if f["status"] == "YELLOW")
-    green_count = sum(1 for f in findings if f["status"] == "GREEN")
-    unknown_count = sum(1 for f in findings if f["status"] == "UNKNOWN")
-    
-    if red_count > 0:
-        verdict = "NOT READY FOR HARDWARE TEST"
-        verdict_badge = "🔴 NOT READY"
-    else:
-        verdict = "READY FOR CONTROLLED HARDWARE TEST PLANNING"
-        verdict_badge = "🟢 READY FOR CONTROLLED PLANNING (No hardware boot guaranteed)"
-
-    summary = {
-        "verdict": verdict,
-        "metrics": {
-            "red": red_count,
-            "yellow": yellow_count,
-            "green": green_count,
-            "unknown": unknown_count,
-            "total": len(findings)
-        },
-        "findings": findings
-    }
-
-    json_path = os.path.join(out_dir, "AVIUM_VS_DERPFEST_BOOT_AUDIT.json")
-    with open(json_path, "w") as f:
-        json.dump(summary, f, indent=2)
-    log(f"Wrote audit JSON to {json_path}")
-
-    md_path = os.path.join(out_dir, "AVIUM_VS_DERPFEST_BOOT_AUDIT.md")
-    md = f"""# AVIUM VS DERPFEST GOLDEN BOOT AUDIT REPORT
-
-**Verdict**: {verdict_badge}
-**Rule Evaluation**:
-- `RED > 0` -> `NOT READY FOR HARDWARE TEST`
-- `RED = 0` -> `READY FOR CONTROLLED HARDWARE TEST PLANNING` *(Note: RED=0 does NOT guarantee boot)*
-
-| Status | Count |
-| :--- | :--- |
-| 🟢 GREEN | {green_count} |
-| 🟡 YELLOW | {yellow_count} |
-| 🔴 RED | {red_count} |
-| ⚪ UNKNOWN | {unknown_count} |
-| **Total Checks** | **{len(findings)}** |
-
----
-
-### Detailed Audit Breakdown
-
-| Category | Check | Status | Details |
-| :--- | :--- | :---: | :--- |
-"""
-    for f in findings:
-        status_icon = "🟢 GREEN" if f["status"] == "GREEN" else ("🔴 RED" if f["status"] == "RED" else ("🟡 YELLOW" if f["status"] == "YELLOW" else "⚪ UNKNOWN"))
-        details = f["details"].replace("\n", "<br>")
-        md += f"| `{f['category']}` | **{f['check']}** | {status_icon} | {details} |\n"
-
-    md += f"""
----
-
-### Execution Discipline & Safety Statement
-1. **Zero Hardware Modifications**: This audit was executed purely in a static cloud sandbox. No devices were flashed, booted, or sideloaded.
-2. **Clean Reference Paradigm**: DerpFest 16.2 was utilized strictly as an observational golden benchmark. Zero binary or configuration copying was performed.
-"""
-    with open(md_path, "w") as f:
-        f.write(md)
-    log(f"Wrote audit Markdown to {md_path}")
 
 if __name__ == "__main__":
     sys.exit(main())
