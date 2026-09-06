@@ -271,6 +271,25 @@ jobs:
             pigz -c "/mnt/android/avium/out/.ninja_log" > "$REL_DIR/ninja_build.log.gz" || true
           fi
 
+          # 1b. Collect Run #14 Reproducibility Manifest & State
+          echo "=== Collecting Run #14 Reproducibility Manifests ==="
+          META_DIR="${GITHUB_WORKSPACE:-/home/runner/_work/aviumui-enchilada/aviumui-enchilada}/avium-metadata"
+          [ ! -d "$META_DIR" ] && META_DIR=$(find /home/runner -maxdepth 4 -type d -name "avium-metadata" 2>/dev/null | head -n 1)
+          if [ -d "$META_DIR/manifests" ]; then
+            cp -f "$META_DIR"/manifests/run14-* "$REL_DIR/" 2>/dev/null || true
+          fi
+          if [ -d "/mnt/android/avium/.repo" ]; then
+            cd /mnt/android/avium
+            repo manifest -r > "$REL_DIR/run14-pinned-manifest.xml" || true
+            sha256sum "$REL_DIR/run14-pinned-manifest.xml" > "$REL_DIR/run14-pinned-manifest.xml.sha256" || true
+          fi
+
+          # 1c. Archive Ccache
+          echo "=== Archiving Ccache for Future Runs ==="
+          if [ -d "/mnt/android/ccache" ] && [ "$(ls -A /mnt/android/ccache 2>/dev/null)" ]; then
+            tar -I pigz -cf "$REL_DIR/ccache.tar.gz" -C /mnt/android ccache || true
+          fi
+
           # 2. Collect Images & ROM
           if [ -d "$OUT_ENCHILADA" ]; then
             cd "$OUT_ENCHILADA"
