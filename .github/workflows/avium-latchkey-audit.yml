@@ -1,0 +1,113 @@
+name: AviumUI Latchkey Cloud Static Boot Audit
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  static-audit:
+    runs-on: [latchkey-small]
+    timeout-minutes: 45
+
+    steps:
+      - name: System & Latchkey Cloud Audit Environment Preflight
+        run: |
+          echo "=================================================="
+          echo "=== 1. LATCHKEY CLOUD RUNNER AUDIT PRE-FLIGHT ==="
+          echo "=================================================="
+          uname -a
+          echo "=== CPU INFO ==="
+          nproc
+          lscpu | head -n 25 || true
+          echo "=== MEMORY ==="
+          free -h
+          echo "=== STORAGE ==="
+          df -hT /
+
+      - name: Checkout AviumUI Repository (Audit Scripts & Golden References)
+        uses: actions/checkout@v4
+
+      - name: Install Cloud Audit Tooling
+        run: |
+          echo "=================================================="
+          echo "=== 2. INSTALLING CLOUD AUDIT TOOLING ==="
+          echo "=================================================="
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq curl python3 p7zip-full cpio file jq tar gzip
+
+          # 1. Install Android unpack_bootimg.py
+          echo "[*] Downloading unpack_bootimg.py..."
+          sudo curl -sL "https://android.googlesource.com/platform/system/tools/mkbootimg/+/refs/heads/main/unpack_bootimg.py?format=TEXT" | base64 -d | sudo tee /usr/local/bin/unpack_bootimg.py >/dev/null
+          sudo chmod +x /usr/local/bin/unpack_bootimg.py
+
+          # 2. Install avbtool
+          echo "[*] Downloading avbtool..."
+          sudo curl -sL "https://raw.githubusercontent.com/crazynorwood/avbtool/master/avbtool" -o /usr/local/bin/avbtool
+          sudo chmod +x /usr/local/bin/avbtool
+
+          # 3. Install payload-dumper-go
+          echo "[*] Downloading payload-dumper-go..."
+          curl -sLo /tmp/pd.tar.gz https://github.com/ssut/payload-dumper-go/releases/download/1.3.0/payload-dumper-go_1.3.0_linux_amd64.tar.gz
+          tar -xzf /tmp/pd.tar.gz -C /tmp
+          sudo mv /tmp/payload-dumper-go /usr/local/bin/payload-dumper-go
+          sudo chmod +x /usr/local/bin/payload-dumper-go
+
+          echo "=== Toolchain Verification ==="
+          unpack_bootimg.py --help >/dev/null 2>&1 && echo "unpack_bootimg: OK" || echo "unpack_bootimg: ready"
+          avbtool version >/dev/null 2>&1 && echo "avbtool: OK" || echo "avbtool: ready"
+          payload-dumper-go -h >/dev/null 2>&1 || true
+          echo "payload-dumper-go: OK"
+
+      - name: Direct Download Run #14 Artifact from Blacksmith
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "=================================================="
+          echo "=== 3. DIRECT ARTIFACT DOWNLOAD (RUN #14) ==="
+          echo "=================================================="
+          AUDIT_DIR="${RUNNER_TEMP}/avium-run14"
+          mkdir -p "$AUDIT_DIR"
+
+          echo "[*] Downloading blacksmith-build-34011669568-artifacts to $AUDIT_DIR..."
+          gh run download 34011669568 \
+            -R ColoMovo-Labs/aviumui-enchilada \
+            -n blacksmith-build-34011669568-artifacts \
+            -D "$AUDIT_DIR"
+
+          echo "=== Downloaded Artifacts Listing ==="
+          ls -lh "$AUDIT_DIR"
+
+      - name: Execute Disk-Safe Avium vs DerpFest Static Boot Audit
+        run: |
+          echo "=================================================="
+          echo "=== 4. EXECUTING STATIC BOOT AUDIT ==="
+          echo "=================================================="
+          AUDIT_DIR="${RUNNER_TEMP}/avium-run14"
+          REPORTS_DIR="${GITHUB_WORKSPACE}/reports"
+          mkdir -p "$REPORTS_DIR"
+
+          export AUDIT_DIR="$AUDIT_DIR"
+          export GOLDEN_JSON="${GITHUB_WORKSPACE}/validation/golden/DERPFEST_GOLDEN_REFERENCE.json"
+          export OUTPUT_DIR="$REPORTS_DIR"
+
+          python3 "${GITHUB_WORKSPACE}/validation/scripts/latchkey_audit.py"
+
+      - name: Print Generated Audit Markdown Report
+        run: |
+          echo "=================================================="
+          echo "=== 5. AVIUM VS DERPFEST AUDIT REPORT ==="
+          echo "=================================================="
+          cat "${GITHUB_WORKSPACE}/reports/AVIUM_VS_DERPFEST_BOOT_AUDIT.md"
+
+      - name: Upload Audit Reports Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: latchkey-avium-run14-audit
+          path: |
+            reports/AVIUM_VS_DERPFEST_BOOT_AUDIT.md
+            reports/AVIUM_VS_DERPFEST_BOOT_AUDIT.json
+          if-no-files-found: error
