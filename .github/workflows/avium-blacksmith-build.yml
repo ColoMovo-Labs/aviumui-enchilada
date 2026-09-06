@@ -244,6 +244,47 @@ jobs:
           echo "BACON_STATUS=$BACON_STATUS" >> "$GITHUB_ENV"
           echo "Bacon build finished with exit code: $BACON_STATUS"
 
+      - name: Blocker Standby & Live In-Place Recovery Loop
+        if: always() && env.BACON_STATUS != '0' && env.BACON_STATUS != ''
+        run: |
+          echo "=================================================="
+          echo "=== 10b. BLOCKER STANDBY & LIVE RECOVERY LOOP ==="
+          echo "=================================================="
+          echo "Full Bacon encountered a non-zero exit status (${BACON_STATUS})."
+          echo "Entering bounded live standby mode to preserve OUT, Ccache and Runner state."
+          echo "To signal resume after fixing, create /tmp/resume_bacon."
+          echo "To exit standby, create /tmp/abort_standby."
+          
+          STANDBY_MINUTES=120
+          for ((i=1; i<=STANDBY_MINUTES; i++)); do
+            if [ -f "/tmp/abort_standby" ]; then
+              echo "Standby abort signal detected. Exiting standby loop."
+              break
+            fi
+            if [ -f "/tmp/resume_bacon" ]; then
+              echo "Resume signal detected! Re-running incremental bacon in-place..."
+              rm -f "/tmp/resume_bacon"
+              cd /mnt/android/avium
+              source build/envsetup.sh
+              breakfast enchilada
+              set +e
+              m -k 0 -j16 TARGET_KERNEL_ADDITIONAL_FLAGS="-j8" bacon 2>&1 | tee -a /mnt/android/bacon_build.log
+              NEW_STATUS=${PIPESTATUS[0]}
+              set -e
+              if [ "$NEW_STATUS" -eq 0 ]; then
+                echo "SUCCESS: Incremental in-place bacon succeeded!"
+                echo "BACON_STATUS=0" >> "$GITHUB_ENV"
+                break
+              else
+                echo "Bacon returned status $NEW_STATUS; continuing standby..."
+              fi
+            fi
+            sleep 60
+            if [ $((i % 15)) -eq 0 ]; then
+              echo "Standby keepalive: ${i}/${STANDBY_MINUTES} minutes elapsed. Runner and OUT intact."
+            fi
+          done
+
       - name: Artifact Preservation & Reporting
         if: always()
         env:
