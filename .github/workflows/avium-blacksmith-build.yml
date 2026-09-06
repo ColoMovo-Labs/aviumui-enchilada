@@ -107,6 +107,34 @@ jobs:
           echo "=== Storage after source sync ==="
           df -hT /mnt/android
 
+      - name: Verify SELinux Fix History & State
+        run: |
+          echo "=================================================="
+          echo "=== 5b. VERIFYING SELINUX FIX HISTORY & STATE ==="
+          echo "=================================================="
+          COMMON_DIR="/mnt/android/avium/device/oneplus/sdm845-common"
+          cd "$COMMON_DIR"
+
+          echo "=== Git Log (Last 10 commits) ==="
+          git log --oneline -n 10
+
+          echo "=== Checking commit f735121 ==="
+          if git log --oneline | grep -q "f735121"; then
+            echo "PASS: f735121 (XDSP fix) is present in history."
+          else
+            echo "WARNING: f735121 not found in local log; checking tree state..."
+          fi
+
+          echo "=== Checking for forbidden vendor_xdsp_device ==="
+          if grep -rn "vendor_xdsp_device" sepolicy/; then
+            echo "ERROR: Forbidden vendor_xdsp_device found in sepolicy!"
+            exit 1
+          fi
+          echo "PASS: Zero occurrences of vendor_xdsp_device."
+
+          echo "=== Verifying legitimate xdsp_device ==="
+          grep -rn "xdsp_device" sepolicy/
+
       - name: Apply Established Patches & Blocker Resolutions
         run: |
           echo "=================================================="
@@ -133,10 +161,38 @@ jobs:
           ccache -z
           ccache -s
 
+      - name: "SELinux Preflight (vendor_sepolicy, recovery_sepolicy, neverallows)"
+        run: |
+          set -eo pipefail
+          echo "=================================================="
+          echo "=== 8. SELINUX PREFLIGHT VERIFICATION ==="
+          echo "=================================================="
+          export PATH="$HOME/bin:$PATH"
+          unset OUT_DIR
+          export TMPDIR=/mnt/android/tmp
+          export CCACHE_DIR=/mnt/android/ccache
+          export USE_CCACHE=1
+          export CCACHE_EXEC=/usr/bin/ccache
+
+          cd /mnt/android/avium
+          source build/envsetup.sh
+          breakfast enchilada
+
+          echo "=== Compiling SELinux policy targets ==="
+          m -j16 vendor_sepolicy.cil.raw recovery_sepolicy.cil sepolicy_neverallows 2>&1 | tee /mnt/android/sepolicy_preflight.log
+
+          echo "=== Checking SELinux preflight output ==="
+          if grep -iE "unknown type|undefined type|neverallow violation|checkpolicy: error" /mnt/android/sepolicy_preflight.log; then
+            echo "ERROR: SELinux preflight encountered violations!"
+            exit 1
+          fi
+          echo "PASS: SELinux preflight 100% clean."
+
       - name: "Phase 1: Test Compile Single Blocker Modules"
         run: |
+          set -eo pipefail
           echo "=================================================="
-          echo "=== 8. SINGLE-MODULE VERIFICATION ==="
+          echo "=== 9. SINGLE-MODULE VERIFICATION ==="
           echo "=================================================="
           export PATH="$HOME/bin:$PATH"
           unset OUT_DIR
@@ -165,9 +221,9 @@ jobs:
 
       - name: "Phase 2: Full Bacon Build (-j16, kernel -j8, -k 0)"
         run: |
-          set -euo pipefail
+          set -eo pipefail
           echo "=================================================="
-          echo "=== 9. FULL BACON BUILD (-j16, kernel -j8, -k 0) ==="
+          echo "=== 10. FULL BACON BUILD (-j16, kernel -j8, -k 0) ==="
           echo "=================================================="
           export PATH="$HOME/bin:$PATH"
           unset OUT_DIR
@@ -180,8 +236,13 @@ jobs:
           source build/envsetup.sh
           breakfast enchilada
 
+          set +e
           # Kernel sub-build fixed to -j8; AOSP -j16; keep-going -k 0
           m -k 0 -j16 TARGET_KERNEL_ADDITIONAL_FLAGS="-j8" bacon 2>&1 | tee /mnt/android/bacon_build.log
+          BACON_STATUS=${PIPESTATUS[0]}
+          set -e
+          echo "BACON_STATUS=$BACON_STATUS" >> "$GITHUB_ENV"
+          echo "Bacon build finished with exit code: $BACON_STATUS"
 
       - name: Artifact Preservation & Reporting
         if: always()
@@ -189,7 +250,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "=================================================="
-          echo "=== 10. ARTIFACT PRESERVATION & VERIFICATION ==="
+          echo "=== 11. ARTIFACT PRESERVATION & VERIFICATION ==="
           echo "=================================================="
           REL_DIR="/mnt/android/release_artifacts"
           OUT_ENCHILADA="/mnt/android/avium/out/target/product/enchilada"
@@ -199,6 +260,9 @@ jobs:
           echo "=== Collecting Build Logs ==="
           if [ -f "/mnt/android/bacon_build.log" ]; then
             pigz -c "/mnt/android/bacon_build.log" > "$REL_DIR/bacon_build.log.gz" || true
+          fi
+          if [ -f "/mnt/android/sepolicy_preflight.log" ]; then
+            pigz -c "/mnt/android/sepolicy_preflight.log" > "$REL_DIR/sepolicy_preflight.log.gz" || true
           fi
           if [ -f "/mnt/android/avium/out/soong.log" ]; then
             pigz -c "/mnt/android/avium/out/soong.log" > "$REL_DIR/soong.log.gz" || true
@@ -259,3 +323,15 @@ jobs:
           path: |
             /mnt/android/release_artifacts/*
           if-no-files-found: warn
+
+      - name: Final Bacon CI Status Gate
+        run: |
+          echo "=================================================="
+          echo "=== 12. FINAL STATUS GATE ==="
+          echo "=================================================="
+          echo "BACON_STATUS is: ${BACON_STATUS:-undefined}"
+          if [ "${BACON_STATUS:-1}" -ne 0 ]; then
+            echo "ERROR: Bacon build failed with exit code ${BACON_STATUS:-1}!"
+            exit "${BACON_STATUS:-1}"
+          fi
+          echo "SUCCESS: Bacon build succeeded with exit code 0."
