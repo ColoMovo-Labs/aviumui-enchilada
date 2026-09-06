@@ -165,6 +165,7 @@ jobs:
 
       - name: "Phase 2: Full Bacon Build (-j16, kernel -j8, -k 0)"
         run: |
+          set -euo pipefail
           echo "=================================================="
           echo "=== 9. FULL BACON BUILD (-j16, kernel -j8, -k 0) ==="
           echo "=================================================="

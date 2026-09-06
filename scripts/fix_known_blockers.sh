@@ -129,5 +129,76 @@ if [ -f "$DOLBY_MK" ]; then
 fi
 
 echo "============================================================"
-echo "=== 5. ALL KNOWN BLOCKER CONFIGURATIONS APPLIED ==="
+echo "=== 5. RESOLVING SDM845-COMMON SEPOLICY INCOMPATIBILITIES ==="
+echo "============================================================"
+COMMON_DIR="$SOURCE_ROOT/device/oneplus/sdm845-common"
+SEPOLICY_PATCH="$META_DIR/patches/device_oneplus_sdm845-common/0001-sdm845-common-sepolicy-fixes.patch"
+
+if [ -d "$COMMON_DIR" ]; then
+  echo "[SEPOLICY] Checking device/oneplus/sdm845-common..."
+  cd "$COMMON_DIR"
+  if [ -f "$SEPOLICY_PATCH" ]; then
+    echo "[SEPOLICY] Testing patch: $SEPOLICY_PATCH"
+    if git apply --check "$SEPOLICY_PATCH" 2>/dev/null; then
+      git apply "$SEPOLICY_PATCH"
+      echo "[SEPOLICY] Applied 0001-sdm845-common-sepolicy-fixes.patch successfully."
+    else
+      echo "[SEPOLICY] Patch already applied or upstream commit present."
+    fi
+  fi
+
+  # Failsafe sed checks for crucial types in case git tree was modified or shallow cloned differently
+  if [ -f "sepolicy/vendor/hal_camera_default.te" ]; then
+    sed -i 's/vendor_xdsp_device/xdsp_device/g' "sepolicy/vendor/hal_camera_default.te" || true
+  fi
+  if [ -f "sepolicy/vendor/hal_fingerprint_device.te" ]; then
+    sed -i 's/vendor_qdsp_device/qdsp_device/g' "sepolicy/vendor/hal_fingerprint_device.te" || true
+    sed -i 's/vendor_xdsp_device/xdsp_device/g' "sepolicy/vendor/hal_fingerprint_device.te" || true
+    sed -i 's/vendor_adsprpc_prop/adsprpc_prop/g' "sepolicy/vendor/hal_fingerprint_device.te" || true
+  fi
+  if [ -f "sepolicy/vendor/hal_power_default.te" ]; then
+    sed -i '/vendor_latency_device/d' "sepolicy/vendor/hal_power_default.te" || true
+    sed -i 's/vendor_sysfs_devfreq/sysfs_devfreq/g' "sepolicy/vendor/hal_power_default.te" || true
+    sed -i 's/vendor_sysfs_graphics/sysfs_graphics/g' "sepolicy/vendor/hal_power_default.te" || true
+    sed -i 's/vendor_sysfs_kgsl/sysfs_kgsl/g' "sepolicy/vendor/hal_power_default.te" || true
+  fi
+  if [ -f "sepolicy/vendor/rild.te" ]; then
+    sed -i 's/vendor_diag_device/diag_device/g' "sepolicy/vendor/rild.te" || true
+  fi
+  if [ -f "sepolicy/vendor/thermal-engine.te" ]; then
+    sed -i 's/vendor_thermal-engine/thermal-engine/g' "sepolicy/vendor/thermal-engine.te" || true
+    sed -i 's/vendor_sysfs_devfreq/sysfs_devfreq/g' "sepolicy/vendor/thermal-engine.te" || true
+  fi
+  if [ -f "sepolicy/vendor/file_contexts" ]; then
+    sed -i 's/vendor_rawdump_block_device/rawdump_block_device/g' "sepolicy/vendor/file_contexts" || true
+    sed -i 's/vendor_modem_efs_partition_device/modem_efs_partition_device/g' "sepolicy/vendor/file_contexts" || true
+    sed -i 's/vendor_efs_boot_dev/efs_boot_dev/g' "sepolicy/vendor/file_contexts" || true
+  fi
+  if [ -f "sepolicy/vendor/genfs_contexts" ]; then
+    sed -i 's/vendor_sysfs_graphics/sysfs_graphics/g' "sepolicy/vendor/genfs_contexts" || true
+  fi
+  if [ -f "sepolicy/vendor/vendor_wcnss_service.te" ]; then
+    rm -f "sepolicy/vendor/vendor_wcnss_service.te" || true
+  fi
+  if [ -f "sepolicy/vendor/wcnss_service.te" ]; then
+    if ! grep -q "rootfs:dir" "sepolicy/vendor/wcnss_service.te"; then
+      echo "allow wcnss_service rootfs:dir r_dir_perms;" >> "sepolicy/vendor/wcnss_service.te" || true
+    fi
+    sed -i 's/vendor_wcnss_service/wcnss_service/g' "sepolicy/vendor/wcnss_service.te" || true
+  fi
+  if [ -f "sepolicy/vendor/sensors_qti.te" ] && [ ! -f "sepolicy/vendor/sensors.te" ]; then
+    mv "sepolicy/vendor/sensors_qti.te" "sepolicy/vendor/sensors.te" || true
+    sed -i 's/vendor_sensors_qti/sensors/g' "sepolicy/vendor/sensors.te" || true
+    sed -i 's/vendor_sensors_vendor_data_file/sensors_vendor_data_file/g' "sepolicy/vendor/sensors.te" || true
+    sed -i 's/vendor_sensors_prop/sensors_prop/g' "sepolicy/vendor/sensors.te" || true
+  fi
+
+  cd "$SOURCE_ROOT"
+  echo "[SEPOLICY] All sdm845-common sepolicy validations complete."
+else
+  echo "[SEPOLICY] Warning: $COMMON_DIR not found."
+fi
+
+echo "============================================================"
+echo "=== 6. ALL KNOWN BLOCKER CONFIGURATIONS APPLIED ==="
 echo "============================================================"

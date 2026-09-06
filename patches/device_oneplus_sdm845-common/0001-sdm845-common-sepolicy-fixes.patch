@@ -1,0 +1,148 @@
+diff --git a/sepolicy/vendor/file_contexts b/sepolicy/vendor/file_contexts
+index 8223034..0616add 100644
+--- a/sepolicy/vendor/file_contexts
++++ b/sepolicy/vendor/file_contexts
+@@ -9,16 +9,16 @@
+ /dev/block/platform/soc/1d84000\.ufshc/by-name/fw_4j1ed_[ab]           u:object_r:custom_ab_block_device:s0
+ /dev/block/platform/soc/1d84000\.ufshc/by-name/fw_4u1ea_[ab]           u:object_r:custom_ab_block_device:s0
+ /dev/block/platform/soc/1d84000\.ufshc/by-name/LOGO_[ab]               u:object_r:custom_ab_block_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/minidump                u:object_r:vendor_rawdump_block_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/oem_dycnvbk             u:object_r:vendor_modem_efs_partition_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/oem_stanvbk             u:object_r:vendor_modem_efs_partition_device:s0
++/dev/block/platform/soc/1d84000\.ufshc/by-name/minidump                u:object_r:rawdump_block_device:s0
++/dev/block/platform/soc/1d84000\.ufshc/by-name/oem_dycnvbk             u:object_r:modem_efs_partition_device:s0
++/dev/block/platform/soc/1d84000\.ufshc/by-name/oem_stanvbk             u:object_r:modem_efs_partition_device:s0
+ /dev/block/platform/soc/1d84000.ufshc/by-name/odm_[ab]                 u:object_r:system_block_device:s0 
+ /dev/block/platform/soc/1d84000\.ufshc/by-name/op1                     u:object_r:op1_block_device:s0
+ /dev/block/platform/soc/1d84000\.ufshc/by-name/op2                     u:object_r:op2_block_device:s0
+ /dev/block/platform/soc/1d84000\.ufshc/by-name/param                   u:object_r:param_block_device:s0
+ /dev/block/platform/soc/1d84000\.ufshc/by-name/reserve1                u:object_r:reserve1_block_device:s0
+ /dev/block/platform/soc/1d84000\.ufshc/by-name/reserve2                u:object_r:reserve2_block_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/spunvm                  u:object_r:vendor_efs_boot_dev:s0
++/dev/block/platform/soc/1d84000\.ufshc/by-name/spunvm                  u:object_r:efs_boot_dev:s0
+ 
+ # Block IO
+ /dev/blkio(/.*)?                                                       u:object_r:blkio_file:s0
+diff --git a/sepolicy/vendor/genfs_contexts b/sepolicy/vendor/genfs_contexts
+index 9870e04..0c607f3 100644
+--- a/sepolicy/vendor/genfs_contexts
++++ b/sepolicy/vendor/genfs_contexts
+@@ -17,9 +17,9 @@ genfscon proc /warp_chg_exit          u:object_r:sysfs_dash_charger:s0
+ 
+ # sysfs
+ genfscon sysfs /devices/platform/soc/a90000.i2c/i2c-4/4-0020/tp_gesture_touch_hold                                     u:object_r:sysfs_fod:s0
+-genfscon sysfs /devices/platform/soc/ae00000.qcom,mdss_mdp/idle_encoder_mask                                           u:object_r:vendor_sysfs_graphics:s0
+-genfscon sysfs /devices/platform/soc/ae00000.qcom,mdss_mdp/idle_state                                                  u:object_r:vendor_sysfs_graphics:s0
+-genfscon sysfs /devices/platform/soc/ae00000.qcom,mdss_mdp/idle_timeout_ms                                             u:object_r:vendor_sysfs_graphics:s0
++genfscon sysfs /devices/platform/soc/ae00000.qcom,mdss_mdp/idle_encoder_mask                                           u:object_r:sysfs_graphics:s0
++genfscon sysfs /devices/platform/soc/ae00000.qcom,mdss_mdp/idle_state                                                  u:object_r:sysfs_graphics:s0
++genfscon sysfs /devices/platform/soc/ae00000.qcom,mdss_mdp/idle_timeout_ms                                             u:object_r:sysfs_graphics:s0
+ genfscon sysfs /devices/platform/soc/ae00000.qcom,mdss_mdp/drm/card0/card0-DSI-1/auth_status                           u:object_r:sysfs_fod:s0
+ genfscon sysfs /devices/platform/soc/ae00000.qcom,mdss_mdp/drm/card0/card0-DSI-1/dim_alpha                             u:object_r:sysfs_fod:s0
+ genfscon sysfs /devices/platform/soc/ae00000.qcom,mdss_mdp/drm/card0/card0-DSI-1/dimlayer_bl_en                        u:object_r:sysfs_livedisplay_tuneable:s0
+diff --git a/sepolicy/vendor/hal_camera_default.te b/sepolicy/vendor/hal_camera_default.te
+index 4357d6a..60a05dd 100644
+--- a/sepolicy/vendor/hal_camera_default.te
++++ b/sepolicy/vendor/hal_camera_default.te
+@@ -12,7 +12,7 @@ allow hal_camera_default input_device:chr_file r_file_perms;
+ allow hal_camera_default persist_file:dir w_dir_perms;
+ allow hal_camera_default persist_file:file create_file_perms;
+ 
+-allow hal_camera_default vendor_xdsp_device:chr_file r_file_perms;
++allow hal_camera_default xdsp_device:chr_file r_file_perms;
+ 
+ allow hal_camera_default proc_meminfo:file r_file_perms;
+ 
+diff --git a/sepolicy/vendor/hal_fingerprint_device.te b/sepolicy/vendor/hal_fingerprint_device.te
+index 44868e6..18d2bde 100644
+--- a/sepolicy/vendor/hal_fingerprint_device.te
++++ b/sepolicy/vendor/hal_fingerprint_device.te
+@@ -20,8 +20,8 @@ allow hal_fingerprint_default sysfs_fpc:file rw_file_perms;
+ 
+ allow hal_fingerprint_default hal_perf_hwservice:hwservice_manager find;
+ 
+-allow hal_fingerprint_default vendor_qdsp_device:chr_file rw_file_perms;
+-allow hal_fingerprint_default vendor_xdsp_device:chr_file rw_file_perms;
++allow hal_fingerprint_default qdsp_device:chr_file rw_file_perms;
++allow hal_fingerprint_default xdsp_device:chr_file rw_file_perms;
+ 
+-get_prop(hal_fingerprint_default, vendor_adsprpc_prop)
++get_prop(hal_fingerprint_default, adsprpc_prop)
+ get_prop(hal_fingerprint_default, vendor_default_prop)
+diff --git a/sepolicy/vendor/hal_power_default.te b/sepolicy/vendor/hal_power_default.te
+index 9e44666..95a869d 100644
+--- a/sepolicy/vendor/hal_power_default.te
++++ b/sepolicy/vendor/hal_power_default.te
+@@ -4,10 +4,9 @@ allow hal_power_default proc_touchpanel:dir search;
+ allow hal_power_default proc_touchpanel:file rw_file_perms;
+ allow hal_power_default proc_sched_boost:file rw_file_perms;
+ allow hal_power_default sysfs_devices_system_cpu:file rw_file_perms;
+-allow hal_power_default vendor_latency_device:chr_file rw_file_perms;
+-allow hal_power_default vendor_sysfs_devfreq:dir search;
+-allow hal_power_default vendor_sysfs_devfreq:file rw_file_perms;
+-allow hal_power_default vendor_sysfs_graphics:file r_file_perms;
+-allow hal_power_default vendor_sysfs_kgsl:{ file lnk_file } rw_file_perms;
++allow hal_power_default sysfs_devfreq:dir search;
++allow hal_power_default sysfs_devfreq:file rw_file_perms;
++allow hal_power_default sysfs_graphics:file r_file_perms;
++allow hal_power_default sysfs_kgsl:{ file lnk_file } rw_file_perms;
+ 
+ set_prop(hal_power_default, vendor_power_prop)
+diff --git a/sepolicy/vendor/rild.te b/sepolicy/vendor/rild.te
+index a57e983..fc3a6fb 100644
+--- a/sepolicy/vendor/rild.te
++++ b/sepolicy/vendor/rild.te
+@@ -10,6 +10,6 @@ allow rild param_block_device:blk_file rw_file_perms;
+ allow rild proc:file w_file_perms;
+ allow rild proc_net:file w_file_perms;
+ 
+-allow rild vendor_diag_device:chr_file rw_file_perms;
++allow rild diag_device:chr_file rw_file_perms;
+ 
+ set_prop(rild, vendor_rild_prop)
+diff --git a/sepolicy/vendor/sensors.te b/sepolicy/vendor/sensors.te
+new file mode 100644
+index 0000000..d339161
+--- /dev/null
++++ b/sepolicy/vendor/sensors.te
+@@ -0,0 +1,4 @@
++allow sensors sensors_vendor_data_file:dir create_dir_perms;
++allow sensors sensors_vendor_data_file:file create_file_perms;
++
++get_prop(sensors, sensors_prop)
+diff --git a/sepolicy/vendor/sensors_qti.te b/sepolicy/vendor/sensors_qti.te
+deleted file mode 100644
+index 003f27d..0000000
+--- a/sepolicy/vendor/sensors_qti.te
++++ /dev/null
+@@ -1,4 +0,0 @@
+-allow vendor_sensors_qti vendor_sensors_vendor_data_file:dir create_dir_perms;
+-allow vendor_sensors_qti vendor_sensors_vendor_data_file:file create_file_perms;
+-
+-get_prop(vendor_sensors_qti, vendor_sensors_prop)
+diff --git a/sepolicy/vendor/thermal-engine.te b/sepolicy/vendor/thermal-engine.te
+index bba2107..d3a41e6 100644
+--- a/sepolicy/vendor/thermal-engine.te
++++ b/sepolicy/vendor/thermal-engine.te
+@@ -1,3 +1,3 @@
+-allow vendor_thermal-engine sysfs:dir r_dir_perms;
++allow thermal-engine sysfs:dir r_dir_perms;
+ 
+-r_dir_file(vendor_thermal-engine, vendor_sysfs_devfreq)
++r_dir_file(thermal-engine, sysfs_devfreq)
+diff --git a/sepolicy/vendor/vendor_wcnss_service.te b/sepolicy/vendor/vendor_wcnss_service.te
+deleted file mode 100644
+index 6540511..0000000
+--- a/sepolicy/vendor/vendor_wcnss_service.te
++++ /dev/null
+@@ -1 +0,0 @@
+-allow vendor_wcnss_service rootfs:dir r_dir_perms;
+diff --git a/sepolicy/vendor/wcnss_service.te b/sepolicy/vendor/wcnss_service.te
+index c44ec14..ef01399 100644
+--- a/sepolicy/vendor/wcnss_service.te
++++ b/sepolicy/vendor/wcnss_service.te
+@@ -1 +1,3 @@
+-r_dir_file(vendor_wcnss_service, sysfs_project_info)
++allow wcnss_service rootfs:dir r_dir_perms;
++
++r_dir_file(wcnss_service, sysfs_project_info)
