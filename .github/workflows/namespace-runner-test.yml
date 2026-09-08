@@ -1,0 +1,51 @@
+name: Namespace Runner Smoke Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-test:
+    name: Smoke Test Namespace 32C Runner
+    runs-on: namespace-profile-avium-run15
+    timeout-minutes: 10
+
+    steps:
+      - name: Runner Environment Audit
+        run: |
+          echo "=== HOSTNAME ==="
+          hostname
+          echo "=== WHOAMI ==="
+          whoami
+          echo "=== PWD ==="
+          pwd
+          echo "=== UNAME ==="
+          uname -a
+          echo "=== NPROC ==="
+          nproc
+          echo "=== LSCPU ==="
+          lscpu
+          echo "=== FREE ==="
+          free -h
+          echo "=== DF ==="
+          df -hT
+          echo "=== LSBLK ==="
+          lsblk
+          echo "=== MOUNT ==="
+          mount
+          echo "=== TOOL VERSIONS ==="
+          git --version || true
+          python3 --version || true
+          java -version 2>&1 || true
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Verify GitHub Context
+        run: |
+          echo "=== GITHUB CONTEXT ==="
+          echo "GITHUB_REPOSITORY: $GITHUB_REPOSITORY"
+          echo "GITHUB_SHA: $GITHUB_SHA"
+          echo "GITHUB_REF: $GITHUB_REF"

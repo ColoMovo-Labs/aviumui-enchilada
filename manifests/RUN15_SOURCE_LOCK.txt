@@ -1,0 +1,11 @@
+# RUN #15 SOURCE LOCK
+DATE: 2026-09-08T12:03:07Z
+PINNED_MANIFEST: manifests/run15-pinned-manifest.xml
+MANIFEST_SHA256: 992e3a29f676a78409ce27cd91bc4e19907171c292ddb74ba535bdf53936f962
+DEVICE_ENCHILADA_HEAD: 11af130c3356ae736b16fd788a1070d9a1e3fad9 (LineageOS/android_device_oneplus_enchilada @ lineage-23.2)
+DEVICE_SDM845_COMMON_HEAD: 55ee87d3b97dfbee35d400429ee7a820181013cf (ColoMovo-Labs/android_device_oneplus_sdm845-common @ run15-lineage-legacy-ab)
+KERNEL_HEAD: 53b798328231b5e75ff1df2b6b031a8618ac8084 (AviumUI-Devices/kernel_oneplus_sdm845 @ avium-16.2)
+HARDWARE_ONEPLUS_HEAD: c70600ebefcdb7db75ab2505abaad0ea71faca2b (LineageOS/android_hardware_oneplus @ lineage-23.2)
+HARDWARE_DOLBY_HEAD: 157bf19d8fa9c83c3696f2b013101154558c0f3f (AviumUI-Devices/hardware_dolby @ avium-16.2)
+VENDOR_ENCHILADA_HEAD: 2dedc8d1099e0b4d3e507c0049ee9bdcf12d77f0 (TheMuppets/proprietary_vendor_oneplus_enchilada @ lineage-22.2)
+VENDOR_SDM845_COMMON_HEAD: 256177534d7f8fd531336814984fabbfca8a9442 (ColoMovo-Labs/proprietary_vendor_oneplus_sdm845-common @ avium-16.2)
