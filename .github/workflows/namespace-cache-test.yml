@@ -1,0 +1,51 @@
+name: Namespace Cache Volume Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Test mode: 'write' or 'verify'"
+        required: true
+        default: "write"
+
+permissions:
+  contents: read
+
+jobs:
+  cache-test:
+    name: Test 125GB Cache Volume
+    runs-on: namespace-profile-avium-run15
+    timeout-minutes: 5
+
+    steps:
+      - name: Inspect Cache Mount
+        run: |
+          echo "=== CACHE MOUNT AUDIT ==="
+          df -hT /cache
+          ls -la /cache
+
+      - name: Cache Action - Write Canary
+        if: ${{ github.event.inputs.mode == 'write' }}
+        run: |
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          CANARY="RUN15_CACHE_CANARY_${TIMESTAMP}"
+          echo "Writing canary: $CANARY"
+          sudo mkdir -p /cache/canary
+          sudo chown -R runner:runner /cache/canary
+          echo "$CANARY" > /cache/canary/canary.txt
+          echo "Canary written to /cache/canary/canary.txt:"
+          cat /cache/canary/canary.txt
+
+      - name: Cache Action - Verify Canary
+        if: ${{ github.event.inputs.mode == 'verify' }}
+        run: |
+          echo "Verifying canary in /cache/canary/canary.txt..."
+          if [ -f /cache/canary/canary.txt ]; then
+            CONTENT=$(cat /cache/canary/canary.txt)
+            echo "CACHE_VOLUME=PASS"
+            echo "Found canary content: $CONTENT"
+          else
+            echo "CACHE_VOLUME=FAIL"
+            echo "Canary file not found in /cache/canary!"
+            exit 1
+          fi
