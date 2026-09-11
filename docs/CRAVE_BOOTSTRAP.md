@@ -1,6 +1,6 @@
 # Crave.io Build #1 Bootstrap Guide
 
-This guide describes how to reproduce and resume Build #1 on **Crave.io Team Aosp** infrastructure without reliance on Depot-private storage or caches.
+This guide describes how to reproduce and resume Build #1 on **Crave.io Team Aosp** infrastructure without reliance on private storage or caches.
 
 ---
 
@@ -32,7 +32,7 @@ Before building, verify that the synchronized repos match the Build #1 verified 
 
 | Repository Path | Remote URL | Branch | Verified Commit SHA | Description |
 |---|---|---|---|---|
-| `device/oneplus/sdm845-common` | `https://github.com/ColoMovo-Labs/android_device_oneplus_sdm845-common` | `avium-16.2-build1` | `f94d5eeb1b411dfbb4ecfafea5d04ea31e5e0a35` | Contains all 5 Build #1 sepolicy & display HAL fixes |
+| `device/oneplus/sdm845-common` | `https://github.com/ColoMovo-Labs/android_device_oneplus_sdm845-common` | `run15-lineage-legacy-ab` | `f94d5eeb1b411dfbb4ecfafea5d04ea31e5e0a35` | Contains all 5 Build #1 sepolicy & display HAL fixes |
 | `vendor/oneplus/sdm845-common` | `https://github.com/ColoMovo-Labs/proprietary_vendor_oneplus_sdm845-common` | `avium-16.2` | `256177534d7f8fd531336814984fabbfca8a9442` | Source perf client & namespace visibility fixes |
 | `kernel/oneplus/sdm845` | `https://github.com/AviumUI-Devices/kernel_oneplus_sdm845` | `avium-16.2` | `2830f53eb774a38f4a1faee9f0970ad70f803c68` | Standalone kernel compile PASS |
 | `device/oneplus/enchilada` | `https://github.com/LineageOS/android_device_oneplus_enchilada` | `lineage-23.2` | `f3e5db70e9a8f420e10b14467554904a44b9423b` | OnePlus 6 device configuration |

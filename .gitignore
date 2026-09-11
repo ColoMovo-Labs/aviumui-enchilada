@@ -18,6 +18,8 @@ __pycache__/
 *.swp
 *.bak
 *~
+checkpoints/
+reports/
 
 # Crave runtime cache/tokens
 .crave/

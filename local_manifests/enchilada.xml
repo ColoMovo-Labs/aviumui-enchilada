@@ -14,7 +14,7 @@
         name="ColoMovo-Labs/android_device_oneplus_sdm845-common"
         path="device/oneplus/sdm845-common"
         remote="github"
-        revision="avium-16.2-build1" />
+        revision="run15-lineage-legacy-ab" />
 
     <!-- Kernel -->
     <project
@@ -36,6 +36,13 @@
         path="hardware/dolby"
         remote="github"
         revision="avium-16.2" />
+
+    <!-- Dolby App -->
+    <project
+        name="crdroidandroid/android_packages_apps_LunarisDolby"
+        path="packages/apps/LunarisDolby"
+        remote="github"
+        revision="16.0" />
 
     <!-- Proprietary vendor blobs -->
     <project
