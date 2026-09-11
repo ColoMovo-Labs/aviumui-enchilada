@@ -1,0 +1,86 @@
+name: Namespace Storage & Persistence Audit
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  storage-audit:
+    name: Storage and Persistence Audit
+    runs-on: namespace-profile-avium-run15
+    timeout-minutes: 15
+
+    steps:
+      - name: Runner Host Info
+        run: |
+          echo "=== RUNNER INFO ==="
+          hostname
+          whoami
+          uname -a
+          nproc
+          free -h
+
+      - name: Persistence Audit - Check Existing Markers
+        run: |
+          echo "=== CHECKING EXISTING MARKERS ON /cache ==="
+          if [ -d "/cache" ]; then
+            ls -la /cache
+          else
+            echo "/cache directory does not exist!"
+          fi
+
+          if [ -f "/cache/namespace-persist-test.txt" ]; then
+            echo ">>> FOUND /cache/namespace-persist-test.txt! <<<"
+            cat /cache/namespace-persist-test.txt
+            echo "PERSISTENCE_TEST=PERSISTENT"
+          else
+            echo ">>> /cache/namespace-persist-test.txt NOT found (first run or non-persistent) <<<"
+            echo "PERSISTENCE_TEST=FIRST_RUN_OR_NOT_FOUND"
+          fi
+
+          if [ -f "/cache/canary/canary.txt" ]; then
+            echo ">>> FOUND historical canary /cache/canary/canary.txt: <<<"
+            cat /cache/canary/canary.txt
+          fi
+
+      - name: Filesystem Space and Inode Audit
+        run: |
+          echo "=== FILESYSTEM USAGE ==="
+          df -hT / /cache /tmp /dev/shm || df -hT
+
+          echo "=== INODE USAGE ==="
+          df -i / /cache /tmp /dev/shm || df -i
+
+          echo "=== BLOCK DEVICES ==="
+          lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINT
+
+      - name: Benchmark Sequential Write I/O
+        run: |
+          echo "=== BENCHMARK /cache (ext4 dedicated volume) ==="
+          sudo mkdir -p /cache/io-test
+          sudo chown -R $(id -u):$(id -g) /cache/io-test
+          sudo dd if=/dev/zero of=/cache/io-test/ns-cache-io-test.bin bs=1M count=4096 conv=fdatasync status=progress
+
+          echo "=== BENCHMARK / (root filesystem) ==="
+          mkdir -p /tmp/io-test
+          dd if=/dev/zero of=/tmp/io-test/ns-root-io-test.bin bs=1M count=4096 conv=fdatasync status=progress
+
+      - name: Record Persistence Marker & Cleanup Benchmarks
+        run: |
+          echo "=== RECORDING PERSISTENCE MARKER ==="
+          sudo touch /cache/namespace-persist-test.txt
+          sudo chown $(id -u):$(id -g) /cache/namespace-persist-test.txt
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          RUN_ID="${{ github.run_id }}"
+          RUN_ATTEMPT="${{ github.run_attempt }}"
+          RUNNER_HOST=$(hostname)
+          echo "RunID=${RUN_ID} Attempt=${RUN_ATTEMPT} Time=${TIMESTAMP} Host=${RUNNER_HOST}" >> /cache/namespace-persist-test.txt
+          
+          echo "Current content of /cache/namespace-persist-test.txt:"
+          cat /cache/namespace-persist-test.txt
+
+          echo "=== CLEANING UP BENCHMARK ARTIFACTS ==="
+          sudo rm -rf /cache/io-test /tmp/io-test
+          echo "IO test artifacts removed successfully."
