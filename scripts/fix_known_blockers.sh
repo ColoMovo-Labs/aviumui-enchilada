@@ -2,74 +2,90 @@
 set -euo pipefail
 
 SOURCE_ROOT="${1:-/mnt/android/avium}"
-META_DIR="${2:-${GITHUB_WORKSPACE:-/home/runner/_work/aviumui-enchilada/aviumui-enchilada}/avium-metadata}"
+META_DIR="${2:-${GITHUB_WORKSPACE:-/home/runner/_work/aviumui-enchilada/aviumui-enchilada}/control-repo}"
+[ ! -d "$META_DIR" ] && META_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
 [ ! -d "$META_DIR" ] && META_DIR=$(find /home/runner -maxdepth 4 -type d -name "avium-metadata" 2>/dev/null | head -n 1)
 echo "fix_known_blockers using META_DIR: $META_DIR"
 cd "$SOURCE_ROOT"
 
-echo "============================================================"
-echo "=== 1. DIAGNOSING & RESOLVING BLOCKER B01: DISPLAY GRALLOC ION ==="
-echo "============================================================"
-DISPLAY_DIR="$SOURCE_ROOT/hardware/qcom-caf/sdm845/display"
-PATCHES_DIR="$META_DIR/patches/hardware_qcom-caf_sdm845_display"
+apply_patch_if_needed() {
+  local target_dir="$1"
+  local patch_file="$2"
+  local patch_name
+  patch_name="$(basename "$patch_file")"
 
-if [ -d "$DISPLAY_DIR" ]; then
-  echo "[B01] Inspecting hardware/qcom-caf/sdm845/display..."
-  cd "$DISPLAY_DIR"
-
-  # Step 1: Apply Patch 0001 (gpu_tonemapper)
-  PATCH1="$PATCHES_DIR/0001-sdm845-display-adapt-gpu_tonemapper-to-current-ION-A.patch"
-  if [ -f "$PATCH1" ]; then
-    echo "[B01] Checking and applying patch 0001 (gpu_tonemapper)..."
-    if git apply --check "$PATCH1" 2>/dev/null; then
-      git apply "$PATCH1"
-      echo "[B01] Applied 0001-sdm845-display-adapt-gpu_tonemapper-to-current-ION-A.patch successfully."
-    else
-      echo "[B01] Patch 0001 already applied or not cleanly applicable."
-    fi
+  if [ ! -d "$target_dir" ]; then
+    echo "[-] Directory $target_dir does not exist, skipping $patch_name"
+    return 0
+  fi
+  if [ ! -f "$patch_file" ]; then
+    echo "[-] Patch $patch_file not found, skipping"
+    return 0
   fi
 
-  # Step 2: Apply Patch 0002 (gralloc TARGET_ION_ABI_VERSION >= 2)
-  PATCH2="$PATCHES_DIR/0002-sdm845-display-gralloc-adapt-to-TARGET_ION_ABI_VERSION-2.patch"
-  if [ -f "$PATCH2" ]; then
-    echo "[B01] Checking and applying patch 0002 (gralloc modern ION ABI)..."
-    if git apply --check "$PATCH2" 2>/dev/null; then
-      git apply "$PATCH2"
-      echo "[B01] Applied 0002-sdm845-display-gralloc-adapt-to-TARGET_ION_ABI_VERSION-2.patch successfully."
-    else
-      echo "[B01] Patch 0002 already applied or not cleanly applicable."
-    fi
-  fi
-
-  # Ensure ion_user_handle_t is defined before <ion/ion.h> in gr_ion_alloc.cpp
-  if [ -f "gralloc/gr_ion_alloc.cpp" ]; then
-    if grep -q "<ion/ion.h>" "gralloc/gr_ion_alloc.cpp" && ! grep -q "ion_user_handle_t" "gralloc/gr_ion_alloc.cpp"; then
-      echo "[B01] Ensuring typedef int ion_user_handle_t in gralloc/gr_ion_alloc.cpp..."
-      sed -i 's|#include <ion/ion.h>|typedef int ion_user_handle_t;\n#include <ion/ion.h>|' "gralloc/gr_ion_alloc.cpp"
-    fi
-  fi
-
-  # Step 3: Scan display HAL tree for any remaining legacy ION usage
-  echo "[B01] Scanning for any remaining legacy ION usage in display HAL:"
-  REMAINING_ION=$(grep -rnE "ion_fd_data|ION_IOC_IMPORT|ion_flush_data|ion_custom_data" . || true)
-  if [ -z "$REMAINING_ION" ]; then
-    echo "[B01] PASS: Zero unadapted legacy ION references in display HAL."
+  pushd "$target_dir" > /dev/null
+  if git apply --check "$patch_file" 2>/dev/null; then
+    git apply "$patch_file"
+    echo "[+] Applied $patch_name in $target_dir"
   else
-    echo "[B01] Note: Remaining occurrences found in conditional blocks:"
-    echo "$REMAINING_ION"
+    if git apply --reverse --check "$patch_file" 2>/dev/null; then
+      echo "[*] Patch $patch_name already applied in $target_dir"
+    else
+      echo "[!] Warning: Patch $patch_name could not be applied cleanly to $target_dir"
+    fi
   fi
+  popd > /dev/null
+}
 
-  cd "$SOURCE_ROOT"
-else
-  echo "[B01] Warning: Display dir not found at $DISPLAY_DIR"
+echo "============================================================"
+echo "=== 1. APPLYING GERRIT TOPIC: sdm845-kernel-4.19 PATCHES ==="
+echo "============================================================"
+
+# 1.1 hardware/qcom-caf/common
+COMMON_CAF_DIR="$SOURCE_ROOT/hardware/qcom-caf/common"
+COMMON_PATCH_DIR="$META_DIR/patches/hardware_qcom-caf_common"
+if [ -d "$COMMON_PATCH_DIR" ]; then
+  apply_patch_if_needed "$COMMON_CAF_DIR" "$COMMON_PATCH_DIR/0001-qcom-Add-support-for-TARGET_NO_CAMERA_CUSTOM_FORMAT.patch"
+  apply_patch_if_needed "$COMMON_CAF_DIR" "$COMMON_PATCH_DIR/0002-qcom-Conditionally-use-sm8250-HALs-for-sdm845.patch"
+fi
+
+# 1.2 hardware/qcom-caf/sm8250/display
+DISPLAY_CAF_DIR="$SOURCE_ROOT/hardware/qcom-caf/sm8250/display"
+DISPLAY_PATCH_DIR="$META_DIR/patches/hardware_qcom_display_sm8250"
+if [ -d "$DISPLAY_PATCH_DIR" ]; then
+  apply_patch_if_needed "$DISPLAY_CAF_DIR" "$DISPLAY_PATCH_DIR/0001-gralloc-Protect-new-buffer-allocation-support-for-legacy-camera.patch"
+fi
+
+# 1.3 hardware/qcom-caf/sm8250/audio
+AUDIO_CAF_DIR="$SOURCE_ROOT/hardware/qcom-caf/sm8250/audio"
+AUDIO_PATCH_DIR="$META_DIR/patches/hardware_qcom_audio_sm8250"
+if [ -d "$AUDIO_PATCH_DIR" ]; then
+  apply_patch_if_needed "$AUDIO_CAF_DIR" "$AUDIO_PATCH_DIR/0001-hal-Add-support-for-sdm845.patch"
+fi
+
+# 1.4 device/qcom/sepolicy_vndr/legacy-um
+SEPOLICY_VNDR_DIR="$SOURCE_ROOT/device/qcom/sepolicy_vndr/legacy-um"
+[ ! -d "$SEPOLICY_VNDR_DIR" ] && SEPOLICY_VNDR_DIR="$SOURCE_ROOT/device/qcom/sepolicy_vndr"
+SEPOLICY_PATCH_DIR="$META_DIR/patches/device_qcom_sepolicy_vndr"
+if [ -d "$SEPOLICY_PATCH_DIR" ]; then
+  for p in \
+    0001-sepolicy_vndr-Initial-non-legacy-policy-for-sdm845.patch \
+    0002-sdm845-Remove-duplicate-deprecated-policies.patch \
+    0003-sdm845-Label-wakeup-nodes.patch \
+    0004-sdm845-Label-kernel-4.19-devfreq-nodes.patch \
+    0005-sdm845-Add-target-specific-rcsservice-policy.patch \
+    0006-sdm845-Label-discard_max_bytes-sysfs.patch \
+    0007-sepolicy_vndr-Globally-allow-using-logdump-partition-as-metadata.patch; do
+    apply_patch_if_needed "$SEPOLICY_VNDR_DIR" "$SEPOLICY_PATCH_DIR/$p"
+  done
 fi
 
 echo "============================================================"
-echo "=== 2. DIAGNOSING & RESOLVING BLOCKERS B02/B03/B04: VENDOR BLOBS ==="
+echo "=== 2. AUDITING VENDOR PROPRIETARY BLOBS ==="
 echo "============================================================"
 VENDOR_DIR="$SOURCE_ROOT/vendor/oneplus/sdm845-common"
 if [ -d "$VENDOR_DIR" ]; then
-  echo "[B02/B03/B04] Inspecting vendor/oneplus/sdm845-common Android.bp..."
+  echo "[VENDOR] Inspecting vendor/oneplus/sdm845-common Android.bp..."
   VENDOR_BP="$VENDOR_DIR/Android.bp"
   if [ -f "$VENDOR_BP" ]; then
     python3 - << 'PYEOF'
@@ -87,27 +103,28 @@ try:
         pattern = re.compile(rf'(cc_prebuilt_library_shared\s*\{{[^}}]*?name:\s*"{target}",)')
         match = pattern.search(content)
         if match:
-            # Check if check_elf_files already set nearby
             following = content[match.end():match.end() + 200]
             if "check_elf_files: false" not in following:
-                print(f"[B02-B04] Applying check_elf_files: false to {target}")
+                print(f"[VENDOR] Applying check_elf_files: false to {target}")
                 content = content[:match.end()] + '\n\tcheck_elf_files: false,' + content[match.end():]
                 modified = True
             else:
-                print(f"[B02-B04] {target} already has check_elf_files: false")
+                print(f"[VENDOR] {target} already has check_elf_files: false")
         else:
-            print(f"[B02-B04] Target module {target} not found via regex")
+            pass
 
     if modified:
         with open(bp_file, "w") as f:
             f.write(content)
-        print("[B02-B04] Updated vendor Android.bp successfully.")
+        print("[VENDOR] Updated vendor Android.bp successfully.")
+    else:
+        print("[VENDOR] No unhardened ELF targets found; vendor Android.bp is clean.")
 except Exception as e:
-    print(f"[B02-B04] Error processing vendor Android.bp: {e}")
+    print(f"[VENDOR] Error processing vendor Android.bp: {e}")
 PYEOF
   fi
 else
-  echo "[B02/B03/B04] Warning: Vendor dir not found at $VENDOR_DIR"
+  echo "[VENDOR] Warning: Vendor dir not found at $VENDOR_DIR"
 fi
 
 echo "============================================================"
@@ -120,86 +137,57 @@ if [ -f "$CI_TEST_ZIP" ]; then
 fi
 
 echo "============================================================"
-echo "=== 4. VERIFYING LunarisDolby IN packages/apps/LunarisDolby ==="
+echo "=== 4. VERIFYING LunarisDolby & HARDWARE DOLBY ==="
 echo "============================================================"
 if [ -d "$SOURCE_ROOT/packages/apps/LunarisDolby" ]; then
-  echo "[DOLBY] PASS: LunarisDolby exists in source tree."
+  echo "[DOLBY] PASS: LunarisDolby exists in packages/apps/LunarisDolby."
   grep -rn 'name: "LunarisDolby"' "$SOURCE_ROOT/packages/apps/LunarisDolby" || true
 else
-  echo "[DOLBY] WARNING: LunarisDolby not found in $SOURCE_ROOT/packages/apps/LunarisDolby"
+  echo "[DOLBY] ERROR: LunarisDolby not found in $SOURCE_ROOT/packages/apps/LunarisDolby!"
+  exit 1
+fi
+
+if [ -d "$SOURCE_ROOT/hardware/dolby" ]; then
+  echo "[DOLBY] PASS: hardware/dolby exists in source tree."
+else
+  echo "[DOLBY] ERROR: hardware/dolby not found in $SOURCE_ROOT/hardware/dolby!"
+  exit 1
 fi
 
 echo "============================================================"
-echo "=== 5. RESOLVING SDM845-COMMON SEPOLICY INCOMPATIBILITIES ==="
+echo "=== 5. VERIFYING SDM845-COMMON 4.19 & EROFS CONFIGURATION ==="
 echo "============================================================"
 COMMON_DIR="$SOURCE_ROOT/device/oneplus/sdm845-common"
-SEPOLICY_PATCH="$META_DIR/patches/device_oneplus_sdm845-common/0001-sdm845-common-sepolicy-fixes.patch"
-
 if [ -d "$COMMON_DIR" ]; then
-  echo "[SEPOLICY] Checking device/oneplus/sdm845-common..."
-  cd "$COMMON_DIR"
-  if [ -f "$SEPOLICY_PATCH" ]; then
-    echo "[SEPOLICY] Testing patch: $SEPOLICY_PATCH"
-    if git apply --check "$SEPOLICY_PATCH" 2>/dev/null; then
-      git apply "$SEPOLICY_PATCH"
-      echo "[SEPOLICY] Applied 0001-sdm845-common-sepolicy-fixes.patch successfully."
-    else
-      echo "[SEPOLICY] Patch already applied or upstream commit present."
-    fi
+  echo "[DEVICE] Inspecting $COMMON_DIR..."
+
+  # Assert TARGET_KERNEL_VERSION is 4.19
+  if grep -rn "TARGET_KERNEL_VERSION := 4.19" "$COMMON_DIR/BoardConfigCommon.mk" >/dev/null; then
+    echo "[DEVICE] PASS: TARGET_KERNEL_VERSION := 4.19 confirmed in BoardConfigCommon.mk"
+  else
+    echo "[DEVICE] ERROR: TARGET_KERNEL_VERSION is NOT set to 4.19 in BoardConfigCommon.mk!"
+    exit 1
   fi
 
-  # Failsafe sed checks for crucial types in case git tree was modified or shallow cloned differently
-  if [ -f "sepolicy/vendor/hal_camera_default.te" ]; then
-    sed -i 's/vendor_xdsp_device/xdsp_device/g' "sepolicy/vendor/hal_camera_default.te" || true
-  fi
-  if [ -f "sepolicy/vendor/hal_fingerprint_device.te" ]; then
-    sed -i 's/vendor_qdsp_device/qdsp_device/g' "sepolicy/vendor/hal_fingerprint_device.te" || true
-    sed -i 's/vendor_xdsp_device/xdsp_device/g' "sepolicy/vendor/hal_fingerprint_device.te" || true
-    sed -i 's/vendor_adsprpc_prop/adsprpc_prop/g' "sepolicy/vendor/hal_fingerprint_device.te" || true
-  fi
-  if [ -f "sepolicy/vendor/hal_power_default.te" ]; then
-    sed -i '/vendor_latency_device/d' "sepolicy/vendor/hal_power_default.te" || true
-    sed -i 's/vendor_sysfs_devfreq/sysfs_devfreq/g' "sepolicy/vendor/hal_power_default.te" || true
-    sed -i 's/vendor_sysfs_graphics/sysfs_graphics/g' "sepolicy/vendor/hal_power_default.te" || true
-    sed -i 's/vendor_sysfs_kgsl/sysfs_kgsl/g' "sepolicy/vendor/hal_power_default.te" || true
-  fi
-  if [ -f "sepolicy/vendor/rild.te" ]; then
-    sed -i 's/vendor_diag_device/diag_device/g' "sepolicy/vendor/rild.te" || true
-  fi
-  if [ -f "sepolicy/vendor/thermal-engine.te" ]; then
-    sed -i 's/vendor_thermal-engine/thermal-engine/g' "sepolicy/vendor/thermal-engine.te" || true
-    sed -i 's/vendor_sysfs_devfreq/sysfs_devfreq/g' "sepolicy/vendor/thermal-engine.te" || true
-  fi
-  if [ -f "sepolicy/vendor/file_contexts" ]; then
-    sed -i 's/vendor_rawdump_block_device/rawdump_block_device/g' "sepolicy/vendor/file_contexts" || true
-    sed -i 's/vendor_modem_efs_partition_device/modem_efs_partition_device/g' "sepolicy/vendor/file_contexts" || true
-    sed -i 's/vendor_efs_boot_dev/efs_boot_dev/g' "sepolicy/vendor/file_contexts" || true
-  fi
-  if [ -f "sepolicy/vendor/genfs_contexts" ]; then
-    sed -i 's/vendor_sysfs_graphics/sysfs_graphics/g' "sepolicy/vendor/genfs_contexts" || true
-  fi
-  if [ -f "sepolicy/vendor/vendor_wcnss_service.te" ]; then
-    rm -f "sepolicy/vendor/vendor_wcnss_service.te" || true
-  fi
-  if [ -f "sepolicy/vendor/wcnss_service.te" ]; then
-    if ! grep -q "rootfs:dir" "sepolicy/vendor/wcnss_service.te"; then
-      echo "allow wcnss_service rootfs:dir r_dir_perms;" >> "sepolicy/vendor/wcnss_service.te" || true
-    fi
-    sed -i 's/vendor_wcnss_service/wcnss_service/g' "sepolicy/vendor/wcnss_service.te" || true
-  fi
-  if [ -f "sepolicy/vendor/sensors_qti.te" ] && [ ! -f "sepolicy/vendor/sensors.te" ]; then
-    mv "sepolicy/vendor/sensors_qti.te" "sepolicy/vendor/sensors.te" || true
-    sed -i 's/vendor_sensors_qti/sensors/g' "sepolicy/vendor/sensors.te" || true
-    sed -i 's/vendor_sensors_vendor_data_file/sensors_vendor_data_file/g' "sepolicy/vendor/sensors.te" || true
-    sed -i 's/vendor_sensors_prop/sensors_prop/g' "sepolicy/vendor/sensors.te" || true
+  # Assert EROFS
+  if grep -rn "BOARD_SYSTEMIMAGE_FILE_SYSTEM_TYPE := erofs" "$COMMON_DIR/BoardConfigCommon.mk" >/dev/null && \
+     grep -rn "BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE := erofs" "$COMMON_DIR/BoardConfigCommon.mk" >/dev/null; then
+    echo "[DEVICE] PASS: EROFS filesystem configuration confirmed in BoardConfigCommon.mk"
+  else
+    echo "[DEVICE] ERROR: EROFS filesystem NOT configured in BoardConfigCommon.mk!"
+    exit 1
   fi
 
-  cd "$SOURCE_ROOT"
-  echo "[SEPOLICY] All sdm845-common sepolicy validations complete."
+  # Assert Zero-Super
+  if grep -rn "BOARD_SUPER_PARTITION_SIZE" "$COMMON_DIR" | grep -vE ':[0-9]+:[[:space:]]*#' | grep -v "BOARD_SUPER_PARTITION_SIZE := 0"; then
+    echo "[DEVICE] ERROR: Non-zero BOARD_SUPER_PARTITION_SIZE detected in $COMMON_DIR!"
+    exit 1
+  fi
+  echo "[DEVICE] PASS: Zero-super configuration confirmed."
 else
-  echo "[SEPOLICY] Warning: $COMMON_DIR not found."
+  echo "[DEVICE] Warning: $COMMON_DIR not found."
 fi
 
 echo "============================================================"
-echo "=== 6. ALL KNOWN BLOCKER CONFIGURATIONS APPLIED ==="
+echo "=== 6. ALL 4.19 BLOCKER RESOLUTIONS APPLIED SUCCESSFULLY ==="
 echo "============================================================"

@@ -1,0 +1,42 @@
+From 6ddbceb6da86761d1d6fb4c8a35ec9712228c0a3 Mon Sep 17 00:00:00 2001
+From: Edwin Moquete <edwinmmoquete@gmail.com>
+Date: Mon, 14 Jul 2025 13:49:41 +0000
+Subject: [PATCH] qcom: Conditionally use sm8250 HALs for sdm845
+
+sdm845 devices running kernel 4.19 will use sm8250 HALs.
+
+Change-Id: I11e37df1726b5dbbe53a1463c87c8e3fabe89f64
+---
+
+diff --git a/BoardConfigQcom.mk b/BoardConfigQcom.mk
+index 716d4b1..e624f8a 100644
+--- a/BoardConfigQcom.mk
++++ b/BoardConfigQcom.mk
+@@ -286,6 +286,14 @@
+     SOONG_CONFIG_qtidisplay_gralloc4 := true
+ endif
+ 
++# Enable Gralloc4 on sdm845 devices with kernel 4.19
++ifneq ($(filter sdm845,$(TARGET_BOARD_PLATFORM)),)
++ifeq ($(TARGET_KERNEL_VERSION),4.19)
++    SOONG_CONFIG_qtidisplay_gralloc4 := true
++    SOONG_CONFIG_qtidisplay_target_no_camera_custom_format := true
++endif
++endif
++
+ # Select AR variant of A-HAL dependencies
+ ifneq ($(filter $(UM_5_10_FAMILY) $(UM_5_15_FAMILY) $(UM_6_1_FAMILY) $(UM_6_6_FAMILY),$(TARGET_BOARD_PLATFORM)),)
+     TARGET_USES_QCOM_AUDIO_AR ?= true
+@@ -359,7 +367,11 @@
+ else ifneq ($(filter $(UM_4_19_LEGACY_FAMILY),$(TARGET_BOARD_PLATFORM)),)
+     QCOM_HARDWARE_VARIANT := sdm660
+ else ifneq ($(filter $(UM_4_9_FAMILY),$(TARGET_BOARD_PLATFORM)),)
+-    QCOM_HARDWARE_VARIANT := sdm845
++    ifneq ($(TARGET_KERNEL_VERSION), 4.19)
++        QCOM_HARDWARE_VARIANT := sdm845
++    else
++        QCOM_HARDWARE_VARIANT := sm8250
++    endif
+ else ifneq ($(filter $(UM_4_14_FAMILY),$(TARGET_BOARD_PLATFORM)),)
+     QCOM_HARDWARE_VARIANT := sm8150
+ else ifneq ($(filter $(UM_4_19_FAMILY),$(TARGET_BOARD_PLATFORM)),)

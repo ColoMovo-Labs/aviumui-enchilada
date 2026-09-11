@@ -1,0 +1,149 @@
+From 1bae43955d8772d52c84e4db006435eeaeb09157 Mon Sep 17 00:00:00 2001
+From: Bruno Martins <bgcngm@gmail.com>
+Date: Sat, 07 Feb 2026 18:25:48 +0000
+Subject: [PATCH] sepolicy_vndr: Globally allow using logdump partition as metadata
+
+This is an extension to commit 191a6ce, now that sdm845 has
+kernel 4.19 ports.
+
+Change-Id: Ia6330e07f26908969cf3619aa7dce165abfd6def
+---
+
+diff --git a/SEPolicy.mk b/SEPolicy.mk
+index ccb85ea..517b725 100755
+--- a/SEPolicy.mk
++++ b/SEPolicy.mk
+@@ -41,6 +41,12 @@
+        $(SEPOLICY_PATH)/qva/vendor/ssg \
+        $(SEPOLICY_PATH)/qva/vendor/common
+ 
++    ifeq ($(TARGET_USES_LOGDUMP_AS_METADATA),true)
++        BOARD_SEPOLICY_M4DEFS += vendor_logdump_partition=metadata_block_device
++    else
++        BOARD_VENDOR_SEPOLICY_DIRS += $(SEPOLICY_PATH)/generic/vendor/common/logdump
++    endif
++
+     ifeq ($(TARGET_SEPOLICY_DIR),)
+       BOARD_VENDOR_SEPOLICY_DIRS += $(SEPOLICY_PATH)/generic/vendor/$(TARGET_BOARD_PLATFORM)
+       BOARD_VENDOR_SEPOLICY_DIRS += $(SEPOLICY_PATH)/qva/vendor/$(TARGET_BOARD_PLATFORM)
+diff --git a/generic/vendor/common/logdump/device.te b/generic/vendor/common/logdump/device.te
+new file mode 100644
+index 0000000..2db06bb
+--- /dev/null
++++ b/generic/vendor/common/logdump/device.te
+@@ -0,0 +1,2 @@
++#logdump partition
++type vendor_logdump_partition, dev_type;
+diff --git a/generic/vendor/holi/device.te b/generic/vendor/holi/device.te
+index eeb469a..ba11385 100644
+--- a/generic/vendor/holi/device.te
++++ b/generic/vendor/holi/device.te
+@@ -25,7 +25,6 @@
+ # OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+-type vendor_logdump_partition, dev_type;
+ type vendor_mba_debug_dev, dev_type;
+ type vendor_dip_device, dev_type;
+ type vendor_rawdump_block_device, dev_type;
+diff --git a/generic/vendor/lahaina/device.te b/generic/vendor/lahaina/device.te
+index f045f6f..abbdfbf 100644
+--- a/generic/vendor/lahaina/device.te
++++ b/generic/vendor/lahaina/device.te
+@@ -29,7 +29,6 @@
+ # Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ # SPDX-License-Identifier: BSD-3-Clause-Clear
+ 
+-type vendor_logdump_partition, dev_type;
+ type vendor_mba_debug_dev, dev_type;
+ type vendor_dip_device, dev_type;
+ type vendor_rawdump_block_device, dev_type;
+diff --git a/generic/vendor/lito/device.te b/generic/vendor/lito/device.te
+index aab907f..b2fafa4 100644
+--- a/generic/vendor/lito/device.te
++++ b/generic/vendor/lito/device.te
+@@ -25,7 +25,6 @@
+ # OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+-type vendor_logdump_partition, dev_type;
+ type vendor_mba_debug_dev, dev_type;
+ type vendor_dip_device, dev_type;
+ type vendor_rawdump_block_device, dev_type;
+diff --git a/generic/vendor/msmnile/device.te b/generic/vendor/msmnile/device.te
+index 8ad057c..83893e2 100644
+--- a/generic/vendor/msmnile/device.te
++++ b/generic/vendor/msmnile/device.te
+@@ -25,8 +25,6 @@
+ # OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+-#logdump partition
+-type vendor_logdump_partition, dev_type;
+ type vendor_mba_debug_dev, dev_type;
+ type vendor_dip_device, dev_type;
+ type vendor_rawdump_block_device, dev_type;
+diff --git a/generic/vendor/msmsteppe/device.te b/generic/vendor/msmsteppe/device.te
+index 975ce15..ba11385 100644
+--- a/generic/vendor/msmsteppe/device.te
++++ b/generic/vendor/msmsteppe/device.te
+@@ -25,8 +25,6 @@
+ # OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+-#logdump partition
+-type vendor_logdump_partition, dev_type;
+ type vendor_mba_debug_dev, dev_type;
+ type vendor_dip_device, dev_type;
+ type vendor_rawdump_block_device, dev_type;
+diff --git a/generic/vendor/sdm845/device.te b/generic/vendor/sdm845/device.te
+index 79e12ca..d5fa2b1 100644
+--- a/generic/vendor/sdm845/device.te
++++ b/generic/vendor/sdm845/device.te
+@@ -25,8 +25,6 @@
+ # OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+-#logdump partition
+-type vendor_logdump_partition, dev_type;
+ type vendor_mba_debug_dev, dev_type;
+ type vendor_dip_device, dev_type;
+ type vendor_rawdump_block_device, dev_type;
+diff --git a/qva/vendor/atoll/device.te b/qva/vendor/atoll/device.te
+index 28e7e54..b2fafa4 100755
+--- a/qva/vendor/atoll/device.te
++++ b/qva/vendor/atoll/device.te
+@@ -25,8 +25,6 @@
+ # OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+-#logdump partition
+-type vendor_logdump_partition, dev_type;
+ type vendor_mba_debug_dev, dev_type;
+ type vendor_dip_device, dev_type;
+ type vendor_rawdump_block_device, dev_type;
+diff --git a/qva/vendor/bengal/device.te b/qva/vendor/bengal/device.te
+index aab907f..b2fafa4 100644
+--- a/qva/vendor/bengal/device.te
++++ b/qva/vendor/bengal/device.te
+@@ -25,7 +25,6 @@
+ # OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+-type vendor_logdump_partition, dev_type;
+ type vendor_mba_debug_dev, dev_type;
+ type vendor_dip_device, dev_type;
+ type vendor_rawdump_block_device, dev_type;
+diff --git a/qva/vendor/trinket/device.te b/qva/vendor/trinket/device.te
+index 28e7e54..b2fafa4 100644
+--- a/qva/vendor/trinket/device.te
++++ b/qva/vendor/trinket/device.te
+@@ -25,8 +25,6 @@
+ # OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+-#logdump partition
+-type vendor_logdump_partition, dev_type;
+ type vendor_mba_debug_dev, dev_type;
+ type vendor_dip_device, dev_type;
+ type vendor_rawdump_block_device, dev_type;

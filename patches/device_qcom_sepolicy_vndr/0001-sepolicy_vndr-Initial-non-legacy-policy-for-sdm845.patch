@@ -1,0 +1,623 @@
+From 04dc89cddc561c6fbe2a63538b7c3c916c802f8c Mon Sep 17 00:00:00 2001
+From: Edwin Moquete <edwinmmoquete@gmail.com>
+Date: Sat, 05 Aug 2023 19:18:41 +0000
+Subject: [PATCH] sepolicy_vndr: Initial non-legacy policy for sdm845
+
+Just a copy of the legacy policy, adapted to the generic/qva
+structure and updated to use the vendor_ suffix where needed.
+
+Change-Id: I5b9d84cad68fc2372afe22407edf9f39999c7c93
+---
+
+diff --git a/SEPolicy.mk b/SEPolicy.mk
+index 707b334..ccb85ea 100755
+--- a/SEPolicy.mk
++++ b/SEPolicy.mk
+@@ -32,7 +32,7 @@
+     $(QSSI_SEPOLICY_PATH)/generic/product/private \
+     $(QSSI_SEPOLICY_PATH)/qva/product/private
+ 
+-ifeq (,$(filter sdm845 sdm710, $(TARGET_BOARD_PLATFORM)))
++ifeq (,$(filter sdm710, $(TARGET_BOARD_PLATFORM)))
+     BOARD_VENDOR_SEPOLICY_DIRS := \
+        $(BOARD_VENDOR_SEPOLICY_DIRS) \
+        $(SEPOLICY_PATH) \
+@@ -65,7 +65,7 @@
+     endif
+ endif
+ 
+-ifneq (,$(filter sdm845 sdm710, $(TARGET_BOARD_PLATFORM)))
++ifneq (,$(filter sdm710, $(TARGET_BOARD_PLATFORM)))
+     BOARD_VENDOR_SEPOLICY_DIRS := \
+                  $(BOARD_VENDOR_SEPOLICY_DIRS) \
+                  $(SEPOLICY_PATH) \
+diff --git a/generic/vendor/sdm845/app.te b/generic/vendor/sdm845/app.te
+new file mode 100644
+index 0000000..89c9beb
+--- /dev/null
++++ b/generic/vendor/sdm845/app.te
+@@ -0,0 +1,29 @@
++# Copyright (c) 2020, The Linux Foundation. All rights reserved.
++#
++# Redistribution and use in source and binary forms, with or without
++# modification, are permitted provided that the following conditions are
++# met:
++#     * Redistributions of source code must retain the above copyright
++#       notice, this list of conditions and the following disclaimer.
++#     * Redistributions in binary form must reproduce the above
++#       copyright notice, this list of conditions and the following
++#       disclaimer in the documentation and/or other materials provided
++#       with the distribution.
++#     * Neither the name of The Linux Foundation nor the names of its
++#       contributors may be used to endorse or promote products derived
++#       from this software without specific prior written permission.
++#
++# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
++# WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
++# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
++# ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
++# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
++# BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
++# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
++# OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
++# IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++
++# Allow all syscalls for untrusted apps to qdsp device
++allow appdomain vendor_qdsp_device:chr_file r_file_perms;
+diff --git a/generic/vendor/sdm845/device.te b/generic/vendor/sdm845/device.te
+new file mode 100644
+index 0000000..79e12ca
+--- /dev/null
++++ b/generic/vendor/sdm845/device.te
+@@ -0,0 +1,32 @@
++# Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
++#
++# Redistribution and use in source and binary forms, with or without
++# modification, are permitted provided that the following conditions are
++# met:
++#     * Redistributions of source code must retain the above copyright
++#       notice, this list of conditions and the following disclaimer.
++#     * Redistributions in binary form must reproduce the above
++#       copyright notice, this list of conditions and the following
++#       disclaimer in the documentation and/or other materials provided
++#       with the distribution.
++#     * Neither the name of The Linux Foundation nor the names of its
++#       contributors may be used to endorse or promote products derived
++#       from this software without specific prior written permission.
++#
++# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
++# WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
++# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
++# ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
++# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
++# BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
++# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
++# OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
++# IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++
++#logdump partition
++type vendor_logdump_partition, dev_type;
++type vendor_mba_debug_dev, dev_type;
++type vendor_dip_device, dev_type;
++type vendor_rawdump_block_device, dev_type;
+diff --git a/generic/vendor/sdm845/file_contexts b/generic/vendor/sdm845/file_contexts
+index e85a993..7d37c47 100644
+--- a/generic/vendor/sdm845/file_contexts
++++ b/generic/vendor/sdm845/file_contexts
+@@ -1,4 +1,4 @@
+-# Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
++# Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
+ #
+ # Redistribution and use in source and binary forms, with or without
+ # modification, are permitted provided that the following conditions are
+@@ -27,75 +27,99 @@
+ ###################################
+ # Dev block nodes
+ 
+-# dev block nodes
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/abl_[ab]        u:object_r:vendor_ab_block_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/apdp_[ab]       u:object_r:vendor_ab_block_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/cmnlib64_[ab]   u:object_r:vendor_ab_block_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/cmnlib_[ab]     u:object_r:vendor_ab_block_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/dtbo_[ab]       u:object_r:vendor_ab_block_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/devcfg_[ab]     u:object_r:vendor_ab_block_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/hosd_[ab]       u:object_r:vendor_ab_block_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/hyp_[ab]        u:object_r:vendor_ab_block_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/keymaster_[ab]  u:object_r:vendor_ab_block_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/lockbooter_[ab] u:object_r:vendor_ab_block_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/laf_[ab]        u:object_r:vendor_ab_block_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/msadp_[ab]      u:object_r:vendor_ab_block_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/pmic_[ab]       u:object_r:vendor_ab_block_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/rpm_[ab]        u:object_r:vendor_ab_block_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/storsec_[ab]    u:object_r:vendor_ab_block_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/trusty_[ab]     u:object_r:vendor_ab_block_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/tz_[ab]         u:object_r:vendor_ab_block_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/vbmeta_[ab]     u:object_r:vendor_ab_block_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/uefisecapp_[ab]       u:object_r:vendor_uefi_block_device:s0
++# UFS Devices
++/dev/block/platform/soc/1d84000.ufshc/by-name/system                             u:object_r:system_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/metadata                           u:object_r:metadata_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/userdata                           u:object_r:userdata_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/boot                               u:object_r:boot_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/logdump                            u:object_r:vendor_logdump_partition:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/fsc                                u:object_r:vendor_modem_efs_partition_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/fsg                                u:object_r:vendor_modem_efs_partition_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/modemst1                           u:object_r:vendor_modem_efs_partition_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/modemst2                           u:object_r:vendor_modem_efs_partition_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/ssd                                u:object_r:vendor_ssd_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/misc                               u:object_r:misc_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/rpm                                u:object_r:vendor_rpmb_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/msadp                              u:object_r:vendor_mba_debug_dev:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/recovery                           u:object_r:recovery_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/cache                              u:object_r:cache_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/frp                                u:object_r:frp_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/mdtp                               u:object_r:vendor_mdtp_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/dip                                u:object_r:vendor_dip_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/storsec                            u:object_r:boot_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/super                              u:object_r:super_block_device:s0
+ 
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/boot_[ab]       u:object_r:boot_block_device:s0
++#rawdump partition
++/dev/block/platform/soc/1d84000.ufshc/by-name/rawdump                            u:object_r:vendor_rawdump_block_device:s0
+ 
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/metadata        u:object_r:metadata_block_device:s0
+-
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/misc            u:object_r:misc_block_device:s0
+-
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/frp             u:object_r:frp_block_device:s0
+-
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/fsc             u:object_r:vendor_modem_efs_partition_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/fsg             u:object_r:vendor_modem_efs_partition_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/modem_[ab]      u:object_r:vendor_modem_block_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/modemst[12]     u:object_r:vendor_modem_efs_partition_device:s0
+-
+-/dev/block/platform/soc/1d84000.ufshc/by-name/persist          u:object_r:vendor_persist_block_device:s0
+-
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/ramdump         u:object_r:vendor_ramdump_block_device:s0
+-
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/ssd             u:object_r:vendor_ssd_block_device:s0
+-
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/system_[ab]     u:object_r:system_block_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/vendor_[ab]     u:object_r:system_block_device:s0
+-
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/userdata        u:object_r:userdata_block_device:s0
+-
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/xbl_[ab]        u:object_r:vendor_xbl_block_device:s0
+-/dev/block/platform/soc/1d84000\.ufshc/by-name/xbl_config_[ab] u:object_r:vendor_custom_ab_block_device:s0
+-
++# A/B partitions.
++/dev/block/platform/soc/1d84000.ufshc/by-name/abl_[ab]          u:object_r:vendor_custom_ab_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/apdp_[ab]         u:object_r:vendor_custom_ab_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/boot_[ab]         u:object_r:boot_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/cmnlib_[ab]       u:object_r:vendor_custom_ab_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/cmnlib64_[ab]     u:object_r:vendor_custom_ab_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/devcfg_[ab]       u:object_r:vendor_custom_ab_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/hyp_[ab]          u:object_r:vendor_custom_ab_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/keymaster_[ab]    u:object_r:vendor_custom_ab_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/modem_[ab]        u:object_r:vendor_modem_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/bluetooth_[ab]    u:object_r:vendor_modem_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/msadp_[ab]        u:object_r:vendor_custom_ab_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/pmic_[ab]         u:object_r:vendor_custom_ab_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/rpm_[ab]          u:object_r:vendor_custom_ab_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/system_[ab]       u:object_r:system_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/tz_[ab]           u:object_r:vendor_custom_ab_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/vendor_[ab]       u:object_r:system_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/xbl_[ab]          u:object_r:vendor_xbl_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/aop_[ab]          u:object_r:vendor_custom_ab_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/vbmeta_[ab]       u:object_r:vendor_custom_ab_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/dtbo_[ab]         u:object_r:vendor_custom_ab_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/dsp_[ab]          u:object_r:vendor_custom_ab_block_device:s0
+ /dev/block/platform/soc/1d84000.ufshc/by-name/mdtp_[ab]         u:object_r:vendor_mdtp_device:s0
+ /dev/block/platform/soc/1d84000.ufshc/by-name/mdtpsecapp_[ab]   u:object_r:vendor_mdtp_device:s0
+-/dev/block/platform/soc/1d84000.ufshc/by-name/bluetooth_[ab]    u:object_r:vendor_modem_block_device:s0
+-/dev/block/platform/soc/1d84000.ufshc/by-name/dsp_[ab]          u:object_r:vendor_custom_ab_block_device:s0
+-/dev/block/platform/soc/1d84000.ufshc/by-name/aop_[ab]          u:object_r:vendor_custom_ab_block_device:s0
+ /dev/block/platform/soc/1d84000.ufshc/by-name/qupfw_[ab]        u:object_r:vendor_custom_ab_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/xbl_config_[ab]   u:object_r:vendor_custom_ab_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/storsec_[ab]      u:object_r:vendor_custom_ab_block_device:s0
+ /dev/block/platform/soc/1d84000.ufshc/by-name/ImageFv_[ab]      u:object_r:vendor_custom_ab_block_device:s0
+-/dev/block/platform/soc/1d84000.ufshc/by-name/recovery_[ab]         u:object_r:recovery_block_device:s0
+-/dev/block/platform/soc/1d84000.ufshc/by-name/vbmeta_system_[ab]    u:object_r:vendor_custom_ab_block_device:s0
+-/dev/block/platform/soc/1d84000.ufshc/by-name/vbmeta_product_[ab]    u:object_r:vendor_custom_ab_block_device:s0
+-/dev/block/platform/soc/1d84000.ufshc/by-name/super                 u:object_r:super_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/persist           u:object_r:vendor_persist_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/recovery_[ab]     u:object_r:recovery_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/vbmeta_system_[ab]  u:object_r:vendor_custom_ab_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/vbmeta_vendor_[ab]  u:object_r:vendor_custom_ab_block_device:s0
++/dev/block/platform/soc/1d84000.ufshc/by-name/uefisecapp_[ab]     u:object_r:vendor_uefi_block_device:s0
+ 
++# Block device holding the GPT, where the A/B attributes are stored.
+ /dev/block/platform/soc/1d84000.ufshc/sd[ade]                   u:object_r:vendor_gpt_block_device:s0
+-/dev/block/platform/soc/1d84000.ufshc/sd[bc]                    u:object_r:vendor_xbl_block_device:s0
+ 
++# Block devices for the drive that holds the xbl_a and xbl_b partitions.
++/dev/block/platform/soc/1d84000.ufshc/sd[bc]                 u:object_r:vendor_xbl_block_device:s0
+ 
+-/vendor/lib(64)?/hw/gralloc\.sdm845\.so    u:object_r:same_process_hal_file:s0
+-/vendor/lib(64)?/hw/vulkan\.sdm845\.so     u:object_r:same_process_hal_file:s0
+-/(vendor|system/vendor)/bin/hdcp_srm       u:object_r:vendor_hdcp_srm_exec:s0
++# SSR nodes
++/sys/devices/platform/soc/17d41000.qcom,cpucc/17d41000.qcom,cpucc:qcom,wil6210/subsys[0-9]+/name            u:object_r:vendor_sysfs_ssr:s0
++/sys/devices/platform/soc/188101c.qcom,spss/subsys[0-9]+/name                                               u:object_r:vendor_sysfs_ssr:s0
++/sys/devices/platform/soc/aae0000.qcom,venus/subsys[0-9]+/name                                              u:object_r:vendor_sysfs_ssr:s0
++/sys/devices/platform/soc/soc:qcom,ipa_fws/subsys[0-9]+/name                                                u:object_r:vendor_sysfs_ssr:s0
++/sys/devices/platform/soc/soc:qcom,kgsl-hyp/subsys[0-9]+/name                                               u:object_r:vendor_sysfs_ssr:s0
++/sys/devices/platform/soc/17300000.qcom,lpass/subsys[0-9]+/name                                             u:object_r:vendor_sysfs_ssr:s0
++/sys/devices/platform/soc/5c00000.qcom,ssc/subsys[0-9]+/name                                                u:object_r:vendor_sysfs_ssr:s0
++/sys/devices/platform/soc/8300000.qcom,turing/subsys[0-9]+/name                                             u:object_r:vendor_sysfs_ssr:s0
++/sys/devices/platform/soc/4080000.qcom,mss/subsys[0-9]+/name                                                u:object_r:vendor_sysfs_ssr:s0
++/sys/devices/platform/soc/17d41000.qcom,cpucc/17d41000.qcom,cpucc:qcom,wil6210/subsys[0-9]+/restart_level   u:object_r:vendor_sysfs_ssr_toggle:s0
++/sys/devices/platform/soc/188101c.qcom,spss/subsys[0-9]+/restart_level                                      u:object_r:vendor_sysfs_ssr_toggle:s0
++/sys/devices/platform/soc/aae0000.qcom,venus/subsys[0-9]+/restart_level                                     u:object_r:vendor_sysfs_ssr_toggle:s0
++/sys/devices/platform/soc/soc:qcom,ipa_fws/subsys[0-9]+/restart_level                                       u:object_r:vendor_sysfs_ssr_toggle:s0
++/sys/devices/platform/soc/soc:qcom,kgsl-hyp/subsys[0-9]+/restart_level                                      u:object_r:vendor_sysfs_ssr_toggle:s0
++/sys/devices/platform/soc/17300000.qcom,lpass/subsys[0-9]+/restart_level                                    u:object_r:vendor_sysfs_ssr_toggle:s0
++/sys/devices/platform/soc/5c00000.qcom,ssc/subsys[0-9]+/restart_level                                       u:object_r:vendor_sysfs_ssr_toggle:s0
++/sys/devices/platform/soc/8300000.qcom,turing/subsys[0-9]+/restart_level                                    u:object_r:vendor_sysfs_ssr_toggle:s0
++/sys/devices/platform/soc/4080000.qcom,mss/subsys[0-9]+/restart_level                                       u:object_r:vendor_sysfs_ssr_toggle:s0
+ 
++##################################
++# non-hlos mount points
+ # FBE
+-/(vendor|system/vendor)/bin/init.qti.qseecomd.sh    u:object_r:vendor_init-qti-fbe-sh_exec:s0
++/(vendor|system/vendor)/bin/init.qti.qseecomd.sh		u:object_r:vendor_init-qti-fbe-sh_exec:s0
+ 
+-/sys/devices/platform/soc/17d41000.qcom,cpucc/17d41000.qcom,cpucc:qcom,wil6210/subsys8/name u:object_r:vendor_sysfs_ssr:s0
++/vendor/bin/init.qti.chg_policy.sh                  u:object_r:vendor_qti_init_shell_exec:s0
++
++# Same process file
++/vendor/lib(64)?/hw/gralloc\.sdm845\.so   u:object_r:same_process_hal_file:s0
++/vendor/lib(64)?/hw/vulkan\.sdm845\.so    u:object_r:same_process_hal_file:s0
++/(vendor|system/vendor)/bin/sscrpcd       u:object_r:vendor_sensors_exec:s0
+diff --git a/generic/vendor/sdm845/genfs_contexts b/generic/vendor/sdm845/genfs_contexts
+new file mode 100644
+index 0000000..3a8f83d
+--- /dev/null
++++ b/generic/vendor/sdm845/genfs_contexts
+@@ -0,0 +1,68 @@
++# Copyright (c) 2018, The Linux Foundation. All rights reserved.
++#
++# Redistribution and use in source and binary forms, with or without
++# modification, are permitted provided that the following conditions are
++# met:
++#     * Redistributions of source code must retain the above copyright
++#       notice, this list of conditions and the following disclaimer.
++#     * Redistributions in binary form must reproduce the above
++#       copyright notice, this list of conditions and the following
++#       disclaimer in the documentation and/or other materials provided
++#       with the distribution.
++#     * Neither the name of The Linux Foundation nor the names of its
++#       contributors may be used to endorse or promote products derived
++#       from this software without specific prior written permission.
++#
++# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
++# WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
++# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
++# ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
++# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
++# BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
++# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
++# OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
++# IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++###################################
++
++#secure touch sysfs node
++genfscon sysfs /devices/platform/soc/a98000.i2c/i2c-2/2-0020 u:object_r:vendor_sysfs_sectouch:s0
++
++genfscon sysfs /devices/platform/soc/c440000.qcom,spmi/spmi-0/spmi0-00/c440000.qcom,spmi:qcom,pm8998@0:qcom,pm8998_rtc/rtc u:object_r:sysfs_rtc:s0
++
++#qdss sysfs-node
++genfscon sysfs /devices/platform/soc/6047000.tmc/coresight-tmc-etf u:object_r:vendor_sysfs_qdss_dev:s0
++genfscon sysfs /devices/platform/soc/6048000.tmc/coresight-tmc-etr u:object_r:vendor_sysfs_qdss_dev:s0
++genfscon sysfs /devices/platform/soc/6002000.stm/coresight-stm u:object_r:vendor_sysfs_qdss_dev:s0
++genfscon sysfs /devices/platform/soc/14066f0.hwevent/coresight-hwevent u:object_r:vendor_sysfs_qdss_dev:s0
++genfscon sysfs /devices/platform/soc/6b0e000.csr/coresight-swao-csr u:object_r:vendor_sysfs_qdss_dev:s0
++
++genfscon sysfs /devices/platform/soc/soc:qcom,l3-cdsp/devfreq u:object_r:vendor_sysfs_devfreq:s0
++genfscon sysfs /devices/platform/soc/soc:qcom,l3-cdsp/devfreq/soc:qcom,l3-cdsp/userspace u:object_r:vendor_sysfs_devfreq_l3cdsp:s0
++
++#net sysfs
++genfscon sysfs /devices/platform/soc/18800000.qcom,icnss/net u:object_r:sysfs_net:s0
++
++#pmic sysfs_nodes
++genfscon sysfs /devices/platform/soc/c440000.qcom,spmi/spmi-0/spmi0-02/c440000.qcom,spmi:qcom,pmi8998@2:qcom,qpnp-smb2/power_supply/battery u:object_r:vendor_sysfs_battery_supply:s0
++genfscon sysfs /devices/platform/soc/c440000.qcom,spmi/spmi-0/spmi0-02/c440000.qcom,spmi:qcom,pmi8998@2:qcom,qpnp-smb2/power_supply/dc u:object_r:vendor_sysfs_battery_supply:s0
++genfscon sysfs /devices/platform/soc/c440000.qcom,spmi/spmi-0/spmi0-02/c440000.qcom,spmi:qcom,pmi8998@2:qcom,qpnp-smb2/power_supply/main u:object_r:vendor_sysfs_battery_supply:s0
++genfscon sysfs /devices/platform/soc/c440000.qcom,spmi/spmi-0/spmi0-02/c440000.qcom,spmi:qcom,pmi8998@2:qcom,qpnp-smb2/power_supply/pc_port u:object_r:vendor_sysfs_usb_supply:s0
++genfscon sysfs /devices/platform/soc/c440000.qcom,spmi/spmi-0/spmi0-02/c440000.qcom,spmi:qcom,pmi8998@2:qcom,qpnp-smb2/power_supply/usb u:object_r:vendor_sysfs_usb_supply:s0
++genfscon sysfs /devices/platform/soc/c440000.qcom,spmi/spmi-0/spmi0-02/c440000.qcom,spmi:qcom,pmi8998@2:qpnp,fg/power_supply/bms u:object_r:vendor_sysfs_battery_supply:s0
++genfscon sysfs /devices/platform/soc/c440000.qcom,spmi/spmi-0/spmi0-02/c440000.qcom,spmi:qcom,pmi8998@2:qcom,usb-pdphy@1700/usbpd/usbpd0 u:object_r:vendor_sysfs_usbpd_device:s0
++genfscon sysfs /devices/platform/soc/a88000.i2c/i2c-0/0-0008/a88000.i2c:qcom,smb1355@8:qcom,smb1355-charger@1000/power_supply/parallel u:object_r:vendor_sysfs_battery_supply:s0
++genfscon sysfs /devices/platform/soc/a88000.i2c/i2c-0/0-000c/a88000.i2c:qcom,smb1355@c:qcom,smb1355-charger@1000/power_supply/parallel u:object_r:vendor_sysfs_battery_supply:s0
++genfscon sysfs /class/qcom-battery u:object_r:vendor_sysfs_battery_supply:s0
++genfscon sysfs /class/charge_pump u:object_r:vendor_sysfs_battery_supply:s0
++genfscon sysfs /devices/platform/soc/c440000.qcom,spmi/spmi-0/spmi0-03/c440000.qcom,spmi:qcom,pmi8998@3:qcom,leds@d000/leds/red u:object_r:vendor_sysfs_graphics:s0
++genfscon sysfs /devices/platform/soc/c440000.qcom,spmi/spmi-0/spmi0-03/c440000.qcom,spmi:qcom,pmi8998@3:qcom,leds@d000/leds/green u:object_r:vendor_sysfs_graphics:s0
++genfscon sysfs /devices/platform/soc/c440000.qcom,spmi/spmi-0/spmi0-03/c440000.qcom,spmi:qcom,pmi8998@3:qcom,leds@d000/leds/blue u:object_r:vendor_sysfs_graphics:s0
++genfscon sysfs /devices/platform/soc/c440000.qcom,spmi/spmi-0/spmi0-03/c440000.qcom,spmi:qcom,pmi8998@3:qcom,leds@d300/leds u:object_r:sysfs_leds:s0
++genfscon sysfs /devices/platform/soc/c440000.qcom,spmi/spmi-0/spmi0-03/c440000.qcom,spmi:qcom,pmi8998@3:qcom,leds@d800/leds/wled u:object_r:sysfs_leds:s0
++genfscon sysfs /devices/platform/soc/c440000.qcom,spmi/spmi-0/spmi0-03/c440000.qcom,spmi:qcom,pmi8998@3:qcom,haptics@c000/leds/vibrator u:object_r:sysfs_leds:s0
++
++# Extcon
++genfscon sysfs /devices/platform/soc/c440000.qcom,spmi/spmi-0/spmi0-02/c440000.qcom,spmi:qcom,pmi8998@2:qcom,qpnp-smb2/extcon u:object_r:sysfs_extcon:s0
++genfscon sysfs /devices/platform/soc/c440000.qcom,spmi/spmi-0/spmi0-02/c440000.qcom,spmi:qcom,pmi8998@2:qcom,usb-pdphy@1700/extcon u:object_r:sysfs_extcon:s0
+diff --git a/qva/vendor/sdm845/idmap.te b/qva/vendor/sdm845/idmap.te
+new file mode 100644
+index 0000000..5a17b25
+--- /dev/null
++++ b/qva/vendor/sdm845/idmap.te
+@@ -0,0 +1,29 @@
++# Copyright (c) 2016, 2018 The Linux Foundation. All rights reserved.
++#
++# Redistribution and use in source and binary forms, with or without
++# modification, are permitted provided that the following conditions are
++# met:
++#     * Redistributions of source code must retain the above copyright
++#       notice, this list of conditions and the following disclaimer.
++#     * Redistributions in binary form must reproduce the above
++#       copyright notice, this list of conditions and the following
++#       disclaimer in the documentation and/or other materials provided
++#       with the distribution.
++#     * Neither the name of The Linux Foundation nor the names of its
++#       contributors may be used to endorse or promote products derived
++#       from this software without specific prior written permission.
++#
++# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
++# WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
++# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
++# ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
++# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
++# BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
++# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
++# OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
++# IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++
++#for oemfs
++r_dir_file(idmap, oemfs);
+diff --git a/qva/vendor/sdm845/init-qti-fbe-sh.te b/qva/vendor/sdm845/init-qti-fbe-sh.te
+new file mode 100644
+index 0000000..f3d6351
+--- /dev/null
++++ b/qva/vendor/sdm845/init-qti-fbe-sh.te
+@@ -0,0 +1,38 @@
++# Copyright (c) 2017, The Linux Foundation. All rights reserved.
++#
++# Redistribution and use in source and binary forms, with or without
++# modification, are permitted provided that the following conditions are
++# met:
++#     * Redistributions of source code must retain the above copyright
++#       notice, this list of conditions and the following disclaimer.
++#     * Redistributions in binary form must reproduce the above
++#       copyright notice, this list of conditions and the following
++#       disclaimer in the documentation and/or other materials provided
++#       with the distribution.
++#     * Neither the name of The Linux Foundation nor the names of its
++#       contributors may be used to endorse or promote products derived
++#       from this software without specific prior written permission.
++#
++# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
++# WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
++# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
++# ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
++# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
++# BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
++# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
++# OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
++# IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++
++type vendor_init-qti-fbe-sh, domain;
++type vendor_init-qti-fbe-sh_exec, exec_type, file_type, vendor_file_type;
++
++init_daemon_domain(vendor_init-qti-fbe-sh)
++
++not_full_treble(`allow vendor_init-qti-fbe-sh vendor_shell_exec:file rx_file_perms;')
++full_treble_only(`allow vendor_init-qti-fbe-sh vendor_shell_exec:file rx_file_perms;')
++
++# execute toybox/toolbox
++allow vendor_init-qti-fbe-sh vendor_toolbox_exec:file rx_file_perms;
++get_prop(vendor_init-qti-fbe-sh, vendor_tee_listener_prop)
+diff --git a/qva/vendor/sdm845/init_shell.te b/qva/vendor/sdm845/init_shell.te
+new file mode 100644
+index 0000000..f4ad89f
+--- /dev/null
++++ b/qva/vendor/sdm845/init_shell.te
+@@ -0,0 +1,34 @@
++# Copyright (c) 2016, 2018, The Linux Foundation. All rights reserved.
++#
++# Redistribution and use in source and binary forms, with or without
++# modification, are permitted provided that the following conditions are
++# met:
++#     * Redistributions of source code must retain the above copyright
++#       notice, this list of conditions and the following disclaimer.
++#     * Redistributions in binary form must reproduce the above
++#       copyright notice, this list of conditions and the following
++#       disclaimer in the documentation and/or other materials provided
++#       with the distribution.
++#     * Neither the name of The Linux Foundation nor the names of its
++#       contributors may be used to endorse or promote products derived
++#       from this software without specific prior written permission.
++#
++# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
++# WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
++# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
++# ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
++# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
++# BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
++# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
++# OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
++# IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++
++
++# For regionalization
++allow vendor_qti_init_shell regionalization_file:dir r_dir_perms;
++allow vendor_qti_init_shell regionalization_file:file create_file_perms;
++
++r_dir_file(vendor_qti_init_shell, vendor_sysfs_devfreq_l3cdsp)
++allow vendor_qti_init_shell vendor_sysfs_devfreq_l3cdsp:file setattr;
+diff --git a/qva/vendor/sdm845/platform_app.te b/qva/vendor/sdm845/platform_app.te
+new file mode 100644
+index 0000000..bc02a19
+--- /dev/null
++++ b/qva/vendor/sdm845/platform_app.te
+@@ -0,0 +1,29 @@
++# Copyright (c) 2016, 2018, The Linux Foundation. All rights reserved.
++#
++# Redistribution and use in source and binary forms, with or without
++# modification, are permitted provided that the following conditions are
++# met:
++#     * Redistributions of source code must retain the above copyright
++#       notice, this list of conditions and the following disclaimer.
++#     * Redistributions in binary form must reproduce the above
++#       copyright notice, this list of conditions and the following
++#       disclaimer in the documentation and/or other materials provided
++#       with the distribution.
++#     * Neither the name of The Linux Foundation nor the names of its
++#       contributors may be used to endorse or promote products derived
++#       from this software without specific prior written permission.
++#
++# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
++# WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
++# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
++# ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
++# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
++# BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
++# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
++# OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
++# IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++
++#for oemfs
++allow platform_app oemfs:lnk_file { read getattr };
+diff --git a/qva/vendor/sdm845/priv_app.te b/qva/vendor/sdm845/priv_app.te
+new file mode 100644
+index 0000000..e0a8fa3
+--- /dev/null
++++ b/qva/vendor/sdm845/priv_app.te
+@@ -0,0 +1,29 @@
++# Copyright (c) 2016, 2018, The Linux Foundation. All rights reserved.
++#
++# Redistribution and use in source and binary forms, with or without
++# modification, are permitted provided that the following conditions are
++# met:
++#     * Redistributions of source code must retain the above copyright
++#       notice, this list of conditions and the following disclaimer.
++#     * Redistributions in binary form must reproduce the above
++#       copyright notice, this list of conditions and the following
++#       disclaimer in the documentation and/or other materials provided
++#       with the distribution.
++#     * Neither the name of The Linux Foundation nor the names of its
++#       contributors may be used to endorse or promote products derived
++#       from this software without specific prior written permission.
++#
++# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
++# WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
++# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
++# ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
++# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
++# BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
++# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
++# OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
++# IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++
++#for oemfs
++allow priv_app oemfs:lnk_file { read getattr };
+diff --git a/qva/vendor/sdm845/system_server.te b/qva/vendor/sdm845/system_server.te
+new file mode 100644
+index 0000000..d2cb28e
+--- /dev/null
++++ b/qva/vendor/sdm845/system_server.te
+@@ -0,0 +1,29 @@
++# Copyright (c) 2016, 2018, The Linux Foundation. All rights reserved.
++#
++# Redistribution and use in source and binary forms, with or without
++# modification, are permitted provided that the following conditions are
++# met:
++#     * Redistributions of source code must retain the above copyright
++#       notice, this list of conditions and the following disclaimer.
++#     * Redistributions in binary form must reproduce the above
++#       copyright notice, this list of conditions and the following
++#       disclaimer in the documentation and/or other materials provided
++#       with the distribution.
++#     * Neither the name of The Linux Foundation nor the names of its
++#       contributors may be used to endorse or promote products derived
++#       from this software without specific prior written permission.
++#
++# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
++# WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
++# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
++# ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
++# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
++# BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
++# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
++# OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
++# IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++
++allow system_server resourcecache_data_file:dir create_dir_perms;
++allow system_server resourcecache_data_file:file create_file_perms;
+diff --git a/qva/vendor/sdm845/update_engine_common.te b/qva/vendor/sdm845/update_engine_common.te
+new file mode 100644
+index 0000000..8631c93
+--- /dev/null
++++ b/qva/vendor/sdm845/update_engine_common.te
+@@ -0,0 +1,44 @@
++# Copyright (c) 2017, The Linux Foundation. All rights reserved.
++#
++# Redistribution and use in source and binary forms, with or without
++# modification, are permitted provided that the following conditions are
++# met:
++#     * Redistributions of source code must retain the above copyright
++#       notice, this list of conditions and the following disclaimer.
++#     * Redistributions in binary form must reproduce the above
++#       copyright notice, this list of conditions and the following
++#       disclaimer in the documentation and/or other materials provided
++#       with the distribution.
++#     * Neither the name of The Linux Foundation nor the names of its
++#       contributors may be used to endorse or promote products derived
++#       from this software without specific prior written permission.
++#
++# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
++# WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
++# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
++# ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
++# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
++# BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
++# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
++# OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
++# IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++
++# Allow update_engine and update_engine_sideload (recovery) read/write on the
++# device-specific partitions it should update.
++allow update_engine_common {
++	custom_ab_block_device
++	xbl_block_device
++	ssd_device
++	modem_block_device
++        uefi_block_device
++        recovery_block_device
++}:blk_file rw_file_perms;
++
++allow update_engine_common tmpfs:lnk_file r_file_perms;
++allow update_engine_common metadata_file:dir search;
++allow update_engine_common {adsprpcd_file firmware_file}:dir search;
++allow update_engine_common {bt_firmware_file firmware_file}:filesystem getattr;
++
++dontaudit update_engine_common self:capability {dac_read_search dac_override};

@@ -1,0 +1,20 @@
+From 3381155f49eca9af1b8148e72e451cc9b53b1d7b Mon Sep 17 00:00:00 2001
+From: Edwin Moquete <edwinmmoquete@gmail.com>
+Date: Sun, 26 Oct 2025 20:09:01 +0000
+Subject: [PATCH] sdm845: Label discard_max_bytes sysfs
+
+Change-Id: Ia6cd30c93376e07a8d78ed16c56106f423ead292
+---
+
+diff --git a/generic/vendor/sdm845/genfs_contexts b/generic/vendor/sdm845/genfs_contexts
+index 4a24696..50563b1 100644
+--- a/generic/vendor/sdm845/genfs_contexts
++++ b/generic/vendor/sdm845/genfs_contexts
+@@ -108,3 +108,7 @@
+ genfscon sysfs /devices/platform/soc/c440000.qcom,spmi/spmi-0/spmi0-02/c440000.qcom,spmi:qcom,pmi8998@2:qpnp,fg/power_supply/bms/wakeup u:object_r:sysfs_wakeup:s0
+ genfscon sysfs /devices/platform/soc/c440000.qcom,spmi/spmi-0/spmi0-02/c440000.qcom,spmi:qcom,pmi8998@2:qpnp,fg/wakeup u:object_r:sysfs_wakeup:s0
+ genfscon sysfs /devices/platform/vendor/vendor:extcon_usb1/wakeup u:object_r:sysfs_wakeup:s0
++
++# UFS
++genfscon sysfs /devices/platform/soc/1d84000.ufshc/host0/target0:0:0/0:0:0:0/block/sda/queue/discard_max_bytes u:object_r:vendor_sysfs_mmc_host:s0
++genfscon sysfs /devices/platform/soc/1d84000.ufshc/host0/target0:0:0/0:0:0:4/block/sde/queue/discard_max_bytes u:object_r:vendor_sysfs_mmc_host:s0

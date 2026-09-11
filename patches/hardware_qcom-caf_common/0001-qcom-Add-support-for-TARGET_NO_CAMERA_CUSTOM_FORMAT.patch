@@ -1,0 +1,28 @@
+From b477bd41095884dcd806db6fa751161dfa168388 Mon Sep 17 00:00:00 2001
+From: Edwin Moquete <edwinmmoquete@gmail.com>
+Date: Sun, 13 Jul 2025 20:20:57 +0000
+Subject: [PATCH] qcom: Add support for TARGET_NO_CAMERA_CUSTOM_FORMAT
+
+Change-Id: I8e866afc0db5c31604cafcaa7403a7518cdbaae6
+---
+
+diff --git a/BoardConfigQcom.mk b/BoardConfigQcom.mk
+index b40f592..716d4b1 100644
+--- a/BoardConfigQcom.mk
++++ b/BoardConfigQcom.mk
+@@ -186,6 +186,7 @@
+     ubwcp_headers \
+     wide_color \
+     target_kernel_version \
++    target_no_camera_custom_format \
+     target_no_raw10_custom_format \
+     target_uses_aligned_ycbcr_height \
+     target_uses_aligned_ycrcb_height \
+@@ -216,6 +217,7 @@
+ SOONG_CONFIG_qtidisplay_ubwcp_headers ?= false
+ SOONG_CONFIG_qtidisplay_wide_color ?= false
+ SOONG_CONFIG_qtidisplay_target_kernel_version ?= 0
++SOONG_CONFIG_qtidisplay_target_no_camera_custom_format ?= false
+ SOONG_CONFIG_qtidisplay_target_no_raw10_custom_format ?= false
+ SOONG_CONFIG_qtidisplay_target_uses_aligned_ycbcr_height ?= false
+ SOONG_CONFIG_qtidisplay_target_uses_aligned_ycrcb_height ?= false
