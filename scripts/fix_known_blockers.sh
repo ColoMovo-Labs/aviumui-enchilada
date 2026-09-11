@@ -80,6 +80,13 @@ if [ -d "$SEPOLICY_PATCH_DIR" ]; then
   done
 fi
 
+# 1.5 frameworks/base (SQLiteTokenizer bracket check security fix)
+FRAMEWORKS_BASE_DIR="$SOURCE_ROOT/frameworks/base"
+FRAMEWORKS_BASE_PATCH_DIR="$META_DIR/patches/frameworks_base"
+if [ -d "$FRAMEWORKS_BASE_PATCH_DIR" ]; then
+  apply_patch_if_needed "$FRAMEWORKS_BASE_DIR" "$FRAMEWORKS_BASE_PATCH_DIR/0001-Add-bracket-checking-support-to-SQLiteTokenizer.patch"
+fi
+
 echo "============================================================"
 echo "=== 2. AUDITING VENDOR PROPRIETARY BLOBS ==="
 echo "============================================================"
