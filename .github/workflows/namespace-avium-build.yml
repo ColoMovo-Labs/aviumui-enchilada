@@ -314,6 +314,26 @@ jobs:
           m nothing 2>&1 | tee /home/runner/android/logs/build_nothing.log
           echo "PASS: m nothing succeeded!"
 
+      - name: Disk Space Audit (Post-Nothing)
+        run: |
+          echo "=================================================="
+          echo "=== DISK SPACE AUDIT (POST-NOTHING) ==="
+          echo "=================================================="
+          echo "=== 1. Root filesystem usage (df -h /) ==="
+          df -h /
+
+          echo "=== 2. .repo size ==="
+          du -sh /home/runner/android/avium/.repo || true
+
+          echo "=== 3. out directory size ==="
+          du -sh /home/runner/android/avium/out || true
+
+          echo "=== 4. Total avium workspace size ==="
+          du -sh /home/runner/android/avium || true
+
+          echo "=== 5. First-level directory breakdown (sorted) ==="
+          du -h -d1 /home/runner/android/avium 2>/dev/null | sort -h || true
+
       - name: "Phase Gate 2: m bootimage"
         if: ${{ github.event.inputs.build_target == 'bootimage' || github.event.inputs.build_target == 'bacon' }}
         run: |
