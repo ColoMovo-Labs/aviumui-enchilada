@@ -6,13 +6,13 @@ on:
       build_target:
         description: "Build target gate to execute"
         required: true
-        default: "nothing"
+        default: "bacon"
         type: choice
         options:
-          - "sync_audit_only"
-          - "nothing"
-          - "bootimage"
           - "bacon"
+          - "bootimage"
+          - "nothing"
+          - "sync_audit_only"
       sync_jobs:
         description: "Repo sync concurrency (-j)"
         required: true
@@ -33,7 +33,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build AviumUI 16.2 (${{ github.event.inputs.build_target || 'nothing' }})
+    name: Build AviumUI 16.2 (${{ github.event.inputs.build_target || 'bacon' }})
     runs-on: namespace-profile-avium-run15
     timeout-minutes: 720
 
@@ -310,11 +310,16 @@ jobs:
             export CCACHE_EXEC=/usr/bin/ccache
           fi
 
+          START_NOTHING=$(date +%s)
           set -o pipefail
           m nothing 2>&1 | tee /home/runner/android/logs/build_nothing.log
-          echo "PASS: m nothing succeeded!"
+          END_NOTHING=$(date +%s)
+          NOTHING_DURATION=$((END_NOTHING - START_NOTHING))
+          echo "NOTHING_DURATION_SECONDS=$NOTHING_DURATION" >> "$GITHUB_ENV"
+          echo "PASS: m nothing succeeded in $((NOTHING_DURATION / 60))m $((NOTHING_DURATION % 60))s!"
 
       - name: Disk Space Audit (Post-Nothing)
+        if: ${{ github.event.inputs.build_target != 'sync_audit_only' }}
         run: |
           echo "=================================================="
           echo "=== DISK SPACE AUDIT (POST-NOTHING) ==="
@@ -350,9 +355,13 @@ jobs:
             export CCACHE_EXEC=/usr/bin/ccache
           fi
 
+          START_BOOT=$(date +%s)
           set -o pipefail
           m -j16 TARGET_KERNEL_ADDITIONAL_FLAGS="-j8" bootimage 2>&1 | tee /home/runner/android/logs/build_bootimage.log
-          echo "PASS: m bootimage succeeded!"
+          END_BOOT=$(date +%s)
+          BOOT_DURATION=$((END_BOOT - START_BOOT))
+          echo "BOOT_DURATION_SECONDS=$BOOT_DURATION" >> "$GITHUB_ENV"
+          echo "PASS: m bootimage succeeded in $((BOOT_DURATION / 60))m $((BOOT_DURATION % 60))s!"
 
           echo "=================================================="
           echo "=== VERIFYING boot.img PHYSICAL CONSTRAINTS ==="
@@ -369,10 +378,10 @@ jobs:
 
           MAX_BOOT_SIZE=67108864
           if [ "$BOOT_SIZE" -gt "$MAX_BOOT_SIZE" ]; then
-            echo "ERROR: boot.img size ($BOOT_SIZE bytes) exceeds physical partition limit of $MAX_BOOT_SIZE bytes (64 MiB)!"
+            echo "ERROR: boot.img size ($BOOT_SIZE bytes) exceeds physical 64 MiB boot partition ($MAX_BOOT_SIZE bytes)!"
             exit 1
           fi
-          echo "PASS: boot.img size ($BOOT_SIZE bytes) is within physical 64 MiB limit (< 67108864 bytes)."
+          echo "PASS: boot.img size ($BOOT_SIZE bytes) is within physical 64 MiB partition limit (<= $MAX_BOOT_SIZE bytes)."
 
       - name: Disk Space Audit (Post-Bootimage)
         if: ${{ github.event.inputs.build_target == 'bootimage' || github.event.inputs.build_target == 'bacon' }}
@@ -395,6 +404,22 @@ jobs:
           echo "=== 5. First-level directory breakdown (sorted) ==="
           du -h -d1 /home/runner/android/avium 2>/dev/null | sort -h || true
 
+      - name: Disk Space Gate Before Full Bacon
+        if: ${{ github.event.inputs.build_target == 'bacon' }}
+        run: |
+          echo "=================================================="
+          echo "=== DISK SPACE GATE BEFORE FULL BACON ==="
+          echo "=================================================="
+          FREE_KB=$(df --output=avail -k / | tail -1 | tr -d ' ')
+          FREE_GIB=$((FREE_KB / 1024 / 1024))
+          echo "Free disk before bacon: ${FREE_GIB} GiB"
+
+          if [ "$FREE_GIB" -lt 90 ]; then
+            echo "ERROR: Free disk before bacon (${FREE_GIB} GiB) is less than required 90 GiB threshold!"
+            exit 1
+          fi
+          echo "PASS: Free disk (${FREE_GIB} GiB) is >= 90 GiB. Safe to proceed to full m bacon."
+
       - name: "Phase Gate 3: m bacon"
         if: ${{ github.event.inputs.build_target == 'bacon' }}
         run: |
@@ -411,15 +436,92 @@ jobs:
             export CCACHE_EXEC=/usr/bin/ccache
           fi
 
+          START_BACON=$(date +%s)
           set -o pipefail
-          m -j16 TARGET_KERNEL_ADDITIONAL_FLAGS="-j8" bacon 2>&1 | tee /home/runner/android/logs/build_bacon.log
-          echo "PASS: m bacon succeeded!"
+          m -j16 TARGET_KERNEL_ADDITIONAL_FLAGS="-j8" bacon 2>&1 | tee /home/runner/android/logs/bacon.log
+          END_BACON=$(date +%s)
+          BACON_DURATION=$((END_BACON - START_BACON))
+          echo "BACON_DURATION_SECONDS=$BACON_DURATION" >> "$GITHUB_ENV"
+          echo "PASS: m bacon succeeded in $((BACON_DURATION / 60))m $((BACON_DURATION % 60))s!"
+
+      - name: Final Image and Package Validation
+        if: ${{ github.event.inputs.build_target == 'bacon' }}
+        run: |
+          echo "=================================================="
+          echo "=== 14. FINAL IMAGE & PACKAGE VALIDATION ==="
+          echo "=================================================="
+          OUT_DIR="/home/runner/android/avium/out/target/product/enchilada"
+          cd /home/runner/android/avium
+
+          echo "=== 1. Listing $OUT_DIR ==="
+          ls -lh "$OUT_DIR"
+
+          echo "=== 2. Checking key image files and ROM zip ==="
+          ls -lh "$OUT_DIR"/*.zip "$OUT_DIR"/boot.img "$OUT_DIR"/dtbo.img "$OUT_DIR"/vbmeta.img 2>/dev/null || true
+
+          echo "=== 3. Checking system.img and vendor.img ==="
+          ls -lh "$OUT_DIR"/system.img "$OUT_DIR"/vendor.img 2>/dev/null || true
+
+          echo "=== 4. Confirming ZERO Super Images ==="
+          SUPER_FOUND=$(find "$OUT_DIR" -maxdepth 1 -iname '*super*' -print || true)
+          if [ -n "$SUPER_FOUND" ]; then
+            echo "ERROR: Super partition artifacts detected in output directory!"
+            echo "$SUPER_FOUND"
+            exit 1
+          fi
+          echo "PASS: Zero super partition artifacts found in output directory."
+
+          echo "=== 5. Dynamic Partition Assertion Check ==="
+          source build/envsetup.sh
+          lunch lineage_enchilada-bp4a-userdebug || lunch lineage_enchilada-userdebug
+          VAL_SUPER=$(get_build_var BOARD_SUPER_PARTITION_SIZE)
+          echo "BOARD_SUPER_PARTITION_SIZE: '$VAL_SUPER'"
+          if [ -n "$VAL_SUPER" ] && [ "$VAL_SUPER" != "0" ]; then
+            echo "ERROR: BOARD_SUPER_PARTITION_SIZE is '$VAL_SUPER', MUST be empty!"
+            exit 1
+          fi
+          echo "PASS: BOARD_SUPER_PARTITION_SIZE is confirmed empty."
+
+          VAL_AB_OTA=$(get_build_var AB_OTA_PARTITIONS)
+          echo "AB_OTA_PARTITIONS: $VAL_AB_OTA"
+
+          echo "=== 6. Image Size and Sparse Validation ==="
+          stat -c '%n %s bytes' "$OUT_DIR"/boot.img 2>/dev/null || true
+          if [ -f "$OUT_DIR"/system.img ]; then
+            stat -c '%n %s bytes' "$OUT_DIR"/system.img
+            file "$OUT_DIR"/system.img
+          fi
+          if [ -f "$OUT_DIR"/vendor.img ]; then
+            stat -c '%n %s bytes' "$OUT_DIR"/vendor.img
+            file "$OUT_DIR"/vendor.img
+          fi
+
+      - name: Final Disk Space Audit (Post-Bacon)
+        if: always() && github.event.inputs.build_target == 'bacon'
+        run: |
+          echo "=================================================="
+          echo "=== FINAL DISK SPACE AUDIT (POST-BACON) ==="
+          echo "=================================================="
+          echo "=== 1. Root filesystem usage (df -h /) ==="
+          df -h /
+
+          echo "=== 2. .repo size ==="
+          du -sh /home/runner/android/avium/.repo || true
+
+          echo "=== 3. out directory size ==="
+          du -sh /home/runner/android/avium/out || true
+
+          echo "=== 4. Total avium workspace size ==="
+          du -sh /home/runner/android/avium || true
+
+          echo "=== 5. First-level directory breakdown (sorted) ==="
+          du -h -d1 /home/runner/android/avium 2>/dev/null | sort -h || true
 
       - name: Collect Build Artifacts
         if: always()
         run: |
           echo "=================================================="
-          echo "=== 14. COLLECTING ARTIFACTS ==="
+          echo "=== 15. COLLECTING ARTIFACTS ==="
           echo "=================================================="
           ARTIFACT_DIR="/home/runner/android/artifacts"
           OUT_DIR="/home/runner/android/avium/out/target/product/enchilada"
@@ -436,6 +538,9 @@ jobs:
             find "$OUT_DIR" -maxdepth 1 -name "boot.img" -exec cp {} "$ARTIFACT_DIR/" \; || true
             find "$OUT_DIR" -maxdepth 1 -name "dtbo.img" -exec cp {} "$ARTIFACT_DIR/" \; || true
             find "$OUT_DIR" -maxdepth 1 -name "vbmeta.img" -exec cp {} "$ARTIFACT_DIR/" \; || true
+            find "$OUT_DIR" -maxdepth 1 -name "recovery.img" -exec cp {} "$ARTIFACT_DIR/" \; || true
+            find "$OUT_DIR" -maxdepth 1 -name "system.img" -exec cp {} "$ARTIFACT_DIR/" \; || true
+            find "$OUT_DIR" -maxdepth 1 -name "vendor.img" -exec cp {} "$ARTIFACT_DIR/" \; || true
           fi
 
           echo "Collected artifacts:"
@@ -445,6 +550,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: avium-enchilada-${{ github.event.inputs.build_target || 'nothing' }}-${{ github.run_id }}
+          name: avium-enchilada-${{ github.event.inputs.build_target || 'bacon' }}-${{ github.run_id }}
           path: /home/runner/android/artifacts/
           if-no-files-found: warn
