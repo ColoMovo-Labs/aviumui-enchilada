@@ -120,12 +120,13 @@ if [ -f "$CI_TEST_ZIP" ]; then
 fi
 
 echo "============================================================"
-echo "=== 4. REMOVING NON-EXISTENT LunarisDolby FROM dolby.mk ==="
+echo "=== 4. VERIFYING LunarisDolby IN packages/apps/LunarisDolby ==="
 echo "============================================================"
-DOLBY_MK="$SOURCE_ROOT/hardware/dolby/dolby.mk"
-if [ -f "$DOLBY_MK" ]; then
-  echo "[DOLBY] Removing non-existent LunarisDolby from $DOLBY_MK..."
-  sed -i '/LunarisDolby/d' "$DOLBY_MK" || true
+if [ -d "$SOURCE_ROOT/packages/apps/LunarisDolby" ]; then
+  echo "[DOLBY] PASS: LunarisDolby exists in source tree."
+  grep -rn 'name: "LunarisDolby"' "$SOURCE_ROOT/packages/apps/LunarisDolby" || true
+else
+  echo "[DOLBY] WARNING: LunarisDolby not found in $SOURCE_ROOT/packages/apps/LunarisDolby"
 fi
 
 echo "============================================================"

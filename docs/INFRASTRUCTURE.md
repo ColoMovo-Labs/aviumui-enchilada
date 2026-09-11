@@ -8,11 +8,12 @@ This document tracks all candidate remote high-performance build environments ev
 
 | # | Provider / Service | Tracked Status | Specs / Capacity | Primary Use Case & Notes |
 | :-: | :--- | :--- | :--- | :--- |
-| **1** | **Crave.io** | `Pending` | Remote on-demand high-concurrency cloud builders | Direct interactive builds via `crave run` CLI; account authorization pending. |
-| **2** | **ROM-builders** | `Pending Whitelist Merge` | Cirrus CI Runner (24 vCPU / 120GB RAM / NVMe) | Automated PR-based CI builds; tracked via upstream PR [`ROM-builders/temporary#25789`](https://github.com/ROM-builders/temporary/pull/25789). |
-| **3** | **OSUOSL** | `Hosting Request Submitted` | Open Source Lab dedicated VM / compute cluster | Long-term non-profit OSS hosting & build automation. |
-| **4** | **Latchkey OSS** | `Application Submitted` | Community developer compute grant | Free build tier for open-source mobile ROM bring-ups. |
-| **5** | **Namespace** | `Trial Active` | Tier M: 8 vCPU / 16GB RAM / 300GB SSD *(Request for Tier L pending)* | Remote containerized build orchestration; currently testing container sync performance. |
+| **1** | **Namespace (Primary)** | `Active & Verified` | **32 vCPU AMD EPYC Zen 4 / 62 GiB RAM**<br>Root NVMe: 284 GiB available (1.8 GB/s write)<br>Cache Volume: 121 GiB persistent ext4 (1.1 GB/s write) | **Primary production build platform** via GitHub Actions runner label `namespace-profile-avium-run15`. Multi-stage gated build (`nothing` -> `bootimage` -> `bacon`). |
+| **2** | **HexDroid** | `Standby` | HexDroid cloud builder | Secondary fallback configuration maintained in `.hexdroid/avium-enchilada.yaml`. |
+| **3** | **Crave.io** | `Historical / Auxiliary` | Remote on-demand high-concurrency cloud builders | Interactive build history preserved in `docs/CRAVE_BOOTSTRAP.md`. |
+| **4** | **ROM-builders** | `Pending Whitelist Merge` | Cirrus CI Runner (24 vCPU / 120GB RAM / NVMe) | Automated PR-based CI builds; tracked via upstream PR [`ROM-builders/temporary#25789`](https://github.com/ROM-builders/temporary/pull/25789). |
+| **5** | **OSUOSL** | `Hosting Request Submitted` | Open Source Lab dedicated VM / compute cluster | Long-term non-profit OSS hosting & build automation. |
+| **6** | **Latchkey OSS** | `Application Submitted` | Community developer compute grant | Free build tier for open-source mobile ROM bring-ups. |
 
 ---
 

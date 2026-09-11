@@ -1,0 +1,386 @@
+name: AviumUI 16.2 OnePlus 6 (enchilada) Namespace Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_target:
+        description: "Build target gate to execute"
+        required: true
+        default: "nothing"
+        type: choice
+        options:
+          - "sync_audit_only"
+          - "nothing"
+          - "bootimage"
+          - "bacon"
+      sync_jobs:
+        description: "Repo sync concurrency (-j)"
+        required: true
+        default: "16"
+      use_ccache:
+        description: "Enable lightweight ccache on /cache volume"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: namespace-avium-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build AviumUI 16.2 (${{ github.event.inputs.build_target || 'nothing' }})
+    runs-on: namespace-profile-avium-run15
+    timeout-minutes: 720
+
+    steps:
+      - name: Runner Hardware & Environment Audit
+        run: |
+          echo "=================================================="
+          echo "=== 1. RUNNER HARDWARE & ENVIRONMENT AUDIT ==="
+          echo "=================================================="
+          echo "=== CPU INFO ==="
+          nproc
+          lscpu | head -n 25
+
+          echo "=== MEMORY ==="
+          free -h
+
+          echo "=== STORAGE ==="
+          df -hT / /cache /tmp /dev/shm
+          df -i / /cache
+
+          echo "=== KERNEL & OS ==="
+          uname -a
+
+      - name: Checkout Control Repository
+        uses: actions/checkout@v4
+        with:
+          path: control-repo
+
+      - name: Install Build Dependencies & Tools
+        run: |
+          echo "=================================================="
+          echo "=== 2. INSTALLING BUILD DEPENDENCIES ==="
+          echo "=================================================="
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc bison build-essential ccache curl flex g++-multilib \
+            gcc-multilib git git-lfs gnupg gperf imagemagick \
+            lib32readline-dev lib32z1-dev libelf-dev liblz4-tool \
+            libssl-dev libxml2 libxml2-utils lzop pngcrush \
+            rsync schedtool squashfs-tools xsltproc zip zlib1g-dev \
+            python3 python-is-python3 unzip wget zstd tar ripgrep pigz jq libncurses5
+
+          git lfs install
+          sudo curl -sLo /usr/local/bin/repo https://storage.googleapis.com/git-repo-downloads/repo
+          sudo chmod a+rx /usr/local/bin/repo
+          repo version
+
+      - name: Setup Workspace on Root NVMe
+        run: |
+          echo "=================================================="
+          echo "=== 3. SETUP WORKSPACE ON ROOT NVMe ==="
+          echo "=================================================="
+          mkdir -p /home/runner/android/avium
+          mkdir -p /home/runner/android/logs
+          mkdir -p /home/runner/android/artifacts
+          
+          git config --global user.name "ColoMovo"
+          git config --global user.email "colomovo@users.noreply.github.com"
+          git config --global color.ui false
+
+          df -hT /home/runner/android/avium
+
+      - name: Initialize AviumUI Source Tree
+        run: |
+          echo "=================================================="
+          echo "=== 4. REPO INIT AVIUMUI 16.2 ==="
+          echo "=================================================="
+          cd /home/runner/android/avium
+
+          repo init \
+            -u https://github.com/AviumUI/android_manifests \
+            -b avium-16.2 \
+            --git-lfs \
+            --depth=1
+
+      - name: Inject Validated Enchilada Local Manifest
+        run: |
+          echo "=================================================="
+          echo "=== 5. INJECTING ENCHILADA LOCAL MANIFEST ==="
+          echo "=================================================="
+          WORKSPACE_ROOT="$GITHUB_WORKSPACE"
+          CONTROL_DIR="$WORKSPACE_ROOT/control-repo"
+          if [ ! -d "$CONTROL_DIR" ]; then
+            CONTROL_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
+          fi
+
+          mkdir -p /home/runner/android/avium/.repo/local_manifests
+          cp "$CONTROL_DIR/local_manifests/enchilada.xml" /home/runner/android/avium/.repo/local_manifests/enchilada.xml
+
+          echo "=== Active .repo/local_manifests/enchilada.xml ==="
+          cat /home/runner/android/avium/.repo/local_manifests/enchilada.xml
+
+      - name: Synchronize Repositories
+        run: |
+          echo "=================================================="
+          echo "=== 6. SYNCHRONIZING REPOSITORIES ==="
+          echo "=================================================="
+          cd /home/runner/android/avium
+
+          SYNC_JOBS="${{ github.event.inputs.sync_jobs || '16' }}"
+          echo "Starting repo sync with -j${SYNC_JOBS}..."
+
+          repo sync \
+            -c \
+            --force-sync \
+            --no-clone-bundle \
+            --no-tags \
+            -j"${SYNC_JOBS}" || \
+          repo sync \
+            -c \
+            --force-sync \
+            --no-clone-bundle \
+            --no-tags \
+            -j4
+
+          echo "=== Workspace disk status after sync ==="
+          df -hT /home/runner/android/avium
+
+      - name: Apply Known Blocker Resolutions
+        run: |
+          echo "=================================================="
+          echo "=== 7. APPLYING BLOCKER RESOLUTIONS ==="
+          echo "=================================================="
+          WORKSPACE_ROOT="$GITHUB_WORKSPACE"
+          CONTROL_DIR="$WORKSPACE_ROOT/control-repo"
+          if [ ! -d "$CONTROL_DIR" ]; then
+            CONTROL_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
+          fi
+
+          if [ -f "$CONTROL_DIR/scripts/fix_known_blockers.sh" ]; then
+            bash "$CONTROL_DIR/scripts/fix_known_blockers.sh" /home/runner/android/avium "$CONTROL_DIR"
+          fi
+
+      - name: Strict Static Audit (No-Super & No-Retrofit)
+        run: |
+          echo "=================================================="
+          echo "=== 8. STRICT STATIC AUDIT (NO-SUPER & NO-RETROFIT) ==="
+          echo "=================================================="
+          cd /home/runner/android/avium
+
+          echo "Checking device/oneplus and vendor/oneplus..."
+
+          # 1. BOARD_SUPER (filtering comments)
+          SUPER_MATCHES=$(grep -RIn "BOARD_SUPER" device/oneplus vendor/oneplus 2>/dev/null | grep -vE ':[0-9]+:[[:space:]]*#' || true)
+          if [ -n "$SUPER_MATCHES" ]; then
+            echo "ERROR: Active BOARD_SUPER definition detected!"
+            echo "$SUPER_MATCHES"
+            exit 1
+          fi
+          echo "PASS: Zero active BOARD_SUPER definitions."
+
+          # 2. super_empty (filtering comments)
+          SUPER_EMPTY=$(grep -RIn "super_empty" device/oneplus vendor/oneplus 2>/dev/null | grep -vE ':[0-9]+:[[:space:]]*#' || true)
+          if [ -n "$SUPER_EMPTY" ]; then
+            echo "ERROR: Active super_empty definition detected!"
+            echo "$SUPER_EMPTY"
+            exit 1
+          fi
+          echo "PASS: Zero active super_empty definitions."
+
+          # 3. PRODUCT_USE_DYNAMIC_PARTITIONS (filtering comments)
+          DYN_MATCHES=$(grep -RIn "PRODUCT_USE_DYNAMIC_PARTITIONS" device/oneplus vendor/oneplus 2>/dev/null | grep -vE ':[0-9]+:[[:space:]]*#' || true)
+          if [ -n "$DYN_MATCHES" ]; then
+            echo "ERROR: Active PRODUCT_USE_DYNAMIC_PARTITIONS definition detected!"
+            echo "$DYN_MATCHES"
+            exit 1
+          fi
+          echo "PASS: Zero active PRODUCT_USE_DYNAMIC_PARTITIONS definitions."
+
+          # 4. PRODUCT_RETROFIT_DYNAMIC_PARTITIONS (filtering comments)
+          RETRO_MATCHES=$(grep -RIn "PRODUCT_RETROFIT_DYNAMIC_PARTITIONS" device/oneplus vendor/oneplus 2>/dev/null | grep -vE ':[0-9]+:[[:space:]]*#' || true)
+          if [ -n "$RETRO_MATCHES" ]; then
+            echo "ERROR: Active PRODUCT_RETROFIT_DYNAMIC_PARTITIONS definition detected!"
+            echo "$RETRO_MATCHES"
+            exit 1
+          fi
+          echo "PASS: Zero active PRODUCT_RETROFIT_DYNAMIC_PARTITIONS definitions."
+
+      - name: Lunch & Dynamic Build Var Assertions
+        run: |
+          echo "=================================================="
+          echo "=== 9. LUNCH & DYNAMIC ASSERTIONS ==="
+          echo "=================================================="
+          cd /home/runner/android/avium
+          source build/envsetup.sh
+
+          echo "Attempting lunch..."
+          lunch lineage_enchilada-bp4a-userdebug || lunch lineage_enchilada-userdebug
+
+          echo "=== Verifying TARGET_PRODUCT ==="
+          VAL_PRODUCT=$(get_build_var TARGET_PRODUCT)
+          echo "TARGET_PRODUCT: $VAL_PRODUCT"
+          if [ "$VAL_PRODUCT" != "lineage_enchilada" ]; then
+            echo "ERROR: TARGET_PRODUCT is '$VAL_PRODUCT', expected 'lineage_enchilada'!"
+            exit 1
+          fi
+
+          echo "=== Verifying AB_OTA_PARTITIONS ==="
+          VAL_AB_OTA=$(get_build_var AB_OTA_PARTITIONS)
+          echo "AB_OTA_PARTITIONS: $VAL_AB_OTA"
+          for part in boot dtbo system vbmeta vendor; do
+            if ! echo "$VAL_AB_OTA" | grep -qw "$part"; then
+              echo "ERROR: Required physical A/B partition '$part' missing from AB_OTA_PARTITIONS!"
+              exit 1
+            fi
+          done
+          echo "PASS: All required physical partitions (boot dtbo system vbmeta vendor) present."
+
+          echo "=== Verifying BOARD_SUPER_PARTITION_SIZE ==="
+          VAL_SUPER=$(get_build_var BOARD_SUPER_PARTITION_SIZE)
+          echo "BOARD_SUPER_PARTITION_SIZE: '$VAL_SUPER'"
+          if [ -n "$VAL_SUPER" ] && [ "$VAL_SUPER" != "0" ]; then
+            echo "ERROR: BOARD_SUPER_PARTITION_SIZE is '$VAL_SUPER', expected empty or 0!"
+            exit 1
+          fi
+          echo "PASS: BOARD_SUPER_PARTITION_SIZE is empty."
+
+          echo "=== Verifying Partition Sizes ==="
+          VAL_SYSTEM=$(get_build_var BOARD_SYSTEMIMAGE_PARTITION_SIZE)
+          echo "BOARD_SYSTEMIMAGE_PARTITION_SIZE: $VAL_SYSTEM"
+          if [ "$VAL_SYSTEM" != "2998927360" ]; then
+            echo "ERROR: BOARD_SYSTEMIMAGE_PARTITION_SIZE is '$VAL_SYSTEM', expected '2998927360'!"
+            exit 1
+          fi
+
+          VAL_VENDOR=$(get_build_var BOARD_VENDORIMAGE_PARTITION_SIZE)
+          echo "BOARD_VENDORIMAGE_PARTITION_SIZE: $VAL_VENDOR"
+          if [ "$VAL_VENDOR" != "1073741824" ]; then
+            echo "ERROR: BOARD_VENDORIMAGE_PARTITION_SIZE is '$VAL_VENDOR', expected '1073741824'!"
+            exit 1
+          fi
+          echo "PASS: System and Vendor partition sizes match physical layout."
+
+      - name: Assert LunarisDolby Module Declaration
+        run: |
+          echo "=================================================="
+          echo "=== 10. ASSERTING LUNARISDOLBY MODULE ==="
+          echo "=================================================="
+          cd /home/runner/android/avium
+          echo "Verifying packages/apps/LunarisDolby..."
+          if ! grep -rn 'name: "LunarisDolby"' packages/apps/LunarisDolby; then
+            echo "ERROR: LunarisDolby module declaration not found in packages/apps/LunarisDolby!"
+            exit 1
+          fi
+          echo "PASS: LunarisDolby confirmed in packages/apps/LunarisDolby."
+
+      - name: Configure Optional Lightweight Ccache
+        if: ${{ github.event.inputs.use_ccache == 'true' }}
+        run: |
+          echo "=================================================="
+          echo "=== OPTIONAL CCACHE CONFIGURATION ==="
+          echo "=================================================="
+          sudo mkdir -p /cache/ccache
+          sudo chown -R $(id -u):$(id -g) /cache/ccache
+          export CCACHE_DIR=/cache/ccache
+          export USE_CCACHE=1
+          export CCACHE_EXEC=/usr/bin/ccache
+          ccache -M 20G
+          ccache -s
+
+      - name: "Phase Gate 1: m nothing"
+        if: ${{ github.event.inputs.build_target != 'sync_audit_only' }}
+        run: |
+          echo "=================================================="
+          echo "=== 11. EXECUTING: m nothing ==="
+          echo "=================================================="
+          cd /home/runner/android/avium
+          source build/envsetup.sh
+          lunch lineage_enchilada-bp4a-userdebug || lunch lineage_enchilada-userdebug
+
+          if [ "${{ github.event.inputs.use_ccache }}" = "true" ]; then
+            export CCACHE_DIR=/cache/ccache
+            export USE_CCACHE=1
+            export CCACHE_EXEC=/usr/bin/ccache
+          fi
+
+          set -o pipefail
+          m nothing 2>&1 | tee /home/runner/android/logs/build_nothing.log
+          echo "PASS: m nothing succeeded!"
+
+      - name: "Phase Gate 2: m bootimage"
+        if: ${{ github.event.inputs.build_target == 'bootimage' || github.event.inputs.build_target == 'bacon' }}
+        run: |
+          echo "=================================================="
+          echo "=== 12. EXECUTING: m bootimage ==="
+          echo "=================================================="
+          cd /home/runner/android/avium
+          source build/envsetup.sh
+          lunch lineage_enchilada-bp4a-userdebug || lunch lineage_enchilada-userdebug
+
+          if [ "${{ github.event.inputs.use_ccache }}" = "true" ]; then
+            export CCACHE_DIR=/cache/ccache
+            export USE_CCACHE=1
+            export CCACHE_EXEC=/usr/bin/ccache
+          fi
+
+          set -o pipefail
+          m -j16 TARGET_KERNEL_ADDITIONAL_FLAGS="-j8" bootimage 2>&1 | tee /home/runner/android/logs/build_bootimage.log
+          echo "PASS: m bootimage succeeded!"
+
+      - name: "Phase Gate 3: m bacon"
+        if: ${{ github.event.inputs.build_target == 'bacon' }}
+        run: |
+          echo "=================================================="
+          echo "=== 13. EXECUTING: m bacon ==="
+          echo "=================================================="
+          cd /home/runner/android/avium
+          source build/envsetup.sh
+          lunch lineage_enchilada-bp4a-userdebug || lunch lineage_enchilada-userdebug
+
+          if [ "${{ github.event.inputs.use_ccache }}" = "true" ]; then
+            export CCACHE_DIR=/cache/ccache
+            export USE_CCACHE=1
+            export CCACHE_EXEC=/usr/bin/ccache
+          fi
+
+          set -o pipefail
+          m -j16 TARGET_KERNEL_ADDITIONAL_FLAGS="-j8" bacon 2>&1 | tee /home/runner/android/logs/build_bacon.log
+          echo "PASS: m bacon succeeded!"
+
+      - name: Collect Build Artifacts
+        if: always()
+        run: |
+          echo "=================================================="
+          echo "=== 14. COLLECTING ARTIFACTS ==="
+          echo "=================================================="
+          ARTIFACT_DIR="/home/runner/android/artifacts"
+          OUT_DIR="/home/runner/android/avium/out/target/product/enchilada"
+
+          # Collect logs
+          cp -r /home/runner/android/logs "$ARTIFACT_DIR/" || true
+
+          # Collect images and zip if they exist
+          if [ -d "$OUT_DIR" ]; then
+            find "$OUT_DIR" -maxdepth 1 -name "*.zip" -exec cp {} "$ARTIFACT_DIR/" \; || true
+            find "$OUT_DIR" -maxdepth 1 -name "boot.img" -exec cp {} "$ARTIFACT_DIR/" \; || true
+            find "$OUT_DIR" -maxdepth 1 -name "dtbo.img" -exec cp {} "$ARTIFACT_DIR/" \; || true
+            find "$OUT_DIR" -maxdepth 1 -name "vbmeta.img" -exec cp {} "$ARTIFACT_DIR/" \; || true
+          fi
+
+          echo "Collected artifacts:"
+          ls -lh "$ARTIFACT_DIR"
+
+      - name: Upload Build Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: avium-enchilada-${{ github.event.inputs.build_target || 'nothing' }}-${{ github.run_id }}
+          path: /home/runner/android/artifacts/
+          if-no-files-found: warn

@@ -22,20 +22,20 @@ An unofficial, experimental bring-up project of **AviumUI 16.2.x** (based on **A
 
 ## 🚦 Current Status
 
-> **Current Phase**: `Preparation / Crave Account Pending`
+> **Current Phase**: `Namespace Cloud Runner Bring-up & Verification`
 
 * [x] Project architecture and bring-up roadmap defined ([docs/PLAN.md](docs/PLAN.md)).
 * [x] Upstream source provenance and branch mapping verified ([docs/SOURCES.md](docs/SOURCES.md)).
-* [x] Initial draft local manifest created ([local_manifests/enchilada.xml](local_manifests/enchilada.xml)).
-* [ ] Crave.io build pipeline authorization & environment setup.
-* [ ] Upstream source alignment and manifest validation against AviumUI 16.2 base trees.
-* [ ] Initial tree bring-up & first vanilla compilation.
+* [x] Validated physical A/B local manifest created ([local_manifests/enchilada.xml](local_manifests/enchilada.xml)).
+* [x] Namespace 32 vCPU / 62 GiB Runner connected and verified (`namespace-profile-avium-run15`).
+* [x] Namespace storage & persistence audit completed (284 GiB root NVMe + 121 GiB persistent `/cache`).
+* [ ] Phased build verification (`m nothing` -> `m bootimage` -> `m bacon`).
 
 ---
 
 ## 🛠️ Development & Build Workflow
 
-Due to workstation resource constraints (local node operates with ~8GB RAM and ~256GB storage), the development workflow is structured as follows:
+Due to workstation resource constraints (local node operates with ~8GB RAM and ~256GB storage), the development workflow utilizes dedicated cloud runners:
 
 ```text
 +-------------------------------------------------------------+
@@ -44,12 +44,15 @@ Due to workstation resource constraints (local node operates with ~8GB RAM and ~
 |  * Upstream tracking        * Fastboot/ADB flashing & test  |
 +------------------------------+------------------------------+
                                |
-                               | crave run / git push
+                               | git push origin main
                                v
 +-------------------------------------------------------------+
-|                     Remote Cloud (Crave.io)                 |
-|  * Full AOSP/AviumUI sync   * High-concurrency ninja build  |
-|  * ccache compilation cache * Artifact export (ROM zip/img) |
+|           Namespace GitHub Actions Runner (Primary)         |
+|  * Label: namespace-profile-avium-run15                     |
+|  * 32 vCPU AMD EPYC Zen 4, 62 GiB RAM                       |
+|  * 284 GiB NVMe root filesystem + 121 GiB persistent /cache |
+|  * Pipeline: repo sync -> static audit -> m nothing         |
+|              -> m bootimage -> m bacon                      |
 +-------------------------------------------------------------+
 ```
 
