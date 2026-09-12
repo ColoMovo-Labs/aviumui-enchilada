@@ -104,7 +104,7 @@ A fully native, hardware-aware Ongoing Activity experience built directly into S
 
 ## 🔤 Chinese Font Pack (中文字体扩展包)
 
-Integrated 5 high-quality, open-source OFL Chinese fonts accessible via **Settings -> Wallpaper & style -> Fonts**:
+Integrated 11 high-quality, open-source OFL Chinese fonts accessible via **Settings -> Wallpaper & style -> Fonts**:
 
 | Font Name | Style / 风格 | License | Characteristics |
 | :--- | :--- | :--- | :--- |
@@ -113,24 +113,30 @@ Integrated 5 high-quality, open-source OFL Chinese fonts accessible via **Settin
 | **霞鹜新晰黑 (LXGW Neo XiHei)** | 极简 UI 黑体 / 人文黑体 | SIL OFL 1.1 | 现代清爽黑体，笔画分明，与系统界面完美契合 |
 | **小赖圆体 (Xiaolai Rounded)** | 治愈圆体 / 手写风 | SIL OFL 1.1 | 柔和亲切的圆体手写风，视觉轻松温和 |
 | **思源宋体 (Noto Serif SC)** | 典雅宋体 / 明朝体 | SIL OFL 1.1 | 经典人文衬线宋体，骨肉停匀，适合文艺与阅读场景 |
+| **站酷庆科黄油体 (ZCOOL HuangYou)** | 醒目圆角标题体 / 海报设计 | SIL OFL 1.1 | 饱满有力的圆角笔画，现代感与辨识度极高的标题字体 |
+| **站酷小薇体 (ZCOOL XiaoWei)** | 纤细秀丽清雅体 / 典雅刻本 | SIL OFL 1.1 | 笔触纤细灵动，传承传统刻本气韵，清秀素雅 |
+| **站酷快乐体 (ZCOOL KuaiLe)** | 活泼明快趣味体 / 趣味手写 | SIL OFL 1.1 | 结构活泼跳跃，风格萌动趣味，适合个性化轻松场景 |
+| **马善政毛笔体 (Ma Shan Zheng)** | 雄浑毛笔体 / 写意中国风 | SIL OFL 1.1 | 挥毫泼墨的行楷气韵，笔力遒劲，尽显国风意境 |
+| **龙藏体 (Long Cang)** | 潇洒连笔行书 / 传统书法 | SIL OFL 1.1 | 行气连绵流畅，笔墨生动，传统手写书法美感 |
+| **志莽行书 (Zhi Mang Xing)** | 狂放肆意草书 / 钟齐书法 | SIL OFL 1.1 | 奔放不羁的行草风貌，笔势生动，视觉冲击力强 |
 
 * **Fallback Safety**: Registered via `/product/etc/fonts_customization.xml`. Unspecified glyphs (emoji, rare symbols, multi-language scripts) cleanly fall back to Android system fonts without missing glyphs or layout truncation.
-* **Storage Footprint**: Total font binaries ~69 MiB uncompressed, compressed to ~32 MiB under EROFS (`lz4hc,9`), well within the 150 MiB partition budget.
+* **Storage Footprint**: Total font binaries ~101 MiB uncompressed, compressed to ~48–52 MiB under EROFS (`lz4hc,9`), well within the partition budget (>1.0 GiB remaining margin).
 
 ---
 
-## 🖼️ Curated System Wallpapers (精选系统壁纸)
+## 🖼️ Open-Licensed Curated Wallpapers (开放授权精选壁纸)
 
-Integrated 16 curated high-definition wallpapers natively into **WallpaperPicker2 / ThemePicker** via `AviumWallpapersPartner`:
+Integrated 27 curated high-definition vertical wallpapers natively into **WallpaperPicker2 / ThemePicker** via `AviumWallpapersPartner`:
 
-* **Resolution & Format**: 1440 × 3120 (19.5:9 modern flagship aspect ratio), encoded in high-quality WebP with dedicated low-latency thumbnails.
-* **Diverse Aesthetics**:
-  1. **极简风景 & 唯美自然**: Yosemite Mountain (优胜美地), Mojave Desert Night (莫哈韦), Catalina Coast (卡特琳娜), Sequoia Forest (红杉深林), Sonoma Dusk (索诺玛).
-  2. **抽象几何 & 灵动光影**: Windows Bloom Light/Dark (绽放), Aurora Glow (极光), Captured Motion (流光), Monterey Canyon (峡谷).
-  3. **深色系质感 (OLED Dark)**: Monochrome Obsidian (曜石黑), Midnight Azure (暗夜深蓝), Cyber Violet (赛博紫).
-  4. **晨曦流动 (Flow & Sunrise)**: Sunrise Vista (晨光), Fluid Flow (涓流), Solar Amber (暖阳).
-* **System Integration**: Native discovery via `com.android.launcher3.action.PARTNER_CUSTOMIZATION`. Displays under "On-device wallpapers" without replacing AviumUI's official default wallpaper.
-* **Storage Footprint**: All 16 wallpapers + thumbnails take only **3.0 MiB** total.
+* **Resolution & Mastering**: 1440 × 3120 (19:9 display geometry), encoded in high-quality WebP with dedicated low-latency thumbnails (360 × 780).
+* **Clock & Depth Optimization**: Subjects are positioned in the lower-middle and lower-third, leaving ample negative space in the upper portion for the Avium Lockscreen Clock and Super Island / Capsule. Over 40% are deep AMOLED dark themes.
+* **Three Curated Collections (27 Wallpapers)**:
+  1. **兽系风格 (Kemono, 9 Wallpapers)**: `wallpaper_01` to `wallpaper_09` (Cyber White Wolf Guardian, Fox Spirit under Lanterns, Snow Leopard Alpine Ranger, Kiki Krita 5.3 Splash, Kiki Krita 5.2 Splash, Owl Princess, Young Dragon and Bird, Peacock Dragon, Colonel Rabbit).
+  2. **二次元原创风格 (Anime, 9 Wallpapers)**: `wallpaper_10` to `wallpaper_18` (Lofi Cyberpunk Night, Fantasy Floating Islands, Tidal Island at Low Tide, Sintel Dragon Mountain Dawn, Kiki Cyber City Panorama, Kiki Cosmic Space Station, Spring Mountain Descent, Phanda Misty Bamboo Grove, Pepper & Carrot Starlight Laboratory).
+  3. **风景与深空摄影 (Landscape & Deep Space, 9 Wallpapers)**: `wallpaper_19` to `wallpaper_27` (JWST Cosmic Cliffs in Carina Nebula, JWST Pillars of Creation, JWST Tarantula Nebula, Aurora and Perseids, Milky Way Aligned with Matterhorn over Stellisee, Sossusvlei Dune 45 Sunrise, Tekapo Milky Way over Good Shepherd, Tokyo Tower Blue Hour, Bixby Creek Bridge Pacific Sunset).
+* **Strict Legal Licensing & Provenance**: Every wallpaper has been individually verified against upstream sources and documented in [ATTRIBUTION.md](file:///device/oneplus/enchilada/wallpapers/ATTRIBUTION.md). Licenses include Public Domain (US Gov/NASA), CC0 1.0, CC BY 4.0, CC BY-SA 4.0, and CC BY-SA 3.0.
+* **Storage Footprint**: All 27 full wallpapers + 27 thumbnails occupy only **14.2 MB** total.
 
 ## 🛠️ Development & Build Workflow
 
