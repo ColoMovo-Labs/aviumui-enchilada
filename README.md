@@ -32,10 +32,9 @@ An unofficial, experimental bring-up project of **AviumUI 16.2.x** (based on **A
 * [x] Official AviumUI GMS stack integrated (`WITH_GMS := true`).
 * [x] Essential customizations implemented (Unlimited Photos, advanced reboot, volume skip, QS controls).
 * [x] System window blurs forced by default (`TARGET_FORCE_ENABLE_BLUR := true`).
-* [x] KernelSU Next built into Linux 4.19 kernel (`CONFIG_KSU=y`, `CONFIG_KPROBES=y`).
-* [x] Non-functional LunarisDolby user app purged; ViPER4Android supported via KernelSU systemless module.
-* [x] Curated Chinese font collection integrated (5 OFL styles, ThemePicker compatible).
-* [x] Curated system wallpaper collection integrated (16 high-res 1440x3120 WebP wallpapers, WallpaperPicker partner app).
+* [x] Non-functional LunarisDolby user app purged; official Qualcomm/OnePlus Audio HAL, Dirac GEF, and sound trigger preserved.
+* [x] Curated Chinese font collection integrated (11 OFL styles, ThemePicker compatible).
+* [x] Curated system wallpaper collection integrated (27 high-res 1440x3120 WebP wallpapers, WallpaperPicker partner app).
 * [x] Native Status Bar Capsule & Super Island (Ongoing Activity Island) integrated into SystemUI with OnePlus 6 notch adaptation and Avium Settings.
 
 
@@ -87,27 +86,19 @@ A fully native, hardware-aware Ongoing Activity experience built directly into S
 
 ---
 
-## 🛡️ KernelSU Next Integration
+## 🛡️ Pure Linux 4.19 Kernel Architecture
 
-* **Kernel Driver**: Built directly into Linux 4.19.325 kernel (`CONFIG_KSU=y`, `CONFIG_KPROBES=y`, `CONFIG_HAVE_KPROBES=y`, `CONFIG_KPROBE_EVENTS=y`, `CONFIG_OVERLAY_FS=y`).
+* **Kernel Version**: Verified Linux 4.19.325 baseline (`avium-16.2.1-enchilada-4.19-working`).
 * **SELinux Mode**: Maintained strictly in **Enforcing** mode.
-* **Partition Integrity**: Zero dynamic partitions, zero retrofit super partition changes.
-* **Working Baseline**: Golden baseline preserved at tag `avium-16.2.1-enchilada-4.19-working`. The KernelSU integration is committed as an isolated, easily-revertible commit on top.
-* **Manager APK**: Install the official [KernelSU Next Manager (v3.3.0+)](https://github.com/KernelSU-Next/KernelSU-Next/releases) to manage root permissions and modules.
+* **Partition Integrity**: Physical Legacy A/B (`/system_a`, `/system_b`, `/vendor_a`, `/vendor_b`), Zero Super, Zero Retrofit Dynamic Partitions.
+* **Security & Stability**: Unmodified core Linux 4.19 LTS baseline, ensuring zero syscall hook overhead, full VoLTE/IMS compatibility, stable camera HAL, and clean upstream security patches.
 
 ---
 
-## 🎵 Audio Enhancements & ViPER4Android
+## 🎵 Audio Architecture & Audio HAL
 
-* **Dolby Audio Stack**: The non-functional user-space `LunarisDolby` APK has been completely removed to avoid application crashes. The underlying Qualcomm/OnePlus hardware audio HAL, mixer paths, sound trigger, and Dirac GEF configurations are strictly preserved and verified stable.
-* **ViPER4Android Evaluation**:
-  - Android 16 QPR2 (API 36) enforces strict AIDL audio effect interfaces (`android.hardware.audio.effect`) and strict `audioserver` SELinux domains.
-  - Compiling legacy ViPER4Android directly into `/system` carries severe risks of `audioserver` linker failure, SELinux policy rejections, silent telephony audio, and potential bootloops.
-  - **Recommended & Supported Path**: ViPER4Android is supported seamlessly as a **KernelSU systemless module** (`ViPER4Android-RE` or `Audio Modification Library`).
-  - **Installation Instructions**:
-    1. Open KernelSU Next Manager.
-    2. Flash the latest `ViPER4Android-RE` Magisk/KSU module.
-    3. Reboot the device. The effect driver binds systemlessly without altering `/system` or compromising SELinux Enforcing.
+* **Dolby Audio Stack**: The non-functional user-space `LunarisDolby` APK has been completely removed to prevent crashes. The underlying Qualcomm/OnePlus hardware audio HAL, mixer paths, sound trigger, and Dirac GEF configurations are strictly preserved and verified stable.
+* **Audio Stability**: Android 16 QPR2 (API 36) enforces strict AIDL audio effect interfaces (`android.hardware.audio.effect`) and strict `audioserver` SELinux domains. System audio, telephony, VoLTE in-call audio, and Bluetooth A2DP operate reliably within SELinux Enforcing policy.
 
 ---
 

@@ -16,7 +16,7 @@
         remote="github"
         revision="avium-16.2.1-enchilada-gms-features" />
 
-    <!-- Kernel (with KernelSU Next built-in) -->
+    <!-- Kernel (Linux 4.19 golden baseline) -->
     <project
         name="ColoMovo-Labs/android_kernel_oneplus_sdm845"
         path="kernel/oneplus/sdm845"

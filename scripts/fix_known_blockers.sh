@@ -202,46 +202,23 @@ else
 fi
 
 echo "============================================================"
-echo "=== 5. VERIFYING KERNELSU NEXT BUILT-IN DRIVER & HOOKS ==="
+echo "=== 5. ASSERTING PURE LINUX 4.19 GOLDEN BASELINE (NO KSU) ==="
 echo "============================================================"
 KERNEL_DIR="$SOURCE_ROOT/kernel/oneplus/sdm845"
 if [ -d "$KERNEL_DIR" ]; then
-  echo "[KSU] Checking KernelSU Next in $KERNEL_DIR..."
+  echo "[KERNEL] Verifying pure Linux 4.19 golden baseline in $KERNEL_DIR..."
   if [ -d "$KERNEL_DIR/drivers/kernelsu" ]; then
-    echo "[KSU] PASS: drivers/kernelsu driver directory exists."
-  else
-    echo "[KSU] ERROR: drivers/kernelsu not found in kernel tree!"
-    exit 1
-  fi
-
-  if grep -q "obj-\$(CONFIG_KSU) += kernelsu/" "$KERNEL_DIR/drivers/Makefile" && \
-     grep -q "drivers/kernelsu/Kconfig" "$KERNEL_DIR/drivers/Kconfig"; then
-    echo "[KSU] PASS: drivers Makefile and Kconfig hook declarations confirmed."
-  else
-    echo "[KSU] ERROR: Missing KernelSU hooks in drivers/Makefile or drivers/Kconfig!"
+    echo "[KERNEL] ERROR: drivers/kernelsu found in kernel tree! KernelSU must be completely absent."
     exit 1
   fi
 
   ENCHILADA_CONF="$KERNEL_DIR/arch/arm64/configs/vendor/enchilada.config"
-  if grep -q "^CONFIG_KSU=y" "$ENCHILADA_CONF" && \
-     grep -q "^CONFIG_KPROBES=y" "$ENCHILADA_CONF"; then
-    echo "[KSU] PASS: CONFIG_KSU=y and CONFIG_KPROBES=y confirmed in enchilada.config."
-  else
-    echo "[KSU] ERROR: CONFIG_KSU or CONFIG_KPROBES missing from $ENCHILADA_CONF!"
+  if grep -q "^CONFIG_KSU" "$ENCHILADA_CONF"; then
+    echo "[KERNEL] ERROR: CONFIG_KSU found in $ENCHILADA_CONF! KernelSU must be completely absent."
     exit 1
   fi
 
-  # Verify KernelSU Next UAPI headers (ensure no dangling symlinks)
-  KSU_UAPI="$KERNEL_DIR/drivers/kernelsu/include/uapi"
-  if [ -L "$KSU_UAPI" ] && [ ! -e "$KSU_UAPI" ]; then
-    echo "[KSU] ERROR: Dangling symlink detected at $KSU_UAPI!"
-    exit 1
-  fi
-  if [ ! -f "$KSU_UAPI/app_profile.h" ]; then
-    echo "[KSU] ERROR: Missing uapi/app_profile.h in $KSU_UAPI!"
-    exit 1
-  fi
-  echo "[KSU] PASS: KernelSU Next UAPI headers verified (app_profile.h present, zero dangling symlinks)."
+  echo "[KERNEL] PASS: Pure Linux 4.19 golden baseline verified (KernelSU ABSENT)."
 fi
 
 

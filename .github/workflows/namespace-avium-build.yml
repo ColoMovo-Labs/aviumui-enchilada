@@ -312,22 +312,22 @@ jobs:
           fi
           echo "PASS: ro.avium.maintainer=LoMo 洛陌 confirmed in product.prop."
 
-      - name: Assert KernelSU Next Built-in Integration
+      - name: Assert Pure Linux 4.19 Golden Baseline (No KSU)
         run: |
           echo "=================================================="
-          echo "=== 10. ASSERTING KERNELSU NEXT DRIVER ==="
+          echo "=== 10. ASSERTING PURE LINUX 4.19 GOLDEN BASELINE (NO KSU) ==="
           echo "=================================================="
           cd /home/runner/android/avium
-          echo "Verifying kernel/oneplus/sdm845/drivers/kernelsu..."
-          if [ ! -d "kernel/oneplus/sdm845/drivers/kernelsu" ]; then
-            echo "ERROR: drivers/kernelsu not found in kernel tree!"
+          echo "Verifying absence of drivers/kernelsu..."
+          if [ -d "kernel/oneplus/sdm845/drivers/kernelsu" ]; then
+            echo "ERROR: drivers/kernelsu found in kernel tree! KernelSU must be absent."
             exit 1
           fi
-          if ! grep -q "^CONFIG_KSU=y" kernel/oneplus/sdm845/arch/arm64/configs/vendor/enchilada.config; then
-            echo "ERROR: CONFIG_KSU=y not found in enchilada.config!"
+          if grep -q "^CONFIG_KSU" kernel/oneplus/sdm845/arch/arm64/configs/vendor/enchilada.config; then
+            echo "ERROR: CONFIG_KSU found in enchilada.config! KernelSU must be absent."
             exit 1
           fi
-          echo "PASS: KernelSU Next built-in integration verified."
+          echo "PASS: Pure Linux 4.19 golden baseline verified (KernelSU ABSENT)."
 
       - name: Configure Optional Lightweight Ccache
         if: ${{ github.event.inputs.use_ccache == 'true' }}
