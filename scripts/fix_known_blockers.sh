@@ -230,7 +230,20 @@ if [ -d "$KERNEL_DIR" ]; then
     echo "[KSU] ERROR: CONFIG_KSU or CONFIG_KPROBES missing from $ENCHILADA_CONF!"
     exit 1
   fi
+
+  # Verify KernelSU Next UAPI headers (ensure no dangling symlinks)
+  KSU_UAPI="$KERNEL_DIR/drivers/kernelsu/include/uapi"
+  if [ -L "$KSU_UAPI" ] && [ ! -e "$KSU_UAPI" ]; then
+    echo "[KSU] ERROR: Dangling symlink detected at $KSU_UAPI!"
+    exit 1
+  fi
+  if [ ! -f "$KSU_UAPI/app_profile.h" ]; then
+    echo "[KSU] ERROR: Missing uapi/app_profile.h in $KSU_UAPI!"
+    exit 1
+  fi
+  echo "[KSU] PASS: KernelSU Next UAPI headers verified (app_profile.h present, zero dangling symlinks)."
 fi
+
 
 echo "============================================================"
 echo "=== 6. VERIFYING AVIUMUI OFFICIAL GMS REPOSITORIES ==="
