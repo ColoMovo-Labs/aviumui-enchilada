@@ -11,6 +11,7 @@ on:
         options:
           - "bacon"
           - "SystemUI-core"
+          - "Launcher3QuickStep"
           - "bootimage"
           - "nothing"
           - "sync_audit_only"
@@ -538,6 +539,32 @@ jobs:
             exit "$rc"
           fi
           echo "PASS: m SystemUI-core succeeded!"
+
+      - name: "Phase Gate 2.6: m Launcher3QuickStep"
+        if: ${{ github.event.inputs.build_target == 'Launcher3QuickStep' || github.event.inputs.build_target == 'bacon' }}
+        run: |
+          echo "=================================================="
+          echo "=== 12.6. EXECUTING: m Launcher3QuickStep ==="
+          echo "=================================================="
+          cd /home/runner/android/avium
+          source build/envsetup.sh
+          lunch lineage_enchilada-bp4a-userdebug || lunch lineage_enchilada-userdebug
+
+          if [ "${{ github.event.inputs.use_ccache }}" = "true" ]; then
+            export CCACHE_DIR=/cache/ccache
+            export USE_CCACHE=1
+            export CCACHE_EXEC=/usr/bin/ccache
+          fi
+
+          mkdir -p /home/runner/android/logs
+          set -o pipefail
+          m -j16 Launcher3QuickStep 2>&1 | tee /home/runner/android/logs/build_launcher3.log
+          rc=${PIPESTATUS[0]}
+          if [ "$rc" -ne 0 ]; then
+            echo "ERROR: m Launcher3QuickStep failed with rc=$rc"
+            exit "$rc"
+          fi
+          echo "PASS: m Launcher3QuickStep succeeded!"
 
       - name: "Phase Gate 3: m bacon"
         if: ${{ github.event.inputs.build_target == 'bacon' }}

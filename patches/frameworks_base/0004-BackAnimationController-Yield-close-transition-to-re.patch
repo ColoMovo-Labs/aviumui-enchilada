@@ -1,0 +1,35 @@
+From: LoMo <lomo@aviumui.org>
+Date: Sat, 12 Sep 2026 15:33:00 +0800
+Subject: [PATCH] BackAnimationController: Yield close transition to remote/default handlers when targets are empty
+
+When predictive back preview does not have targets (mApps is null or empty,
+e.g. for non-predictive-back apps like QQ or WeChat), do not consume the
+transition immediately with applyAndFinish(). Instead, clean up internal state
+and return false, allowing RemoteTransitionHandler (Launcher3) and
+DefaultTransitionHandler to play natural app-to-home exit animations.
+---
+ .../com/android/wm/shell/back/BackAnimationController.java  | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/back/BackAnimationController.java b/libs/WindowManager/Shell/src/com/android/wm/shell/back/BackAnimationController.java
+index 14d4cd18..19e5bd36 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/back/BackAnimationController.java
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/back/BackAnimationController.java
+@@ -1396,9 +1396,12 @@ public class BackAnimationController implements RemoteCallable<BackAnimationCont
+ 
+             if (mApps == null || mApps.length == 0) {
+                 if (mCloseTransitionRequested) {
+-                    // animation never start, consume directly
+-                    applyAndFinish(st, ft, finishCallback);
+-                    return true;
++                    // Predictive back preview never started or has no targets; let remote
++                    // or default transition handlers animate the app exit instead of
++                    // consuming the transition with zero animation.
++                    mCloseTransitionRequested = false;
++                    applyFinishOpenTransition();
++                    return false;
+                 } else if (mClosePrepareTransition == null
+                         && info.getType() == WindowManager.TRANSIT_PREPARE_BACK_NAVIGATION) {
+                     // Gesture animation was cancelled before prepare transition ready, create
+-- 
+2.53.0

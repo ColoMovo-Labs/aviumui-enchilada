@@ -98,6 +98,15 @@ if [ -d "$FEATURE_SETTINGS_PATCH_DIR" ]; then
   done
 fi
 
+# 1.6b packages/apps/Launcher3 (Smooth return-to-home animation on Back)
+LAUNCHER3_DIR="$SOURCE_ROOT/packages/apps/Launcher3"
+LAUNCHER3_PATCH_DIR="$META_DIR/patches/packages_apps_Launcher3"
+if [ -d "$LAUNCHER3_PATCH_DIR" ]; then
+  for p in $(ls "$LAUNCHER3_PATCH_DIR"/*.patch 2>/dev/null | sort); do
+    apply_patch_if_needed "$LAUNCHER3_DIR" "$p"
+  done
+fi
+
 # 1.7 packages/overlays/Lineage (Add Chinese font families to Soong fonts_customization module)
 OVERLAYS_LINEAGE_DIR="$SOURCE_ROOT/packages/overlays/Lineage"
 OVERLAYS_LINEAGE_PATCH_DIR="$META_DIR/patches/packages_overlays_Lineage"

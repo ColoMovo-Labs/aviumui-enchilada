@@ -1882,6 +1882,7 @@ index 00000000..421f8b3a
 +        strokeCap = Paint.Cap.ROUND
 +    }
 +
++    private var isPlayingState = false
 +    private var isAnimating = false
 +    private var phase = 0f
 +    private var animator: ValueAnimator? = null
@@ -1896,7 +1897,26 @@ index 00000000..421f8b3a
 +    }
 +
 +    fun setPlaying(playing: Boolean) {
-+        if (playing) {
++        isPlayingState = playing
++        if (playing && isShown) {
++            startAnimation()
++        } else {
++            stopAnimation()
++        }
++    }
++
++    override fun onVisibilityAggregated(isVisible: Boolean) {
++        super.onVisibilityAggregated(isVisible)
++        if (isVisible && isPlayingState) {
++            startAnimation()
++        } else {
++            stopAnimation()
++        }
++    }
++
++    override fun onWindowVisibilityChanged(visibility: Int) {
++        super.onWindowVisibilityChanged(visibility)
++        if (visibility == View.VISIBLE && isPlayingState && isShown) {
 +            startAnimation()
 +        } else {
 +            stopAnimation()
@@ -2254,6 +2274,12 @@ index 00000000..bde9fd4e
 +                } catch (ignored: Throwable) {}
 +            }
 +        }
++    }
++
++    override fun onDetachedFromWindow() {
++        super.onDetachedFromWindow()
++        mediaEqualizer.setPlaying(false)
++        genericChronometer.stop()
 +    }
 +
 +    override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {

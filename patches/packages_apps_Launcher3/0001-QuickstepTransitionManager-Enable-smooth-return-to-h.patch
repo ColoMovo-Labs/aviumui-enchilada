@@ -1,0 +1,42 @@
+From c4f8e259cf15a4357adeac3ac7fc36de1422cefb Mon Sep 17 00:00:00 2001
+From: LoMo <lomo@aviumui.org>
+Date: Sat, 12 Sep 2026 15:31:23 +0800
+Subject: [PATCH] QuickstepTransitionManager: Enable smooth return-to-home
+ animation on Back
+
+---
+ .../android/launcher3/QuickstepTransitionManager.java    | 9 ---------
+ 1 file changed, 9 deletions(-)
+
+diff --git a/quickstep/src/com/android/launcher3/QuickstepTransitionManager.java b/quickstep/src/com/android/launcher3/QuickstepTransitionManager.java
+index b547ec6..ff71b9c 100644
+--- a/quickstep/src/com/android/launcher3/QuickstepTransitionManager.java
++++ b/quickstep/src/com/android/launcher3/QuickstepTransitionManager.java
+@@ -1407,24 +1407,15 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
+ 
+         homeCheck.mRequirements =
+                 new TransitionFilter.Requirement[]{new TransitionFilter.Requirement(),
+-                        new TransitionFilter.Requirement(),
+                         new TransitionFilter.Requirement()};
+ 
+         homeCheck.mRequirements[0].mActivityType = ACTIVITY_TYPE_HOME;
+         homeCheck.mRequirements[0].mTopActivity = mLauncher.getComponentName();
+         homeCheck.mRequirements[0].mModes = new int[]{TRANSIT_OPEN, TRANSIT_TO_FRONT};
+-        if (!com.android.window.flags.Flags.polishCloseWallpaperIncludesOpenChange()) {
+-            homeCheck.mRequirements[0].mOrder = CONTAINER_ORDER_TOP;
+-        }
+ 
+         homeCheck.mRequirements[1].mActivityType = ACTIVITY_TYPE_STANDARD;
+         homeCheck.mRequirements[1].mModes = new int[]{TRANSIT_CLOSE, TRANSIT_TO_BACK};
+ 
+-        homeCheck.mRequirements[2].mNot = true;
+-        homeCheck.mRequirements[2].mCustomAnimation = true;
+-        homeCheck.mRequirements[2].mMustBeTask = true;
+-        homeCheck.mRequirements[2].mMustBeIndependent = true;
+-
+         SystemUiProxy.INSTANCE.get(mLauncher)
+                 .registerRemoteTransition(mLauncherOpenTransition, homeCheck);
+         if (mBackAnimationController != null) {
+-- 
+2.53.0
+
