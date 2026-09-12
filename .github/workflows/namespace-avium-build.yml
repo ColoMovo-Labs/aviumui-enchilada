@@ -305,14 +305,12 @@ jobs:
           fi
           echo "PASS: WITH_GMS is true."
 
-          echo "=== Verifying AVIUM_MAINTAINER ==="
-          VAL_MAINTAINER=$(get_build_var AVIUM_MAINTAINER)
-          echo "AVIUM_MAINTAINER: $VAL_MAINTAINER"
-          if ! echo "$VAL_MAINTAINER" | grep -q "LoMo"; then
-            echo "ERROR: Expected AVIUM_MAINTAINER to contain 'LoMo', got '$VAL_MAINTAINER'!"
+          echo "=== Verifying ro.avium.maintainer in product.prop ==="
+          if ! grep -q "^ro.avium.maintainer=LoMo 洛陌" device/oneplus/enchilada/product.prop; then
+            echo "ERROR: ro.avium.maintainer=LoMo 洛陌 not found in device/oneplus/enchilada/product.prop!"
             exit 1
           fi
-          echo "PASS: AVIUM_MAINTAINER confirmed."
+          echo "PASS: ro.avium.maintainer=LoMo 洛陌 confirmed in product.prop."
 
       - name: Assert KernelSU Next Built-in Integration
         run: |
@@ -368,6 +366,28 @@ jobs:
           NOTHING_DURATION=$((END_NOTHING - START_NOTHING))
           echo "NOTHING_DURATION_SECONDS=$NOTHING_DURATION" >> "$GITHUB_ENV"
           echo "PASS: m nothing succeeded in $((NOTHING_DURATION / 60))m $((NOTHING_DURATION % 60))s!"
+
+          echo "=== 11.2 Verifying product-build.prop sysprop assignments ==="
+          m product-build.prop 2>&1 | tee -a /home/runner/android/logs/build_nothing.log
+          PROP_FILE="out/soong/.intermediates/build/soong/product-build.prop/android_common/build.prop"
+          if [ -f "$PROP_FILE" ]; then
+            echo "Inspecting ro.avium.maintainer in $PROP_FILE:"
+            grep -n '^ro.avium.maintainer=' "$PROP_FILE" || true
+            PROP_COUNT=$(grep -c '^ro.avium.maintainer=' "$PROP_FILE" || true)
+            if [ "$PROP_COUNT" -ne 1 ]; then
+              echo "ERROR: Expected exactly 1 ro.avium.maintainer line, found $PROP_COUNT!"
+              exit 1
+            fi
+            PROP_VAL=$(grep '^ro.avium.maintainer=' "$PROP_FILE")
+            if [ "$PROP_VAL" != "ro.avium.maintainer=LoMo 洛陌" ]; then
+              echo "ERROR: Expected 'ro.avium.maintainer=LoMo 洛陌', got '$PROP_VAL'!"
+              exit 1
+            fi
+            echo "PASS: Exactly one ro.avium.maintainer=LoMo 洛陌 present in product build.prop."
+          else
+            echo "WARNING: $PROP_FILE not found directly; searching..."
+            find out/ -name "build.prop" | grep -i "product" || true
+          fi
 
       - name: Disk Space Audit (Post-Nothing)
         if: ${{ github.event.inputs.build_target != 'sync_audit_only' }}

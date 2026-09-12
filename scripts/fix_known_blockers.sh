@@ -116,6 +116,18 @@ if [ -f "$DEVICE_FONTS_XML" ] && [ -f "$TARGET_FONTS_XML" ]; then
   fi
 fi
 
+# 1.8 vendor/avium (Remove ro.avium.maintainer from version.mk to allow device product.prop)
+VENDOR_AVIUM_DIR="$SOURCE_ROOT/vendor/avium"
+VENDOR_AVIUM_PATCH_DIR="$META_DIR/patches/vendor_avium"
+if [ -d "$VENDOR_AVIUM_PATCH_DIR" ]; then
+  for p in $(ls "$VENDOR_AVIUM_PATCH_DIR"/*.patch 2>/dev/null | sort); do
+    apply_patch_if_needed "$VENDOR_AVIUM_DIR" "$p"
+  done
+fi
+VERSION_MK="$SOURCE_ROOT/vendor/avium/config/version.mk"
+if [ -f "$VERSION_MK" ]; then
+  sed -i '/ro\.avium\.maintainer=/d' "$VERSION_MK" || true
+fi
 echo "============================================================"
 echo "=== 2. AUDITING VENDOR PROPRIETARY BLOBS ==="
 echo "============================================================"
