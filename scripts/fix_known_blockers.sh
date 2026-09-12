@@ -98,6 +98,23 @@ if [ -d "$FEATURE_SETTINGS_PATCH_DIR" ]; then
   done
 fi
 
+# 1.7 packages/overlays/Lineage (Add Chinese font families to Soong fonts_customization module)
+OVERLAYS_LINEAGE_DIR="$SOURCE_ROOT/packages/overlays/Lineage"
+OVERLAYS_LINEAGE_PATCH_DIR="$META_DIR/patches/packages_overlays_Lineage"
+if [ -d "$OVERLAYS_LINEAGE_PATCH_DIR" ]; then
+  for p in $(ls "$OVERLAYS_LINEAGE_PATCH_DIR"/*.patch 2>/dev/null | sort); do
+    apply_patch_if_needed "$OVERLAYS_LINEAGE_DIR" "$p"
+  done
+fi
+
+DEVICE_FONTS_XML="$SOURCE_ROOT/device/oneplus/enchilada/fonts/fonts_customization.xml"
+TARGET_FONTS_XML="$SOURCE_ROOT/packages/overlays/Lineage/fonts/etc/fonts_customization.xml"
+if [ -f "$DEVICE_FONTS_XML" ] && [ -f "$TARGET_FONTS_XML" ]; then
+  if ! grep -q "smiley-sans" "$TARGET_FONTS_XML"; then
+    echo "[+] Populating $TARGET_FONTS_XML from $DEVICE_FONTS_XML"
+    cp -f "$DEVICE_FONTS_XML" "$TARGET_FONTS_XML"
+  fi
+fi
 
 echo "============================================================"
 echo "=== 2. AUDITING VENDOR PROPRIETARY BLOBS ==="
