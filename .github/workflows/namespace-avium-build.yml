@@ -296,6 +296,24 @@ jobs:
           fi
           echo "PASS: PRODUCT_USE_DYNAMIC_PARTITIONS is not enabled."
 
+          echo "=== Verifying WITH_GMS (true) ==="
+          VAL_GMS=$(get_build_var WITH_GMS)
+          echo "WITH_GMS: $VAL_GMS"
+          if [ "$VAL_GMS" != "true" ]; then
+            echo "ERROR: Expected WITH_GMS to be true, got '$VAL_GMS'!"
+            exit 1
+          fi
+          echo "PASS: WITH_GMS is true."
+
+          echo "=== Verifying AVIUM_MAINTAINER ==="
+          VAL_MAINTAINER=$(get_build_var AVIUM_MAINTAINER)
+          echo "AVIUM_MAINTAINER: $VAL_MAINTAINER"
+          if ! echo "$VAL_MAINTAINER" | grep -q "LoMo"; then
+            echo "ERROR: Expected AVIUM_MAINTAINER to contain 'LoMo', got '$VAL_MAINTAINER'!"
+            exit 1
+          fi
+          echo "PASS: AVIUM_MAINTAINER confirmed."
+
       - name: Assert LunarisDolby Module Declaration
         run: |
           echo "=================================================="

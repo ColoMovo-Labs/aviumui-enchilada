@@ -80,11 +80,12 @@ if [ -d "$SEPOLICY_PATCH_DIR" ]; then
   done
 fi
 
-# 1.5 frameworks/base (SQLiteTokenizer bracket check security fix)
+# 1.5 frameworks/base (SQLiteTokenizer & Google Photos unlimited storage spoof)
 FRAMEWORKS_BASE_DIR="$SOURCE_ROOT/frameworks/base"
 FRAMEWORKS_BASE_PATCH_DIR="$META_DIR/patches/frameworks_base"
 if [ -d "$FRAMEWORKS_BASE_PATCH_DIR" ]; then
   apply_patch_if_needed "$FRAMEWORKS_BASE_DIR" "$FRAMEWORKS_BASE_PATCH_DIR/0001-Add-bracket-checking-support-to-SQLiteTokenizer.patch"
+  apply_patch_if_needed "$FRAMEWORKS_BASE_DIR" "$FRAMEWORKS_BASE_PATCH_DIR/0002-Spoof-Google-Photos-to-Pixel-XL-for-unlimited-storag.patch"
 fi
 
 echo "============================================================"
@@ -162,7 +163,19 @@ else
 fi
 
 echo "============================================================"
-echo "=== 5. VERIFYING SDM845-COMMON 4.19 & EROFS CONFIGURATION ==="
+echo "=== 5. VERIFYING AVIUMUI OFFICIAL GMS REPOSITORIES ==="
+echo "============================================================"
+for d in vendor/pixel/gms vendor/pixel/clocks vendor/pixel/sounds; do
+  if [ -d "$SOURCE_ROOT/$d" ]; then
+    echo "[GMS] PASS: $d exists in source tree."
+  else
+    echo "[GMS] ERROR: Required directory $d not found!"
+    exit 1
+  fi
+done
+
+echo "============================================================"
+echo "=== 6. VERIFYING SDM845-COMMON 4.19 & EROFS CONFIGURATION ==="
 echo "============================================================"
 COMMON_DIR="$SOURCE_ROOT/device/oneplus/sdm845-common"
 if [ -d "$COMMON_DIR" ]; then
@@ -196,5 +209,5 @@ else
 fi
 
 echo "============================================================"
-echo "=== 6. ALL 4.19 BLOCKER RESOLUTIONS APPLIED SUCCESSFULLY ==="
+echo "=== 7. ALL 4.19 BLOCKER RESOLUTIONS APPLIED SUCCESSFULLY ==="
 echo "============================================================"
