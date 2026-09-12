@@ -145,14 +145,13 @@ if [ -f "$CI_TEST_ZIP" ]; then
 fi
 
 echo "============================================================"
-echo "=== 4. VERIFYING LunarisDolby & HARDWARE DOLBY ==="
+echo "=== 4. PURGING LunarisDolby & AUDITING HARDWARE DOLBY ==="
 echo "============================================================"
-if [ -d "$SOURCE_ROOT/packages/apps/LunarisDolby" ]; then
-  echo "[DOLBY] PASS: LunarisDolby exists in packages/apps/LunarisDolby."
-  grep -rn 'name: "LunarisDolby"' "$SOURCE_ROOT/packages/apps/LunarisDolby" || true
-else
-  echo "[DOLBY] ERROR: LunarisDolby not found in $SOURCE_ROOT/packages/apps/LunarisDolby!"
-  exit 1
+DOLBY_MK="$SOURCE_ROOT/hardware/dolby/dolby.mk"
+if [ -f "$DOLBY_MK" ]; then
+  echo "[DOLBY] Stripping LunarisDolby package declaration from $DOLBY_MK..."
+  sed -i '/LunarisDolby/d' "$DOLBY_MK" || true
+  echo "[DOLBY] PASS: LunarisDolby package purged from dolby.mk."
 fi
 
 if [ -d "$SOURCE_ROOT/hardware/dolby" ]; then
@@ -163,7 +162,38 @@ else
 fi
 
 echo "============================================================"
-echo "=== 5. VERIFYING AVIUMUI OFFICIAL GMS REPOSITORIES ==="
+echo "=== 5. VERIFYING KERNELSU NEXT BUILT-IN DRIVER & HOOKS ==="
+echo "============================================================"
+KERNEL_DIR="$SOURCE_ROOT/kernel/oneplus/sdm845"
+if [ -d "$KERNEL_DIR" ]; then
+  echo "[KSU] Checking KernelSU Next in $KERNEL_DIR..."
+  if [ -d "$KERNEL_DIR/drivers/kernelsu" ]; then
+    echo "[KSU] PASS: drivers/kernelsu driver directory exists."
+  else
+    echo "[KSU] ERROR: drivers/kernelsu not found in kernel tree!"
+    exit 1
+  fi
+
+  if grep -q "obj-\$(CONFIG_KSU) += kernelsu/" "$KERNEL_DIR/drivers/Makefile" && \
+     grep -q "drivers/kernelsu/Kconfig" "$KERNEL_DIR/drivers/Kconfig"; then
+    echo "[KSU] PASS: drivers Makefile and Kconfig hook declarations confirmed."
+  else
+    echo "[KSU] ERROR: Missing KernelSU hooks in drivers/Makefile or drivers/Kconfig!"
+    exit 1
+  fi
+
+  ENCHILADA_CONF="$KERNEL_DIR/arch/arm64/configs/vendor/enchilada.config"
+  if grep -q "^CONFIG_KSU=y" "$ENCHILADA_CONF" && \
+     grep -q "^CONFIG_KPROBES=y" "$ENCHILADA_CONF"; then
+    echo "[KSU] PASS: CONFIG_KSU=y and CONFIG_KPROBES=y confirmed in enchilada.config."
+  else
+    echo "[KSU] ERROR: CONFIG_KSU or CONFIG_KPROBES missing from $ENCHILADA_CONF!"
+    exit 1
+  fi
+fi
+
+echo "============================================================"
+echo "=== 6. VERIFYING AVIUMUI OFFICIAL GMS REPOSITORIES ==="
 echo "============================================================"
 for d in vendor/pixel/gms vendor/pixel/clocks vendor/pixel/sounds; do
   if [ -d "$SOURCE_ROOT/$d" ]; then
@@ -175,7 +205,7 @@ for d in vendor/pixel/gms vendor/pixel/clocks vendor/pixel/sounds; do
 done
 
 echo "============================================================"
-echo "=== 6. VERIFYING SDM845-COMMON 4.19 & EROFS CONFIGURATION ==="
+echo "=== 7. VERIFYING SDM845-COMMON 4.19 & EROFS CONFIGURATION ==="
 echo "============================================================"
 COMMON_DIR="$SOURCE_ROOT/device/oneplus/sdm845-common"
 if [ -d "$COMMON_DIR" ]; then
@@ -209,5 +239,5 @@ else
 fi
 
 echo "============================================================"
-echo "=== 7. ALL 4.19 BLOCKER RESOLUTIONS APPLIED SUCCESSFULLY ==="
+echo "=== 8. ALL 4.19 BLOCKER RESOLUTIONS APPLIED SUCCESSFULLY ==="
 echo "============================================================"

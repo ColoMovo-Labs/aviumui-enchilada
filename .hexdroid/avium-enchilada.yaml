@@ -94,13 +94,6 @@ stages:
                     remote="github"
                     revision="avium-16.2" />
 
-                <!-- Dolby App (LunarisDolby) -->
-                <project
-                    name="crdroidandroid/android_packages_apps_LunarisDolby"
-                    path="packages/apps/LunarisDolby"
-                    remote="github"
-                    revision="16.0" />
-
                 <!-- Proprietary vendor blobs -->
                 <project
                     name="TheMuppets/proprietary_vendor_oneplus_enchilada"
@@ -218,21 +211,14 @@ stages:
             echo "PASS: Physical A/B partition sizes and variables strictly verified."
 
       - run:
-          name: Verify LunarisDolby Module
+          name: Verify KernelSU Next Driver
           command: |
-            echo ">>> [6/8] Verifying LunarisDolby presence and Android.bp module declaration..."
-            if [ ! -d "packages/apps/LunarisDolby" ]; then
-              echo "FATAL: packages/apps/LunarisDolby directory does not exist!"
+            echo ">>> [6/8] Verifying KernelSU Next driver..."
+            if [ ! -d "kernel/oneplus/sdm845/drivers/kernelsu" ]; then
+              echo "FATAL: drivers/kernelsu directory does not exist!"
               exit 1
             fi
-            
-            DOLBY_MATCH=$(grep -R 'name: "LunarisDolby"' packages/apps/LunarisDolby || true)
-            if [ -z "$DOLBY_MATCH" ]; then
-              echo "FATAL: name: \"LunarisDolby\" not found in packages/apps/LunarisDolby!"
-              exit 1
-            fi
-            echo "Found: $DOLBY_MATCH"
-            echo "PASS: LunarisDolby module declaration verified."
+            echo "PASS: KernelSU Next driver verified."
 
       - run:
           name: Build Stage 1 - m nothing (Dependency Graph & Soong Parse)

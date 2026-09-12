@@ -16,12 +16,12 @@
         remote="github"
         revision="avium-16.2.1-enchilada-gms-features" />
 
-    <!-- Kernel -->
+    <!-- Kernel (with KernelSU Next built-in) -->
     <project
-        name="EdwinMoq/android_kernel_oneplus_sdm845"
+        name="ColoMovo-Labs/android_kernel_oneplus_sdm845"
         path="kernel/oneplus/sdm845"
         remote="github"
-        revision="lineage-23.2-4.19" />
+        revision="avium-16.2.1-enchilada-gms-features" />
 
     <!-- OnePlus hardware HALs -->
     <project
@@ -36,13 +36,6 @@
         path="hardware/dolby"
         remote="github"
         revision="avium-16.2" />
-
-    <!-- Dolby App -->
-    <project
-        name="crdroidandroid/android_packages_apps_LunarisDolby"
-        path="packages/apps/LunarisDolby"
-        remote="github"
-        revision="16.0" />
 
     <!-- Proprietary vendor blobs -->
     <project
