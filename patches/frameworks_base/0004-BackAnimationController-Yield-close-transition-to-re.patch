@@ -1,35 +1,73 @@
 From: LoMo <lomo@aviumui.org>
-Date: Sat, 12 Sep 2026 15:33:00 +0800
-Subject: [PATCH] BackAnimationController: Yield close transition to remote/default handlers when targets are empty
+Date: Sat, 12 Sep 2026 15:45:00 +0800
+Subject: [PATCH] BackAnimationController: Yield close transition to remote/default handlers when targets are empty and destination is HOME
 
 When predictive back preview does not have targets (mApps is null or empty,
 e.g. for non-predictive-back apps like QQ or WeChat), do not consume the
-transition immediately with applyAndFinish(). Instead, clean up internal state
-and return false, allowing RemoteTransitionHandler (Launcher3) and
-DefaultTransitionHandler to play natural app-to-home exit animations.
+transition immediately with applyAndFinish() if the transition destination
+is HOME. Instead, clean up internal state and return false, allowing
+RemoteTransitionHandler (Launcher3) and DefaultTransitionHandler to play
+natural app-to-home exit animations.
 ---
- .../com/android/wm/shell/back/BackAnimationController.java  | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ .../com/android/wm/shell/back/BackAnimationController.java  | 36 ++++++++++++++++++++-
+ 1 file changed, 35 insertions(+), 1 deletion(-)
 
 diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/back/BackAnimationController.java b/libs/WindowManager/Shell/src/com/android/wm/shell/back/BackAnimationController.java
-index 14d4cd18..19e5bd36 100644
+index 14d4cd18..e0e78cfd 100644
 --- a/libs/WindowManager/Shell/src/com/android/wm/shell/back/BackAnimationController.java
 +++ b/libs/WindowManager/Shell/src/com/android/wm/shell/back/BackAnimationController.java
-@@ -1396,9 +1396,12 @@ public class BackAnimationController implements RemoteCallable<BackAnimationCont
+@@ -17,6 +17,7 @@
+ package com.android.wm.shell.back;
+ 
+ import static android.app.ActivityTaskManager.INVALID_TASK_ID;
++import static android.app.WindowConfiguration.ACTIVITY_TYPE_HOME;
+ import static android.view.Display.INVALID_DISPLAY;
+ import static android.view.RemoteAnimationTarget.MODE_CLOSING;
+ import static android.view.RemoteAnimationTarget.MODE_OPENING;
+@@ -1396,7 +1397,19 @@ public class BackAnimationController implements RemoteCallable<BackAnimationCont
  
              if (mApps == null || mApps.length == 0) {
                  if (mCloseTransitionRequested) {
 -                    // animation never start, consume directly
--                    applyAndFinish(st, ft, finishCallback);
--                    return true;
-+                    // Predictive back preview never started or has no targets; let remote
-+                    // or default transition handlers animate the app exit instead of
-+                    // consuming the transition with zero animation.
-+                    mCloseTransitionRequested = false;
-+                    applyFinishOpenTransition();
-+                    return false;
++                    if (isReturnToHomeTransition(info)) {
++                        // Destination is HOME, but predictive-back preview had no targets.
++                        // Yield to Launcher RemoteTransitionHandler or DefaultTransitionHandler
++                        // so that the full app-to-home exit animation is preserved without jump-cut.
++                        mCloseTransitionRequested = false;
++                        if (mOnAnimationFinishCallback != null) {
++                            mOnAnimationFinishCallback.run();
++                            mOnAnimationFinishCallback = null;
++                        }
++                        applyFinishOpenTransition();
++                        return false;
++                    }
++                    // Non-home close without preview targets, consume directly
+                     applyAndFinish(st, ft, finishCallback);
+                     return true;
                  } else if (mClosePrepareTransition == null
-                         && info.getType() == WindowManager.TRANSIT_PREPARE_BACK_NAVIGATION) {
-                     // Gesture animation was cancelled before prepare transition ready, create
+@@ -1484,6 +1497,23 @@ public class BackAnimationController implements RemoteCallable<BackAnimationCont
+             mClosePrepareTransition = mTransitions.startTransition(
+                     TRANSIT_CLOSE_PREPARE_BACK_NAVIGATION, wct, mBackTransitionHandler);
+         }
++
++        private boolean isReturnToHomeTransition(@NonNull TransitionInfo info) {
++            if (mBackNavigationInfo != null
++                    && mBackNavigationInfo.getType() == BackNavigationInfo.TYPE_RETURN_TO_HOME) {
++                return true;
++            }
++            for (int i = info.getChanges().size() - 1; i >= 0; --i) {
++                final TransitionInfo.Change c = info.getChanges().get(i);
++                if (c.getTaskInfo() != null
++                        && c.getTaskInfo().getActivityType() == ACTIVITY_TYPE_HOME
++                        && TransitionUtil.isOpeningType(c.getMode())) {
++                    return true;
++                }
++            }
++            return false;
++        }
++
+         private void mergePendingTransitions(TransitionInfo info) {
+             if (mOpenTransitionInfo == null) {
+                 return;
 -- 
 2.53.0
