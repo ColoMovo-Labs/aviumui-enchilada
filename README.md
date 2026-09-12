@@ -28,8 +28,31 @@ An unofficial, experimental bring-up project of **AviumUI 16.2.x** (based on **A
 * [x] Upstream source provenance and branch mapping verified ([docs/SOURCES.md](docs/SOURCES.md)).
 * [x] Validated physical A/B local manifest created ([local_manifests/enchilada.xml](local_manifests/enchilada.xml)).
 * [x] Namespace 32 vCPU / 62 GiB Runner connected and verified (`namespace-profile-avium-run15`).
-* [x] Namespace storage & persistence audit completed (284 GiB root NVMe + 121 GiB persistent `/cache`).
-* [ ] Phased build verification (`m nothing` -> `m bootimage` -> `m bacon`).
+* [x] Baseline Linux 4.19 bring-up booted and verified on hardware (tagged `avium-16.2.1-enchilada-4.19-working`).
+* [x] Official AviumUI GMS stack integrated.
+* [x] Essential customizations implemented (Unlimited Photos, advanced reboot, volume skip, QS controls).
+
+---
+
+## 👤 Maintainer
+
+* **Maintainer**: LoMo 洛陌
+
+---
+
+## ⚠️ Known Issues
+
+- Fingerprint enrollment is currently limited to a maximum of two fingerprints.
+  Fingerprint authentication itself works normally and is stable.
+  This does not affect normal daily use, so the issue is currently considered low priority.
+  Contributions or patches addressing the enrollment limit are welcome.
+
+## 已知问题
+
+- 当前最多只能录入 2 个指纹。
+- 指纹识别与解锁功能本身工作正常，稳定性无明显问题。
+- 该限制暂不影响日常使用，因此目前列为低优先级问题。
+- 欢迎有兴趣的开发者提交修复方案或 Patch。
 
 ---
 
