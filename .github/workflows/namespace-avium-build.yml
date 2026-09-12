@@ -314,6 +314,49 @@ jobs:
           fi
           echo "PASS: ro.avium.maintainer=LoMo 洛陌 confirmed in product.prop."
 
+          echo "=== Verifying Full 11-Font XML Registration in fonts_customization.xml ==="
+          FONTS_XML="packages/overlays/Lineage/fonts/etc/fonts_customization.xml"
+          if [ ! -f "$FONTS_XML" ]; then
+            echo "ERROR: $FONTS_XML not found!"
+            exit 1
+          fi
+          
+          python3 -c '
+            import sys, xml.etree.ElementTree as ET
+            xml_file = "packages/overlays/Lineage/fonts/etc/fonts_customization.xml"
+            try:
+                tree = ET.parse(xml_file)
+                root = tree.getroot()
+            except Exception as e:
+                print(f"ERROR: Failed to parse {xml_file}: {e}", file=sys.stderr)
+                sys.exit(1)
+          
+            expected_families = [
+                "smiley-sans", "lxgw-wenkai", "lxgw-neoxihei", "xiaolai-rounded", "noto-serif-sc",
+                "zcool-qingke-huangyou", "zcool-xiaowei", "zcool-kuaile", "mashanzheng", "longcang", "zhimangxing"
+            ]
+          
+            families = [f.attrib.get("name") for f in root.findall("family")]
+            aliases = [a.attrib.get("name") for a in root.findall("alias")]
+          
+            missing_families = [f for f in expected_families if f not in families]
+            if missing_families:
+                print(f"ERROR: Missing font families in {xml_file}: {missing_families}", file=sys.stderr)
+                sys.exit(1)
+          
+            expected_aliases = []
+            for f in expected_families:
+                expected_aliases.append(f"{f}-medium")
+                expected_aliases.append(f"{f}-bold")
+          
+            missing_aliases = [a for a in expected_aliases if a not in aliases]
+            if missing_aliases:
+                print(f"ERROR: Missing font aliases in {xml_file}: {missing_aliases}", file=sys.stderr)
+                sys.exit(1)
+          
+            print(f"PASS: All {len(expected_families)} font families and {len(expected_aliases)} aliases verified in {xml_file}.")
+            '
+
       - name: Assert Pure Linux 4.19 Golden Baseline (No KSU)
         run: |
           echo "=================================================="

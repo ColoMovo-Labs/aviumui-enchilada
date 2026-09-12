@@ -119,8 +119,26 @@ fi
 DEVICE_FONTS_XML="$SOURCE_ROOT/device/oneplus/enchilada/fonts/fonts_customization.xml"
 TARGET_FONTS_XML="$SOURCE_ROOT/packages/overlays/Lineage/fonts/etc/fonts_customization.xml"
 if [ -f "$DEVICE_FONTS_XML" ] && [ -f "$TARGET_FONTS_XML" ]; then
-  if ! grep -q "smiley-sans" "$TARGET_FONTS_XML"; then
-    echo "[+] Populating $TARGET_FONTS_XML from $DEVICE_FONTS_XML"
+  ALL_11_FONTS_PRESENT=true
+  for f in \
+    smiley-sans \
+    lxgw-wenkai \
+    lxgw-neoxihei \
+    xiaolai-rounded \
+    noto-serif-sc \
+    zcool-qingke-huangyou \
+    zcool-xiaowei \
+    zcool-kuaile \
+    mashanzheng \
+    longcang \
+    zhimangxing; do
+    if ! grep -q "name=\"$f\"" "$TARGET_FONTS_XML"; then
+      ALL_11_FONTS_PRESENT=false
+      break
+    fi
+  done
+  if [ "$ALL_11_FONTS_PRESENT" != "true" ]; then
+    echo "[+] Populating $TARGET_FONTS_XML with complete 11 fonts from $DEVICE_FONTS_XML"
     cp -f "$DEVICE_FONTS_XML" "$TARGET_FONTS_XML"
   fi
 fi

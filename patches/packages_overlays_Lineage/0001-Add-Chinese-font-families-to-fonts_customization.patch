@@ -3,21 +3,20 @@ From: LoMo <lomo@colomovo.com>
 Date: Sat, 12 Sep 2026 10:20:00 +0800
 Subject: [PATCH] overlay: Add Chinese font families to fonts_customization.xml
 
-Add font family and alias declarations for Smiley Sans, LXGW WenKai,
-LXGW Neo XiHei, Xiaolai Rounded, and Noto Serif SC so they can be
-cleanly selected via font overlays without duplicate install rules.
+Add font family and alias declarations for all 11 Chinese font families
+so they can be cleanly selected via font overlays without duplicate install rules.
 
 Change-Id: I9a375460b2586c3e6e511e72570efc9bd6bc2026
 Signed-off-by: LoMo <lomo@colomovo.com>
 ---
- fonts/etc/fonts_customization.xml | 38 +++++++++++++++++++++++++++++++
- 1 file changed, 38 insertions(+)
+ fonts/etc/fonts_customization.xml | 80 +++++++++++++++++++++++++++++++
+ 1 file changed, 80 insertions(+)
 
 diff --git a/fonts/etc/fonts_customization.xml b/fonts/etc/fonts_customization.xml
-index 8bf4f96..6bb667a 100644
+index 8bf4f96..e4c19bd 100644
 --- a/fonts/etc/fonts_customization.xml
 +++ b/fonts/etc/fonts_customization.xml
-@@ -1,3 +1,41 @@
+@@ -1,3 +1,83 @@
  <?xml version="1.0" encoding="utf-8"?>
 +<!--
 +    Copyright (C) 2026 The AviumUI Project
@@ -58,6 +57,48 @@ index 8bf4f96..6bb667a 100644
 +    </family>
 +    <alias name="noto-serif-sc-medium" to="noto-serif-sc" weight="500" />
 +    <alias name="noto-serif-sc-bold" to="noto-serif-sc" weight="700" />
++
++    <!-- 站酷庆科黄油体 (ZCOOL QingKe HuangYou) - 醒目圆角标题体 -->
++    <family customizationType="new-named-family" name="zcool-qingke-huangyou">
++        <font weight="400" style="normal">ZCOOLQingKeHuangYou-Regular.ttf</font>
++    </family>
++    <alias name="zcool-qingke-huangyou-medium" to="zcool-qingke-huangyou" weight="500" />
++    <alias name="zcool-qingke-huangyou-bold" to="zcool-qingke-huangyou" weight="700" />
++
++    <!-- 站酷小薇体 (ZCOOL XiaoWei) - 纤细秀丽清雅体 -->
++    <family customizationType="new-named-family" name="zcool-xiaowei">
++        <font weight="400" style="normal">ZCOOLXiaoWei-Regular.ttf</font>
++    </family>
++    <alias name="zcool-xiaowei-medium" to="zcool-xiaowei" weight="500" />
++    <alias name="zcool-xiaowei-bold" to="zcool-xiaowei" weight="700" />
++
++    <!-- 站酷快乐体 (ZCOOL KuaiLe) - 活泼明快趣味体 -->
++    <family customizationType="new-named-family" name="zcool-kuaile">
++        <font weight="400" style="normal">ZCOOLKuaiLe-Regular.ttf</font>
++    </family>
++    <alias name="zcool-kuaile-medium" to="zcool-kuaile" weight="500" />
++    <alias name="zcool-kuaile-bold" to="zcool-kuaile" weight="700" />
++
++    <!-- 马善政毛笔体 (Ma Shan Zheng) - 奔放写意毛笔体 -->
++    <family customizationType="new-named-family" name="mashanzheng">
++        <font weight="400" style="normal">MaShanZheng-Regular.ttf</font>
++    </family>
++    <alias name="mashanzheng-medium" to="mashanzheng" weight="500" />
++    <alias name="mashanzheng-bold" to="mashanzheng" weight="700" />
++
++    <!-- 龙藏体 (Long Cang) - 潇洒连笔行书 -->
++    <family customizationType="new-named-family" name="longcang">
++        <font weight="400" style="normal">LongCang-Regular.ttf</font>
++    </family>
++    <alias name="longcang-medium" to="longcang" weight="500" />
++    <alias name="longcang-bold" to="longcang" weight="700" />
++
++    <!-- 志莽行书 (Zhi Mang Xing) - 狂放连笔草书行书 -->
++    <family customizationType="new-named-family" name="zhimangxing">
++        <font weight="400" style="normal">ZhiMangXing-Regular.ttf</font>
++    </family>
++    <alias name="zhimangxing-medium" to="zhimangxing" weight="500" />
++    <alias name="zhimangxing-bold" to="zhimangxing" weight="700" />
  </fonts-modification>
 -- 
 2.48.1
