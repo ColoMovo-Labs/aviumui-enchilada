@@ -1777,7 +1777,7 @@ new file mode 100644
 index 00000000..11111111
 --- /dev/null
 +++ b/packages/SystemUI/src/org/avium/systemui/island/monitors/ScreenRecordEventMonitor.kt
-@@ -0,0 +1,83 @@
+@@ -0,0 +1,82 @@
 +/*
 + * Copyright (C) 2026 The AviumUI Project
 + *
@@ -1801,7 +1801,6 @@ index 00000000..11111111
 +import android.os.SystemClock
 +import com.android.systemui.dagger.SysUISingleton
 +import com.android.systemui.res.R
-+import com.android.systemui.screenrecord.RecordingController
 +import com.android.systemui.screenrecord.ScreenRecordUxController
 +import org.avium.systemui.island.model.IslandAction
 +import org.avium.systemui.island.model.IslandEvent
@@ -1811,7 +1810,7 @@ index 00000000..11111111
 +@SysUISingleton
 +class ScreenRecordEventMonitor @Inject constructor(
 +    private val context: Context,
-+    private val recordingController: RecordingController
++    private val recordingController: ScreenRecordUxController
 +) : ScreenRecordUxController.StateChangeCallback {
 +
 +    interface Callback {
