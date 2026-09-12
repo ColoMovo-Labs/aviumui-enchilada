@@ -36,12 +36,38 @@ An unofficial, experimental bring-up project of **AviumUI 16.2.x** (based on **A
 * [x] Non-functional LunarisDolby user app purged; ViPER4Android supported via KernelSU systemless module.
 * [x] Curated Chinese font collection integrated (5 OFL styles, ThemePicker compatible).
 * [x] Curated system wallpaper collection integrated (16 high-res 1440x3120 WebP wallpapers, WallpaperPicker partner app).
+* [x] Native Status Bar Capsule & Super Island (Ongoing Activity Island) integrated into SystemUI with OnePlus 6 notch adaptation and Avium Settings.
+
 
 ---
 
 ## 👤 Maintainer
 
 * **Maintainer**: LoMo 洛陌
+
+---
+
+## 🏝️ Native Status Bar Capsule & Super Island / 原生状态栏胶囊与超级岛
+
+A fully native, hardware-aware Ongoing Activity experience built directly into SystemUI for the OnePlus 6 (`enchilada`).
+
+### Key Highlights
+- **100% Native SystemUI Implementation**: Built inside `frameworks/base/packages/SystemUI`, eliminating third-party overlay services, accessibility hacks, or floating window latency.
+- **OnePlus 6 Notch Alignment**: Geometry tailored for the 1080x2280 AMOLED display and center physical cutout (366px wide, 80px high). The expanded island envelopes the notch seamlessly with pure OLED black/frosted glass, ensuring no text or controls are ever occluded.
+- **Prioritized Activity Queue**:
+  1. **Privacy & Security**: High-sensitivity indicators (mic/camera/location/recording).
+  2. **Phone Calls**: Live ongoing call pill with real-time duration chronometer and end-call action.
+  3. **Screen Recording**: Real-time recording indicator, live elapsed timer, and quick-stop control.
+  4. **Timers**: Active countdown chronometer and reset/dismiss controls.
+  5. **Charging & Dash Charge**: Real-time battery %, OnePlus Dash / Warp fast-charging detection, and transient animated pop-up.
+  6. **Headphones**: Wired 3.5mm jack & Bluetooth audio connect banner with device identification.
+  7. **Media Playback**: Live track title (marquee), artist, album artwork, dynamic 3-bar animated equalizer, and playback controls (prev/pause/next).
+  8. **Flashlight**: Active flashlight status and one-tap shutoff.
+- **Material Expressive Motion**: Smooth spring damping (`PathInterpolator(0.18, 0.9, 0.2, 1.05)`) with gesture dismiss (swipe up to collapse, horizontal swipe to cycle multiple events).
+- **SurfaceFlinger Window Blur**: Automatically detects `ro.surface_flinger.supports_background_blur`. Renders real-time RenderEffect blur when enabled, with crisp semi-translucent dark OLED fallback when disabled.
+- **Battery-Friendly (Zero Standby Overhead)**: Automatically unhooks animation loops and chronometers on screen-off via `WakefulnessLifecycle` and `KeyguardUpdateMonitor`.
+- **Customization**: Managed via `Avium Settings -> Status Bar -> Capsule & Super Island` (or `设置 -> 状态栏 -> 胶囊与超级岛`), with display mode selection (Capsule only, Island only, or Linked), per-event toggles, and blur switches.
+
 
 ---
 

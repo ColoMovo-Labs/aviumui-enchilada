@@ -1,0 +1,2344 @@
+diff --git a/packages/SystemUI/res/drawable/ic_island_call.xml b/packages/SystemUI/res/drawable/ic_island_call.xml
+new file mode 100644
+index 00000000..148ca4a3
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_island_call.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++  <path
++      android:fillColor="#FF00E676"
++      android:pathData="M20.01,15.38c-1.23,0 -2.42,-0.2 -3.53,-0.56 -0.35,-0.12 -0.74,-0.03 -1.02,0.24l-2.2,2.2c-2.83,-1.44 -5.15,-3.75 -6.59,-6.59l2.2,-2.21c0.28,-0.26 0.36,-0.65 0.25,-1C8.76,6.35 8.56,5.16 8.56,3.93 8.56,3.42 8.14,3 7.63,3H4.06C3.55,3 3,3.44 3,3.97 3,13.36 10.64,21 20.03,21c0.53,0 0.97,-0.55 0.97,-1.06v-3.56c0,-0.51 -0.42,-0.93 -0.93,-0.93z"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/ic_island_call_end.xml b/packages/SystemUI/res/drawable/ic_island_call_end.xml
+new file mode 100644
+index 00000000..c7dd8752
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_island_call_end.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++  <path
++      android:fillColor="#FFFFFFFF"
++      android:pathData="M12,9c-1.6,0 -3.15,0.25 -4.6,0.72v3.1c0,0.39 -0.23,0.74 -0.56,0.9 -0.98,0.49 -1.87,1.12 -2.66,1.85 -0.18,0.18 -0.43,0.28 -0.7,0.28 -0.28,0 -0.53,-0.11 -0.71,-0.29L0.29,13.08c-0.18,-0.17 -0.29,-0.42 -0.29,-0.7 0,-0.28 0.11,-0.53 0.29,-0.71C3.34,8.78 7.46,7 12,7s8.66,1.78 11.71,4.67c0.18,0.18 0.29,0.43 0.29,0.71 0,0.28 -0.11,0.53 -0.29,0.71l-2.48,2.48c-0.18,0.18 -0.43,0.29 -0.71,0.29 -0.27,0 -0.52,-0.11 -0.7,-0.28 -0.79,-0.74 -1.69,-1.36 -2.67,-1.85 -0.33,-0.16 -0.56,-0.5 -0.56,-0.9v-3.1C15.15,9.25 13.6,9 12,9z"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/ic_island_charging.xml b/packages/SystemUI/res/drawable/ic_island_charging.xml
+new file mode 100644
+index 00000000..bd1ee996
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_island_charging.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++  <path
++      android:fillColor="#FF00E676"
++      android:pathData="M11,21h-1l1,-7H7.5c-0.58,0 -0.57,-0.32 -0.38,-0.66c0.19,-0.34 0.05,-0.08 0.07,-0.12C8.48,10.94 10.42,7.54 13,3h1l-1,7h3.5c0.49,0 0.56,0.33 0.47,0.51l-0.07,0.15C12.96,17.55 11,21 11,21z"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/ic_island_flashlight.xml b/packages/SystemUI/res/drawable/ic_island_flashlight.xml
+new file mode 100644
+index 00000000..6fcf5ceb
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_island_flashlight.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++  <path
++      android:fillColor="#FFFFD600"
++      android:pathData="M6,2h12v3l-2,3v14H8V8L6,5V2zm4,2h4v-1h-4v1zm2,6c-1.1,0 -2,0.9 -2,2s0.9,2 2,2 2,-0.9 2,-2 -0.9,-2 -2,-2z"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/ic_island_headset.xml b/packages/SystemUI/res/drawable/ic_island_headset.xml
+new file mode 100644
+index 00000000..8cdacad8
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_island_headset.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++  <path
++      android:fillColor="#FF448AFF"
++      android:pathData="M12,1c-4.97,0 -9,4.03 -9,9v7c0,2.21 1.79,4 4,4h3v-8H5v-3c0,-3.87 3.13,-7 7,-7s7,3.13 7,7v3h-5v8h3c2.21,0 4,-1.79 4,-4v-7c0,-4.97 -4.03,-9 -9,-9z"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/ic_island_music.xml b/packages/SystemUI/res/drawable/ic_island_music.xml
+new file mode 100644
+index 00000000..59dad8f1
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_island_music.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++  <path
++      android:fillColor="#FFFFFFFF"
++      android:pathData="M12,3v10.55c-0.59,-0.34 -1.27,-0.55 -2,-0.55 -2.21,0 -4,1.79 -4,4s1.79,4 4,4 4,-1.79 4,-4V7h4V3h-6z"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/ic_island_pause.xml b/packages/SystemUI/res/drawable/ic_island_pause.xml
+new file mode 100644
+index 00000000..d0a79518
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_island_pause.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++  <path
++      android:fillColor="#FFFFFFFF"
++      android:pathData="M6,19h4V5H6v14zm8,-14v14h4V5h-4z"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/ic_island_play.xml b/packages/SystemUI/res/drawable/ic_island_play.xml
+new file mode 100644
+index 00000000..c85bcf3a
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_island_play.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++  <path
++      android:fillColor="#FFFFFFFF"
++      android:pathData="M8,5v14l11,-7z"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/ic_island_record.xml b/packages/SystemUI/res/drawable/ic_island_record.xml
+new file mode 100644
+index 00000000..327426b1
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_island_record.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++  <path
++      android:fillColor="#FFFF1744"
++      android:pathData="M12,12m-8,0a8,8 0,1 1,16 0a8,8 0,1 1,-16 0"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/ic_island_skip_next.xml b/packages/SystemUI/res/drawable/ic_island_skip_next.xml
+new file mode 100644
+index 00000000..0406e1c8
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_island_skip_next.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++  <path
++      android:fillColor="#FFFFFFFF"
++      android:pathData="M6,18l8.5,-6L6,6v12zM16,6v12h2V6h-2z"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/ic_island_skip_prev.xml b/packages/SystemUI/res/drawable/ic_island_skip_prev.xml
+new file mode 100644
+index 00000000..ad49ccea
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_island_skip_prev.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++  <path
++      android:fillColor="#FFFFFFFF"
++      android:pathData="M6,6h2v12H6zm3.5,6l8.5,6V6z"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/ic_island_timer.xml b/packages/SystemUI/res/drawable/ic_island_timer.xml
+new file mode 100644
+index 00000000..7e9dc93b
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_island_timer.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++  <path
++      android:fillColor="#FFFFAB00"
++      android:pathData="M15,1H9v2h6V1zm-4,13h2V8h-2v6zm8.03,-6.61l1.42,-1.42c-0.43,-0.51 -0.9,-0.99 -1.41,-1.41l-1.42,1.42C16.07,4.74 14.12,4 12,4c-4.97,0 -9,4.03 -9,9s4.02,9 9,9 9,-4.03 9,-9c0,-2.12 -0.74,-4.07 -1.97,-5.61zM12,20c-3.87,0 -7,-3.13 -7,-7s3.13,-7 7,-7 7,3.13 7,7 -3.13,7 -7,7z"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/status_bar_capsule_bg.xml b/packages/SystemUI/res/drawable/status_bar_capsule_bg.xml
+new file mode 100644
+index 00000000..0f9b1ed3
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/status_bar_capsule_bg.xml
+@@ -0,0 +1,6 @@
++<shape xmlns:android="http://schemas.android.com/apk/res/android"
++    android:shape="rectangle">
++    <solid android:color="#D916161A" />
++    <corners android:radius="14dp" />
++    <stroke android:width="1dp" android:color="#22FFFFFF" />
++</shape>
+diff --git a/packages/SystemUI/res/drawable/super_island_bg.xml b/packages/SystemUI/res/drawable/super_island_bg.xml
+new file mode 100644
+index 00000000..87b83b07
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/super_island_bg.xml
+@@ -0,0 +1,6 @@
++<shape xmlns:android="http://schemas.android.com/apk/res/android"
++    android:shape="rectangle">
++    <solid android:color="#F20D0D10" />
++    <corners android:radius="32dp" />
++    <stroke android:width="1dp" android:color="#28FFFFFF" />
++</shape>
+diff --git a/packages/SystemUI/res/drawable/super_island_bg_blur.xml b/packages/SystemUI/res/drawable/super_island_bg_blur.xml
+new file mode 100644
+index 00000000..5b5ddb62
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/super_island_bg_blur.xml
+@@ -0,0 +1,6 @@
++<shape xmlns:android="http://schemas.android.com/apk/res/android"
++    android:shape="rectangle">
++    <solid android:color="#B3121216" />
++    <corners android:radius="32dp" />
++    <stroke android:width="1dp" android:color="#33FFFFFF" />
++</shape>
+diff --git a/packages/SystemUI/res/layout/status_bar.xml b/packages/SystemUI/res/layout/status_bar.xml
+index 63c344cb..4532541a 100644
+--- a/packages/SystemUI/res/layout/status_bar.xml
++++ b/packages/SystemUI/res/layout/status_bar.xml
+@@ -111,6 +111,13 @@
+                         android:id="@+id/ongoing_activity_chip_secondary"
+                         android:visibility="gone"/>
+ 
++                    <org.avium.systemui.island.ui.StatusBarCapsuleView
++                        android:id="@+id/status_bar_capsule"
++                        android:layout_width="wrap_content"
++                        android:layout_height="match_parent"
++                        android:layout_gravity="center_vertical"
++                        android:visibility="gone"/>
++
+                     <com.android.systemui.statusbar.AlphaOptimizedFrameLayout
+                         android:id="@+id/notification_icon_area"
+                         android:layout_width="wrap_content"
+diff --git a/packages/SystemUI/res/layout/status_bar_capsule_view.xml b/packages/SystemUI/res/layout/status_bar_capsule_view.xml
+new file mode 100644
+index 00000000..4606e5f0
+--- /dev/null
++++ b/packages/SystemUI/res/layout/status_bar_capsule_view.xml
+@@ -0,0 +1,69 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++  ~ Copyright (C) 2026 The AviumUI Project
++  ~
++  ~ Licensed under the Apache License, Version 2.0 (the "License");
++  ~ you may not use this file except in compliance with the License.
++  ~ You may obtain a copy of the License at
++  ~
++  ~      http://www.apache.org/licenses/LICENSE-2.0
++  ~
++  ~ Unless required by applicable law or agreed to in writing, software
++  ~ distributed under the License is distributed on an "AS IS" BASIS,
++  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++  ~ See the License for the specific language governing permissions and
++  ~ limitations under the License.
++  -->
++
++<merge xmlns:android="http://schemas.android.com/apk/res/android">
++    <LinearLayout
++        android:id="@+id/capsule_container"
++        android:layout_width="wrap_content"
++        android:layout_height="24dp"
++        android:layout_gravity="center_vertical"
++        android:gravity="center_vertical"
++        android:orientation="horizontal"
++        android:background="@drawable/status_bar_capsule_bg"
++        android:paddingStart="7dp"
++        android:paddingEnd="9dp">
++
++        <ImageView
++            android:id="@+id/capsule_icon"
++            android:layout_width="13dp"
++            android:layout_height="13dp"
++            android:layout_gravity="center_vertical"
++            android:scaleType="fitCenter" />
++
++        <org.avium.systemui.island.ui.EqualizerView
++            android:id="@+id/capsule_equalizer"
++            android:layout_width="12dp"
++            android:layout_height="12dp"
++            android:layout_gravity="center_vertical"
++            android:layout_marginStart="4dp"
++            android:visibility="gone" />
++
++        <TextView
++            android:id="@+id/capsule_text"
++            android:layout_width="wrap_content"
++            android:layout_height="wrap_content"
++            android:layout_marginStart="4dp"
++            android:textSize="11sp"
++            android:textColor="#FFFFFFFF"
++            android:textStyle="bold"
++            android:singleLine="true"
++            android:ellipsize="marquee"
++            android:marqueeRepeatLimit="marquee_forever"
++            android:maxWidth="110dp" />
++
++        <Chronometer
++            android:id="@+id/capsule_chronometer"
++            android:layout_width="wrap_content"
++            android:layout_height="wrap_content"
++            android:layout_marginStart="4dp"
++            android:textSize="11sp"
++            android:textColor="#FFFFFFFF"
++            android:textStyle="bold"
++            android:singleLine="true"
++            android:visibility="gone" />
++    </LinearLayout>
++</merge>
+diff --git a/packages/SystemUI/res/layout/super_island_view.xml b/packages/SystemUI/res/layout/super_island_view.xml
+new file mode 100644
+index 00000000..bb5de96b
+--- /dev/null
++++ b/packages/SystemUI/res/layout/super_island_view.xml
+@@ -0,0 +1,188 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++  ~ Copyright (C) 2026 The AviumUI Project
++  ~
++  ~ Licensed under the Apache License, Version 2.0 (the "License");
++  ~ you may not use this file except in compliance with the License.
++  ~ You may obtain a copy of the License at
++  ~
++  ~      http://www.apache.org/licenses/LICENSE-2.0
++  ~
++  ~ Unless required by applicable law or agreed to in writing, software
++  ~ distributed under the License is distributed on an "AS IS" BASIS,
++  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++  ~ See the License for the specific language governing permissions and
++  ~ limitations under the License.
++  -->
++
++<merge xmlns:android="http://schemas.android.com/apk/res/android">
++    <FrameLayout
++        android:id="@+id/super_island_card"
++        android:layout_width="match_parent"
++        android:layout_height="wrap_content"
++        android:background="@drawable/super_island_bg"
++        android:clipToPadding="false"
++        android:paddingStart="16dp"
++        android:paddingEnd="16dp"
++        android:paddingTop="14dp"
++        android:paddingBottom="14dp">
++
++        <!-- MEDIA CONTENT -->
++        <LinearLayout
++            android:id="@+id/island_media_layout"
++            android:layout_width="match_parent"
++            android:layout_height="wrap_content"
++            android:layout_gravity="center_vertical"
++            android:gravity="center_vertical"
++            android:orientation="horizontal"
++            android:visibility="gone">
++
++            <ImageView
++                android:id="@+id/island_media_art"
++                android:layout_width="48dp"
++                android:layout_height="48dp"
++                android:scaleType="centerCrop"
++                android:background="@drawable/status_bar_capsule_bg"
++                android:contentDescription="@string/avium_chip_notification_title" />
++
++            <LinearLayout
++                android:layout_width="0dp"
++                android:layout_height="wrap_content"
++                android:layout_weight="1"
++                android:layout_marginStart="12dp"
++                android:layout_marginEnd="8dp"
++                android:orientation="vertical">
++
++                <TextView
++                    android:id="@+id/island_media_title"
++                    android:layout_width="wrap_content"
++                    android:layout_height="wrap_content"
++                    android:textColor="#FFFFFFFF"
++                    android:textSize="15sp"
++                    android:textStyle="bold"
++                    android:singleLine="true"
++                    android:ellipsize="marquee"
++                    android:marqueeRepeatLimit="marquee_forever" />
++
++                <TextView
++                    android:id="@+id/island_media_artist"
++                    android:layout_width="wrap_content"
++                    android:layout_height="wrap_content"
++                    android:textColor="#FFB0B0B4"
++                    android:textSize="13sp"
++                    android:singleLine="true"
++                    android:ellipsize="end" />
++
++                <org.avium.systemui.island.ui.EqualizerView
++                    android:id="@+id/island_media_equalizer"
++                    android:layout_width="28dp"
++                    android:layout_height="10dp"
++                    android:layout_marginTop="2dp" />
++            </LinearLayout>
++
++            <LinearLayout
++                android:layout_width="wrap_content"
++                android:layout_height="wrap_content"
++                android:gravity="center_vertical"
++                android:orientation="horizontal">
++
++                <ImageView
++                    android:id="@+id/island_action_prev"
++                    android:layout_width="32dp"
++                    android:layout_height="32dp"
++                    android:padding="4dp"
++                    android:src="@drawable/ic_island_skip_prev"
++                    android:background="?android:attr/selectableItemBackgroundBorderless"
++                    android:contentDescription="Previous" />
++
++                <ImageView
++                    android:id="@+id/island_action_play_pause"
++                    android:layout_width="40dp"
++                    android:layout_height="40dp"
++                    android:layout_marginStart="6dp"
++                    android:layout_marginEnd="6dp"
++                    android:padding="6dp"
++                    android:src="@drawable/ic_island_pause"
++                    android:background="@drawable/status_bar_capsule_bg"
++                    android:contentDescription="Play/Pause" />
++
++                <ImageView
++                    android:id="@+id/island_action_next"
++                    android:layout_width="32dp"
++                    android:layout_height="32dp"
++                    android:padding="4dp"
++                    android:src="@drawable/ic_island_skip_next"
++                    android:background="?android:attr/selectableItemBackgroundBorderless"
++                    android:contentDescription="Next" />
++            </LinearLayout>
++        </LinearLayout>
++
++        <!-- GENERIC / CALL / CHARGING / HEADSET CONTENT -->
++        <LinearLayout
++            android:id="@+id/island_generic_layout"
++            android:layout_width="match_parent"
++            android:layout_height="wrap_content"
++            android:layout_gravity="center_vertical"
++            android:gravity="center_vertical"
++            android:orientation="horizontal"
++            android:visibility="gone">
++
++            <ImageView
++                android:id="@+id/island_generic_icon"
++                android:layout_width="36dp"
++                android:layout_height="36dp"
++                android:scaleType="fitCenter"
++                android:contentDescription="@string/avium_chip_notification_title" />
++
++            <LinearLayout
++                android:layout_width="0dp"
++                android:layout_height="wrap_content"
++                android:layout_weight="1"
++                android:layout_marginStart="14dp"
++                android:layout_marginEnd="8dp"
++                android:orientation="vertical">
++
++                <TextView
++                    android:id="@+id/island_generic_title"
++                    android:layout_width="wrap_content"
++                    android:layout_height="wrap_content"
++                    android:textColor="#FFFFFFFF"
++                    android:textSize="16sp"
++                    android:textStyle="bold"
++                    android:singleLine="true" />
++
++                <TextView
++                    android:id="@+id/island_generic_subtitle"
++                    android:layout_width="wrap_content"
++                    android:layout_height="wrap_content"
++                    android:textColor="#FFB0B0B4"
++                    android:textSize="13sp"
++                    android:singleLine="true" />
++
++                <Chronometer
++                    android:id="@+id/island_generic_chronometer"
++                    android:layout_width="wrap_content"
++                    android:layout_height="wrap_content"
++                    android:textColor="#FF00E676"
++                    android:textSize="14sp"
++                    android:textStyle="bold"
++                    android:singleLine="true"
++                    android:visibility="gone" />
++            </LinearLayout>
++
++            <TextView
++                android:id="@+id/island_generic_action_btn"
++                android:layout_width="wrap_content"
++                android:layout_height="32dp"
++                android:gravity="center"
++                android:paddingStart="12dp"
++                android:paddingEnd="12dp"
++                android:background="@drawable/status_bar_capsule_bg"
++                android:textColor="#FFFFFFFF"
++                android:textSize="12sp"
++                android:textStyle="bold"
++                android:visibility="gone" />
++        </LinearLayout>
++
++    </FrameLayout>
++</merge>
+diff --git a/packages/SystemUI/src/org/avium/systemui/di/AviumSystemUIModule.kt b/packages/SystemUI/src/org/avium/systemui/di/AviumSystemUIModule.kt
+index 7763d0ba..62873ec0 100644
+--- a/packages/SystemUI/src/org/avium/systemui/di/AviumSystemUIModule.kt
++++ b/packages/SystemUI/src/org/avium/systemui/di/AviumSystemUIModule.kt
+@@ -28,6 +28,7 @@ import dagger.Module
+ import dagger.Provides
+ import org.avium.systemui.aod.di.AviumAodModule
+ import org.avium.systemui.chips.di.AviumChipsModule
++import org.avium.systemui.island.di.AviumIslandModule
+ import org.avium.systemui.keyguard.AviumMusicLockscreenController
+ import org.avium.systemui.lockscreen.di.AviumLockscreenModule
+ import org.avium.systemui.mistouch.di.MistouchModule
+@@ -35,6 +36,7 @@ import org.avium.systemui.mistouch.di.MistouchModule
+ @Module(includes = [
+     AviumAodModule::class,
+     AviumChipsModule::class,
++    AviumIslandModule::class,
+     AviumLockscreenModule::class,
+     MistouchModule::class
+ ])
+diff --git a/packages/SystemUI/src/org/avium/systemui/island/IslandController.kt b/packages/SystemUI/src/org/avium/systemui/island/IslandController.kt
+new file mode 100644
+index 00000000..7feea902
+--- /dev/null
++++ b/packages/SystemUI/src/org/avium/systemui/island/IslandController.kt
+@@ -0,0 +1,191 @@
++/*
++ * Copyright (C) 2026 The AviumUI Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.avium.systemui.island
++
++import android.content.Context
++import android.os.Handler
++import android.os.Looper
++import com.android.systemui.CoreStartable
++import com.android.systemui.dagger.SysUISingleton
++import org.avium.systemui.island.model.IslandEvent
++import org.avium.systemui.island.model.IslandEventType
++import org.avium.systemui.island.monitors.CallEventMonitor
++import org.avium.systemui.island.monitors.ChargingEventMonitor
++import org.avium.systemui.island.monitors.FlashlightEventMonitor
++import org.avium.systemui.island.monitors.HeadsetEventMonitor
++import org.avium.systemui.island.monitors.MediaEventMonitor
++import org.avium.systemui.island.monitors.ScreenRecordEventMonitor
++import org.avium.systemui.island.ui.StatusBarCapsuleView
++import java.util.concurrent.ConcurrentHashMap
++import javax.inject.Inject
++
++@SysUISingleton
++class IslandController @Inject constructor(
++    private val context: Context,
++    private val islandSettings: IslandSettings,
++    private val windowController: IslandWindowController,
++    private val chargingMonitor: ChargingEventMonitor,
++    private val mediaMonitor: MediaEventMonitor,
++    private val headsetMonitor: HeadsetEventMonitor,
++    private val callMonitor: CallEventMonitor,
++    private val screenRecordMonitor: ScreenRecordEventMonitor,
++    private val flashlightMonitor: FlashlightEventMonitor
++) : CoreStartable {
++
++    companion object {
++        var instance: IslandController? = null
++            private set
++    }
++
++    private val mainHandler = Handler(Looper.getMainLooper())
++    private val activeEvents = ConcurrentHashMap<IslandEventType, IslandEvent>()
++    private var capsuleView: StatusBarCapsuleView? = null
++    private var currentActiveEvent: IslandEvent? = null
++
++    init {
++        instance = this
++    }
++
++    override fun start() {
++        islandSettings.start()
++        windowController.start()
++
++        islandSettings.addListener {
++            mainHandler.post { updateAll() }
++        }
++
++        // Monitors callbacks
++        val chargingCallback = object : ChargingEventMonitor.Callback {
++            override fun onEventUpdated(event: IslandEvent) { handleEventUpdated(event) }
++            override fun onEventDismissed(id: String) { handleEventDismissed(IslandEventType.CHARGING) }
++        }
++        chargingMonitor.start(chargingCallback)
++
++        val mediaCallback = object : MediaEventMonitor.Callback {
++            override fun onEventUpdated(event: IslandEvent) { handleEventUpdated(event) }
++            override fun onEventDismissed(id: String) { handleEventDismissed(IslandEventType.MEDIA) }
++        }
++        mediaMonitor.start(mediaCallback)
++
++        val headsetCallback = object : HeadsetEventMonitor.Callback {
++            override fun onEventUpdated(event: IslandEvent) { handleEventUpdated(event) }
++            override fun onEventDismissed(id: String) { handleEventDismissed(IslandEventType.HEADSET) }
++        }
++        headsetMonitor.start(headsetCallback)
++
++        val callCallback = object : CallEventMonitor.Callback {
++            override fun onEventUpdated(event: IslandEvent) { handleEventUpdated(event) }
++            override fun onEventDismissed(id: String) { handleEventDismissed(IslandEventType.CALL) }
++        }
++        callMonitor.start(callCallback)
++
++        val screenRecordCallback = object : ScreenRecordEventMonitor.Callback {
++            override fun onEventUpdated(event: IslandEvent) { handleEventUpdated(event) }
++            override fun onEventDismissed(id: String) { handleEventDismissed(IslandEventType.RECORDING) }
++        }
++        screenRecordMonitor.start(screenRecordCallback)
++
++        val flashlightCallback = object : FlashlightEventMonitor.Callback {
++            override fun onEventUpdated(event: IslandEvent) { handleEventUpdated(event) }
++            override fun onEventDismissed(id: String) { handleEventDismissed(IslandEventType.FLASHLIGHT) }
++        }
++        flashlightMonitor.start(flashlightCallback)
++    }
++
++    fun setCapsuleView(view: StatusBarCapsuleView?) {
++        capsuleView = view
++        mainHandler.post { updateCapsule() }
++    }
++
++    private fun handleEventUpdated(event: IslandEvent) {
++        if (!islandSettings.isEventEnabled(event.type)) {
++            activeEvents.remove(event.type)
++            mainHandler.post { updateAll() }
++            return
++        }
++
++        activeEvents[event.type] = event
++        mainHandler.post {
++            updateAll()
++            if (event.autoDismissDurationMs > 0L && islandSettings.isIslandEnabled) {
++                windowController.showEvent(event, autoExpand = true)
++            }
++        }
++    }
++
++    private fun handleEventDismissed(type: IslandEventType) {
++        activeEvents.remove(type)
++        mainHandler.post { updateAll() }
++    }
++
++    private fun updateAll() {
++        val top = getTopEvent()
++        currentActiveEvent = top
++        updateCapsule()
++        if (top == null) {
++            windowController.collapse()
++        }
++    }
++
++    private fun updateCapsule() {
++        val top = currentActiveEvent
++        if (islandSettings.isCapsuleEnabled && top != null) {
++            capsuleView?.bindEvent(top)
++        } else {
++            capsuleView?.bindEvent(null)
++        }
++    }
++
++    private fun getTopEvent(): IslandEvent? {
++        return activeEvents.values
++            .filter { islandSettings.isEventEnabled(it.type) }
++            .minByOrNull { it.priority }
++    }
++
++    fun onCapsuleClicked() {
++        val top = currentActiveEvent ?: getTopEvent() ?: return
++        if (islandSettings.isIslandEnabled) {
++            windowController.showEvent(top, autoExpand = true)
++        } else {
++            top.intent?.let {
++                try { it.send() } catch (ignored: Throwable) {}
++            }
++        }
++    }
++
++    fun collapseIsland() {
++        windowController.collapse()
++    }
++
++    fun cycleEvent(forward: Boolean) {
++        val events = activeEvents.values
++            .filter { islandSettings.isEventEnabled(it.type) }
++            .sortedBy { it.priority }
++        if (events.size <= 1) return
++
++        val currentIndex = events.indexOf(currentActiveEvent)
++        val nextIndex = if (forward) {
++            (currentIndex + 1) % events.size
++        } else {
++            if (currentIndex <= 0) events.size - 1 else currentIndex - 1
++        }
++        val nextEvent = events[nextIndex]
++        currentActiveEvent = nextEvent
++        updateCapsule()
++        windowController.showEvent(nextEvent, autoExpand = false)
++    }
++}
+diff --git a/packages/SystemUI/src/org/avium/systemui/island/IslandSettings.kt b/packages/SystemUI/src/org/avium/systemui/island/IslandSettings.kt
+new file mode 100644
+index 00000000..2441e53d
+--- /dev/null
++++ b/packages/SystemUI/src/org/avium/systemui/island/IslandSettings.kt
+@@ -0,0 +1,96 @@
++/*
++ * Copyright (C) 2026 The AviumUI Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.avium.systemui.island
++
++import android.content.Context
++import android.database.ContentObserver
++import android.net.Uri
++import android.os.Handler
++import android.os.Looper
++import android.os.UserHandle
++import android.provider.Settings
++import com.android.systemui.dagger.SysUISingleton
++import org.avium.systemui.island.model.IslandEventType
++import javax.inject.Inject
++
++@SysUISingleton
++class IslandSettings @Inject constructor(
++    private val context: Context
++) {
++    companion object {
++        const val KEY_CAPSULE_ENABLED = "status_bar_capsule_enabled"
++        const val KEY_ISLAND_ENABLED = "super_island_enabled"
++        const val KEY_DISPLAY_MODE = "island_display_mode" // 0: Both, 1: Capsule only, 2: Island only
++        const val KEY_BLUR_ENABLED = "island_blur_enabled"
++
++        const val MODE_BOTH = 0
++        const val MODE_CAPSULE_ONLY = 1
++        const val MODE_ISLAND_ONLY = 2
++    }
++
++    private val resolver = context.contentResolver
++    private val listeners = mutableListOf<() -> Unit>()
++
++    private val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
++        override fun onChange(selfChange: Boolean, uri: Uri?) {
++            listeners.forEach { it.invoke() }
++        }
++    }
++
++    fun start() {
++        registerKey(KEY_CAPSULE_ENABLED)
++        registerKey(KEY_ISLAND_ENABLED)
++        registerKey(KEY_DISPLAY_MODE)
++        registerKey(KEY_BLUR_ENABLED)
++        for (type in IslandEventType.values()) {
++            registerKey(type.settingKey)
++        }
++    }
++
++    private fun registerKey(key: String) {
++        val uri = Settings.System.getUriFor(key) ?: return
++        resolver.registerContentObserver(uri, false, observer, UserHandle.USER_ALL)
++    }
++
++    fun addListener(listener: () -> Unit) {
++        listeners.add(listener)
++    }
++
++    val isCapsuleEnabled: Boolean
++        get() {
++            val global = Settings.System.getIntForUser(resolver, KEY_CAPSULE_ENABLED, 1, UserHandle.USER_CURRENT) == 1
++            val mode = displayMode
++            return global && (mode == MODE_BOTH || mode == MODE_CAPSULE_ONLY)
++        }
++
++    val isIslandEnabled: Boolean
++        get() {
++            val global = Settings.System.getIntForUser(resolver, KEY_ISLAND_ENABLED, 1, UserHandle.USER_CURRENT) == 1
++            val mode = displayMode
++            return global && (mode == MODE_BOTH || mode == MODE_ISLAND_ONLY)
++        }
++
++    val displayMode: Int
++        get() = Settings.System.getIntForUser(resolver, KEY_DISPLAY_MODE, MODE_BOTH, UserHandle.USER_CURRENT)
++
++    val isBlurEnabled: Boolean
++        get() = Settings.System.getIntForUser(resolver, KEY_BLUR_ENABLED, 1, UserHandle.USER_CURRENT) == 1
++
++    fun isEventEnabled(type: IslandEventType): Boolean {
++        return Settings.System.getIntForUser(resolver, type.settingKey, 1, UserHandle.USER_CURRENT) == 1
++    }
++}
+diff --git a/packages/SystemUI/src/org/avium/systemui/island/IslandWindowController.kt b/packages/SystemUI/src/org/avium/systemui/island/IslandWindowController.kt
+new file mode 100644
+index 00000000..7f4b9f34
+--- /dev/null
++++ b/packages/SystemUI/src/org/avium/systemui/island/IslandWindowController.kt
+@@ -0,0 +1,259 @@
++/*
++ * Copyright (C) 2026 The AviumUI Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.avium.systemui.island
++
++import android.animation.Animator
++import android.animation.AnimatorListenerAdapter
++import android.animation.ValueAnimator
++import android.content.Context
++import android.content.res.Configuration
++import android.graphics.PixelFormat
++import android.graphics.Rect
++import android.graphics.RenderEffect
++import android.graphics.Shader
++import android.os.Build
++import android.os.Handler
++import android.os.Looper
++import android.os.SystemProperties
++import android.view.Gravity
++import android.view.MotionEvent
++import android.view.View
++import android.view.WindowManager
++import android.view.animation.PathInterpolator
++import android.widget.FrameLayout
++import com.android.keyguard.KeyguardUpdateMonitor
++import com.android.systemui.dagger.SysUISingleton
++import com.android.systemui.keyguard.WakefulnessLifecycle
++import com.android.systemui.res.R
++import org.avium.systemui.island.model.IslandEvent
++import org.avium.systemui.island.ui.SuperIslandView
++import javax.inject.Inject
++
++@SysUISingleton
++class IslandWindowController @Inject constructor(
++    private val context: Context,
++    private val keyguardUpdateMonitor: KeyguardUpdateMonitor,
++    private val wakefulnessLifecycle: WakefulnessLifecycle,
++    private val islandSettings: IslandSettings
++) {
++
++    private val windowManager = context.getSystemService(WindowManager::class.java)
++    private val mainHandler = Handler(Looper.getMainLooper())
++
++    private var overlayLayout: FrameLayout? = null
++    private var islandView: SuperIslandView? = null
++    private var isWindowAdded = false
++    private var isExpanded = false
++    private var currentAnimator: ValueAnimator? = null
++    private var autoCollapseRunnable: Runnable? = null
++
++    private val springInterpolator = PathInterpolator(0.18f, 0.9f, 0.2f, 1.05f)
++    private val collapseInterpolator = PathInterpolator(0.35f, 0f, 0.2f, 1f)
++
++    private val wakefulnessObserver = object : WakefulnessLifecycle.Observer {
++        override fun onStartedGoingToSleep() {
++            collapseImmediately()
++        }
++    }
++
++    fun start() {
++        wakefulnessLifecycle.addObserver(wakefulnessObserver)
++    }
++
++    private fun ensureWindow() {
++        if (isWindowAdded && overlayLayout != null) return
++
++        val view = object : FrameLayout(context) {
++            override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
++                if (!isExpanded) return super.dispatchTouchEvent(ev)
++                val card = islandView?.card ?: return super.dispatchTouchEvent(ev)
++                val rect = Rect()
++                card.getGlobalVisibleRect(rect)
++                if (ev.action == MotionEvent.ACTION_DOWN && !rect.contains(ev.x.toInt(), ev.y.toInt())) {
++                    collapse()
++                    return true
++                }
++                return super.dispatchTouchEvent(ev)
++            }
++        }
++        overlayLayout = view
++
++        val superIsland = SuperIslandView(context)
++        islandView = superIsland
++
++        val cardLp = FrameLayout.LayoutParams(
++            FrameLayout.LayoutParams.WRAP_CONTENT,
++            FrameLayout.LayoutParams.WRAP_CONTENT
++        ).apply {
++            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
++            topMargin = dpToPx(6)
++        }
++        view.addView(superIsland, cardLp)
++        view.visibility = View.GONE
++
++        val lp = WindowManager.LayoutParams(
++            WindowManager.LayoutParams.MATCH_PARENT,
++            WindowManager.LayoutParams.WRAP_CONTENT,
++            WindowManager.LayoutParams.TYPE_STATUS_BAR_SUB_PANEL,
++            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
++                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
++                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
++                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
++            PixelFormat.TRANSLUCENT
++        ).apply {
++            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
++            layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
++            title = "SuperIslandOverlay"
++        }
++
++        try {
++            windowManager?.addView(view, lp)
++            isWindowAdded = true
++        } catch (ignored: Throwable) {}
++    }
++
++    fun showEvent(event: IslandEvent, autoExpand: Boolean) {
++        if (!islandSettings.isIslandEnabled) return
++        ensureWindow()
++        val island = islandView ?: return
++        val overlay = overlayLayout ?: return
++
++        island.bindEvent(event)
++        updateBackdropBlur(island.card)
++
++        if (autoExpand || isExpanded) {
++            expand(event.autoDismissDurationMs)
++        }
++    }
++
++    fun expand(autoDismissDurationMs: Long = 0L) {
++        if (!islandSettings.isIslandEnabled) return
++        ensureWindow()
++        val island = islandView ?: return
++        val overlay = overlayLayout ?: return
++
++        autoCollapseRunnable?.let { mainHandler.removeCallbacks(it) }
++        autoCollapseRunnable = null
++
++        val displayMetrics = context.resources.displayMetrics
++        val isPortrait = context.resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
++
++        val screenWidth = displayMetrics.widthPixels
++        val targetWidth = if (isPortrait) (screenWidth * 0.88f).toInt().coerceAtMost(dpToPx(380)) else dpToPx(340)
++        val targetHeight = if (isPortrait) dpToPx(78) else dpToPx(66)
++
++        val card = island.card
++        card.visibility = View.VISIBLE
++        overlay.visibility = View.VISIBLE
++
++        currentAnimator?.cancel()
++        val anim = ValueAnimator.ofFloat(if (isExpanded) 1f else 0f, 1f).apply {
++            duration = 360L
++            interpolator = springInterpolator
++            addUpdateListener { va ->
++                val progress = va.animatedValue as Float
++                val w = (dpToPx(140) + (targetWidth - dpToPx(140)) * progress).toInt()
++                val h = (dpToPx(32) + (targetHeight - dpToPx(32)) * progress).toInt()
++                card.layoutParams.width = w
++                card.layoutParams.height = h
++                card.alpha = 0.5f + 0.5f * progress
++                card.scaleX = 0.9f + 0.1f * progress
++                card.scaleY = 0.9f + 0.1f * progress
++                card.requestLayout()
++            }
++            addListener(object : AnimatorListenerAdapter() {
++                override fun onAnimationEnd(animation: Animator) {
++                    isExpanded = true
++                }
++            })
++            start()
++        }
++        currentAnimator = anim
++
++        if (autoDismissDurationMs > 0L) {
++            val runnable = Runnable { collapse() }
++            autoCollapseRunnable = runnable
++            mainHandler.postDelayed(runnable, autoDismissDurationMs)
++        }
++    }
++
++    fun collapse() {
++        if (!isExpanded) return
++        val island = islandView ?: return
++        val overlay = overlayLayout ?: return
++
++        autoCollapseRunnable?.let { mainHandler.removeCallbacks(it) }
++        autoCollapseRunnable = null
++
++        val card = island.card
++        val startWidth = card.width
++        val startHeight = card.height
++
++        currentAnimator?.cancel()
++        val anim = ValueAnimator.ofFloat(1f, 0f).apply {
++            duration = 240L
++            interpolator = collapseInterpolator
++            addUpdateListener { va ->
++                val progress = va.animatedValue as Float
++                val w = (dpToPx(120) + (startWidth - dpToPx(120)) * progress).toInt()
++                val h = (dpToPx(28) + (startHeight - dpToPx(28)) * progress).toInt()
++                card.layoutParams.width = w
++                card.layoutParams.height = h
++                card.alpha = progress
++                card.scaleX = 0.85f + 0.15f * progress
++                card.scaleY = 0.85f + 0.15f * progress
++                card.requestLayout()
++            }
++            addListener(object : AnimatorListenerAdapter() {
++                override fun onAnimationEnd(animation: Animator) {
++                    isExpanded = false
++                    overlay.visibility = View.GONE
++                }
++            })
++            start()
++        }
++        currentAnimator = anim
++    }
++
++    fun collapseImmediately() {
++        autoCollapseRunnable?.let { mainHandler.removeCallbacks(it) }
++        autoCollapseRunnable = null
++        currentAnimator?.cancel()
++        isExpanded = false
++        overlayLayout?.visibility = View.GONE
++    }
++
++    private fun updateBackdropBlur(view: View) {
++        val supportsBlur = SystemProperties.getBoolean("ro.surface_flinger.supports_background_blur", false)
++        val blurEnabled = islandSettings.isBlurEnabled
++        if (supportsBlur && blurEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
++            try {
++                view.setRenderEffect(RenderEffect.createBlurEffect(50f, 50f, Shader.TileMode.CLAMP))
++                view.setBackgroundResource(R.drawable.super_island_bg_blur)
++                return
++            } catch (ignored: Throwable) {}
++        }
++        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
++            try { view.setRenderEffect(null) } catch (ignored: Throwable) {}
++        }
++        view.setBackgroundResource(R.drawable.super_island_bg)
++    }
++
++    private fun dpToPx(dp: Int): Int {
++        return (dp * context.resources.displayMetrics.density).toInt()
++    }
++}
+diff --git a/packages/SystemUI/src/org/avium/systemui/island/di/AviumIslandModule.kt b/packages/SystemUI/src/org/avium/systemui/island/di/AviumIslandModule.kt
+new file mode 100644
+index 00000000..ff31eb98
+--- /dev/null
++++ b/packages/SystemUI/src/org/avium/systemui/island/di/AviumIslandModule.kt
+@@ -0,0 +1,32 @@
++/*
++ * Copyright (C) 2026 The AviumUI Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.avium.systemui.island.di
++
++import com.android.systemui.CoreStartable
++import dagger.Binds
++import dagger.Module
++import dagger.multibindings.ClassKey
++import dagger.multibindings.IntoMap
++import org.avium.systemui.island.IslandController
++
++@Module
++abstract class AviumIslandModule {
++    @Binds
++    @IntoMap
++    @ClassKey(IslandController::class)
++    abstract fun bindIslandController(controller: IslandController): CoreStartable
++}
+diff --git a/packages/SystemUI/src/org/avium/systemui/island/model/IslandEvent.kt b/packages/SystemUI/src/org/avium/systemui/island/model/IslandEvent.kt
+new file mode 100644
+index 00000000..c5d5e469
+--- /dev/null
++++ b/packages/SystemUI/src/org/avium/systemui/island/model/IslandEvent.kt
+@@ -0,0 +1,46 @@
++/*
++ * Copyright (C) 2026 The AviumUI Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.avium.systemui.island.model
++
++import android.app.PendingIntent
++import android.graphics.Bitmap
++import android.graphics.drawable.Drawable
++
++data class IslandAction(
++    val iconResId: Int,
++    val contentDescription: String,
++    val actionIntent: PendingIntent? = null,
++    val actionRunnable: Runnable? = null
++)
++
++data class IslandEvent(
++    val id: String,
++    val type: IslandEventType,
++    val title: String,
++    val subtitle: String? = null,
++    val iconResId: Int = 0,
++    val iconDrawable: Drawable? = null,
++    val customBitmap: Bitmap? = null,
++    val chronometerBase: Long = 0L,
++    val isChronometerCountdown: Boolean = false,
++    val intent: PendingIntent? = null,
++    val autoDismissDurationMs: Long = 0L,
++    val isPersistent: Boolean = true,
++    val actions: List<IslandAction> = emptyList()
++) {
++    val priority: Int get() = type.priority
++}
+diff --git a/packages/SystemUI/src/org/avium/systemui/island/model/IslandEventType.kt b/packages/SystemUI/src/org/avium/systemui/island/model/IslandEventType.kt
+new file mode 100644
+index 00000000..e1282e62
+--- /dev/null
++++ b/packages/SystemUI/src/org/avium/systemui/island/model/IslandEventType.kt
+@@ -0,0 +1,33 @@
++/*
++ * Copyright (C) 2026 The AviumUI Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.avium.systemui.island.model
++
++/**
++ * Ongoing activity events supported by Status Bar Capsule and Super Island.
++ * Priority determines display ordering when multiple events are active (1 is highest).
++ */
++enum class IslandEventType(val priority: Int, val settingKey: String) {
++    PRIVACY(1, "island_event_privacy"),
++    CALL(2, "island_event_call"),
++    RECORDING(3, "island_event_recording"),
++    TIMER(4, "island_event_timer"),
++    CHARGING(5, "island_event_charging"),
++    HEADSET(6, "island_event_headset"),
++    MEDIA(7, "island_event_media"),
++    FLASHLIGHT(8, "island_event_flashlight"),
++    CLOCK(9, "island_event_clock");
++}
+diff --git a/packages/SystemUI/src/org/avium/systemui/island/monitors/CallEventMonitor.kt b/packages/SystemUI/src/org/avium/systemui/island/monitors/CallEventMonitor.kt
+new file mode 100644
+index 00000000..6af3a806
+--- /dev/null
++++ b/packages/SystemUI/src/org/avium/systemui/island/monitors/CallEventMonitor.kt
+@@ -0,0 +1,90 @@
++/*
++ * Copyright (C) 2026 The AviumUI Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.avium.systemui.island.monitors
++
++import android.content.Context
++import android.os.SystemClock
++import android.telecom.TelecomManager
++import android.telephony.TelephonyCallback
++import android.telephony.TelephonyManager
++import com.android.systemui.dagger.SysUISingleton
++import com.android.systemui.res.R
++import org.avium.systemui.island.model.IslandAction
++import org.avium.systemui.island.model.IslandEvent
++import org.avium.systemui.island.model.IslandEventType
++import javax.inject.Inject
++
++@SysUISingleton
++class CallEventMonitor @Inject constructor(
++    private val context: Context
++) {
++
++    interface Callback {
++        fun onEventUpdated(event: IslandEvent)
++        fun onEventDismissed(id: String)
++    }
++
++    private var callback: Callback? = null
++    private var callStartTime = 0L
++
++    private val telephonyCallback = object : TelephonyCallback(), TelephonyCallback.CallStateListener {
++        override fun onCallStateChanged(state: Int) {
++            when (state) {
++                TelephonyManager.CALL_STATE_OFFHOOK -> {
++                    if (callStartTime == 0L) {
++                        callStartTime = SystemClock.elapsedRealtime()
++                    }
++                    val actions = listOf(
++                        IslandAction(
++                            iconResId = R.drawable.ic_island_call_end,
++                            contentDescription = "End Call",
++                            actionRunnable = {
++                                try {
++                                    val telecom = context.getSystemService(TelecomManager::class.java)
++                                    telecom?.endCall()
++                                } catch (ignored: Throwable) {}
++                            }
++                        )
++                    )
++                    val event = IslandEvent(
++                        id = "call",
++                        type = IslandEventType.CALL,
++                        title = "Active Call",
++                        subtitle = "Ongoing voice call",
++                        iconResId = R.drawable.ic_island_call,
++                        chronometerBase = callStartTime,
++                        isPersistent = true,
++                        actions = actions
++                    )
++                    callback?.onEventUpdated(event)
++                }
++                TelephonyManager.CALL_STATE_IDLE -> {
++                    callStartTime = 0L
++                    callback?.onEventDismissed("call")
++                }
++            }
++        }
++    }
++
++    fun start(callback: Callback) {
++        this.callback = callback
++        try {
++            val telephonyManager = context.getSystemService(TelephonyManager::class.java)
++            telephonyManager?.registerTelephonyCallback(context.mainExecutor, telephonyCallback)
++        } catch (ignored: Throwable) {}
++    }
++}
+diff --git a/packages/SystemUI/src/org/avium/systemui/island/monitors/ChargingEventMonitor.kt b/packages/SystemUI/src/org/avium/systemui/island/monitors/ChargingEventMonitor.kt
+new file mode 100644
+index 00000000..4eb55755
+--- /dev/null
++++ b/packages/SystemUI/src/org/avium/systemui/island/monitors/ChargingEventMonitor.kt
+@@ -0,0 +1,99 @@
++/*
++ * Copyright (C) 2026 The AviumUI Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.avium.systemui.island.monitors
++
++import android.content.BroadcastReceiver
++import android.content.Context
++import android.content.Intent
++import android.content.IntentFilter
++import android.os.BatteryManager
++import com.android.systemui.dagger.SysUISingleton
++import com.android.systemui.res.R
++import com.android.systemui.statusbar.policy.BatteryController
++import org.avium.systemui.island.model.IslandEvent
++import org.avium.systemui.island.model.IslandEventType
++import javax.inject.Inject
++
++@SysUISingleton
++class ChargingEventMonitor @Inject constructor(
++    private val context: Context,
++    private val batteryController: BatteryController
++) : BatteryController.BatteryStateChangeCallback {
++
++    interface Callback {
++        fun onEventUpdated(event: IslandEvent)
++        fun onEventDismissed(id: String)
++    }
++
++    private var callback: Callback? = null
++    private var lastPluggedIn = false
++    private var isFastCharging = false
++
++    private val batteryReceiver = object : BroadcastReceiver() {
++        override fun onReceive(context: Context?, intent: Intent?) {
++            intent ?: return
++            if (Intent.ACTION_BATTERY_CHANGED == intent.action) {
++                val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
++                val plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0
++                val chargeSpeed = intent.getIntExtra("charge_counter", 0)
++                val fastStatus = intent.getIntExtra("fastcharge_status", 0)
++                isFastCharging = fastStatus > 0 || chargeSpeed > 2000000
++
++                val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
++                val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
++                val batteryPct = if (level >= 0 && scale > 0) (level * 100 / scale) else level
++
++                if (plugged) {
++                    notifyCharging(batteryPct, isFastCharging, triggerExpand = !lastPluggedIn)
++                } else if (lastPluggedIn) {
++                    callback?.onEventDismissed("charging")
++                }
++                lastPluggedIn = plugged
++            }
++        }
++    }
++
++    fun start(callback: Callback) {
++        this.callback = callback
++        batteryController.addCallback(this)
++        val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
++        context.registerReceiver(batteryReceiver, filter)
++    }
++
++    override fun onBatteryLevelChanged(level: Int, pluggedIn: Boolean, charging: Boolean) {
++        if (pluggedIn) {
++            notifyCharging(level, isFastCharging, triggerExpand = !lastPluggedIn)
++        } else if (lastPluggedIn) {
++            callback?.onEventDismissed("charging")
++        }
++        lastPluggedIn = pluggedIn
++    }
++
++    private fun notifyCharging(level: Int, fast: Boolean, triggerExpand: Boolean) {
++        val label = if (fast) "Dash Charge" else "Charging"
++        val event = IslandEvent(
++            id = "charging",
++            type = IslandEventType.CHARGING,
++            title = "$level%",
++            subtitle = "$label • Battery",
++            iconResId = R.drawable.ic_island_charging,
++            autoDismissDurationMs = if (triggerExpand) 3500L else 0L,
++            isPersistent = true
++        )
++        callback?.onEventUpdated(event)
++    }
++}
+diff --git a/packages/SystemUI/src/org/avium/systemui/island/monitors/FlashlightEventMonitor.kt b/packages/SystemUI/src/org/avium/systemui/island/monitors/FlashlightEventMonitor.kt
+new file mode 100644
+index 00000000..82a5fead
+--- /dev/null
++++ b/packages/SystemUI/src/org/avium/systemui/island/monitors/FlashlightEventMonitor.kt
+@@ -0,0 +1,84 @@
++/*
++ * Copyright (C) 2026 The AviumUI Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.avium.systemui.island.monitors
++
++import android.content.Context
++import com.android.systemui.dagger.SysUISingleton
++import com.android.systemui.res.R
++import com.android.systemui.statusbar.policy.FlashlightController
++import org.avium.systemui.island.model.IslandAction
++import org.avium.systemui.island.model.IslandEvent
++import org.avium.systemui.island.model.IslandEventType
++import javax.inject.Inject
++
++@SysUISingleton
++class FlashlightEventMonitor @Inject constructor(
++    private val context: Context,
++    private val flashlightController: FlashlightController
++) : FlashlightController.FlashlightListener {
++
++    interface Callback {
++        fun onEventUpdated(event: IslandEvent)
++        fun onEventDismissed(id: String)
++    }
++
++    private var callback: Callback? = null
++
++    fun start(callback: Callback) {
++        this.callback = callback
++        flashlightController.addCallback(this)
++        if (flashlightController.isEnabled) {
++            onFlashlightChanged(true)
++        }
++    }
++
++    override fun onFlashlightChanged(enabled: Boolean) {
++        if (enabled) {
++            val actions = listOf(
++                IslandAction(
++                    iconResId = R.drawable.ic_island_flashlight,
++                    contentDescription = "Turn Off",
++                    actionRunnable = {
++                        flashlightController.setFlashlight(false)
++                    }
++                )
++            )
++            val event = IslandEvent(
++                id = "flashlight",
++                type = IslandEventType.FLASHLIGHT,
++                title = "Flashlight",
++                subtitle = "Turned on",
++                iconResId = R.drawable.ic_island_flashlight,
++                isPersistent = true,
++                actions = actions
++            )
++            callback?.onEventUpdated(event)
++        } else {
++            callback?.onEventDismissed("flashlight")
++        }
++    }
++
++    override fun onFlashlightError() {
++        callback?.onEventDismissed("flashlight")
++    }
++
++    override fun onFlashlightAvailabilityChanged(available: Boolean) {
++        if (!available) {
++            callback?.onEventDismissed("flashlight")
++        }
++    }
++}
+diff --git a/packages/SystemUI/src/org/avium/systemui/island/monitors/HeadsetEventMonitor.kt b/packages/SystemUI/src/org/avium/systemui/island/monitors/HeadsetEventMonitor.kt
+new file mode 100644
+index 00000000..7dba261d
+--- /dev/null
++++ b/packages/SystemUI/src/org/avium/systemui/island/monitors/HeadsetEventMonitor.kt
+@@ -0,0 +1,100 @@
++/*
++ * Copyright (C) 2026 The AviumUI Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.avium.systemui.island.monitors
++
++import android.bluetooth.BluetoothA2dp
++import android.bluetooth.BluetoothDevice
++import android.bluetooth.BluetoothHeadset
++import android.bluetooth.BluetoothProfile
++import android.content.BroadcastReceiver
++import android.content.Context
++import android.content.Intent
++import android.content.IntentFilter
++import com.android.systemui.dagger.SysUISingleton
++import com.android.systemui.res.R
++import org.avium.systemui.island.model.IslandEvent
++import org.avium.systemui.island.model.IslandEventType
++import javax.inject.Inject
++
++@SysUISingleton
++class HeadsetEventMonitor @Inject constructor(
++    private val context: Context
++) {
++
++    interface Callback {
++        fun onEventUpdated(event: IslandEvent)
++        fun onEventDismissed(id: String)
++    }
++
++    private var callback: Callback? = null
++
++    private val receiver = object : BroadcastReceiver() {
++        override fun onReceive(context: Context?, intent: Intent?) {
++            intent ?: return
++            when (intent.action) {
++                Intent.ACTION_HEADSET_PLUG -> {
++                    val state = intent.getIntExtra("state", -1)
++                    if (state == 1) {
++                        val name = intent.getStringExtra("name") ?: "Wired Headphones"
++                        notifyConnected(name)
++                    } else if (state == 0) {
++                        callback?.onEventDismissed("headset")
++                    }
++                }
++                BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED,
++                BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED -> {
++                    val state = intent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1)
++                    if (state == BluetoothProfile.STATE_CONNECTED) {
++                        val device = try {
++                            intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
++                        } catch (e: Throwable) {
++                            @Suppress("DEPRECATION")
++                            intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
++                        }
++                        val name = device?.alias ?: device?.name ?: "Bluetooth Audio"
++                        notifyConnected(name)
++                    } else if (state == BluetoothProfile.STATE_DISCONNECTED) {
++                        callback?.onEventDismissed("headset")
++                    }
++                }
++            }
++        }
++    }
++
++    fun start(callback: Callback) {
++        this.callback = callback
++        val filter = IntentFilter().apply {
++            addAction(Intent.ACTION_HEADSET_PLUG)
++            addAction(BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED)
++            addAction(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED)
++        }
++        context.registerReceiver(receiver, filter)
++    }
++
++    private fun notifyConnected(name: String) {
++        val event = IslandEvent(
++            id = "headset",
++            type = IslandEventType.HEADSET,
++            title = name,
++            subtitle = "Headset Connected",
++            iconResId = R.drawable.ic_island_headset,
++            autoDismissDurationMs = 3500L,
++            isPersistent = false
++        )
++        callback?.onEventUpdated(event)
++    }
++}
+diff --git a/packages/SystemUI/src/org/avium/systemui/island/monitors/MediaEventMonitor.kt b/packages/SystemUI/src/org/avium/systemui/island/monitors/MediaEventMonitor.kt
+new file mode 100644
+index 00000000..377f9997
+--- /dev/null
++++ b/packages/SystemUI/src/org/avium/systemui/island/monitors/MediaEventMonitor.kt
+@@ -0,0 +1,123 @@
++/*
++ * Copyright (C) 2026 The AviumUI Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.avium.systemui.island.monitors
++
++import android.content.Context
++import android.graphics.Bitmap
++import androidx.core.graphics.drawable.toBitmap
++import com.android.systemui.dagger.SysUISingleton
++import com.android.systemui.media.controls.domain.pipeline.MediaDataManager
++import com.android.systemui.media.controls.shared.model.MediaData
++import com.android.systemui.res.R
++import org.avium.systemui.island.model.IslandAction
++import org.avium.systemui.island.model.IslandEvent
++import org.avium.systemui.island.model.IslandEventType
++import javax.inject.Inject
++
++@SysUISingleton
++class MediaEventMonitor @Inject constructor(
++    private val context: Context,
++    private val mediaDataManager: MediaDataManager
++) : MediaDataManager.Listener {
++
++    interface Callback {
++        fun onEventUpdated(event: IslandEvent)
++        fun onEventDismissed(id: String)
++    }
++
++    private var callback: Callback? = null
++    private var lastSongTitle: String? = null
++
++    fun start(callback: Callback) {
++        this.callback = callback
++        mediaDataManager.addListener(this)
++    }
++
++    override fun onMediaDataLoaded(
++        key: String,
++        oldKey: String?,
++        data: MediaData,
++        immediately: Boolean
++    ) {
++        if (data.isPlaying == true) {
++            val song = data.song?.toString() ?: "Playing"
++            val artist = data.artist?.toString() ?: ""
++            val isNewSong = lastSongTitle != song
++            lastSongTitle = song
++
++            var artworkBitmap: Bitmap? = null
++            try {
++                artworkBitmap = data.artwork?.loadDrawable(context)?.toBitmap(128, 128)
++            } catch (ignored: Throwable) {}
++
++            val actions = mutableListOf<IslandAction>()
++
++            val semantic = data.semanticActions
++            if (semantic != null) {
++                semantic.prevOrCustom?.let { act ->
++                    actions.add(IslandAction(
++                        iconResId = R.drawable.ic_island_skip_prev,
++                        contentDescription = "Previous",
++                        actionRunnable = act.action
++                    ))
++                }
++                semantic.playOrPause?.let { act ->
++                    actions.add(IslandAction(
++                        iconResId = R.drawable.ic_island_pause,
++                        contentDescription = "Pause",
++                        actionRunnable = act.action
++                    ))
++                }
++                semantic.nextOrCustom?.let { act ->
++                    actions.add(IslandAction(
++                        iconResId = R.drawable.ic_island_skip_next,
++                        contentDescription = "Next",
++                        actionRunnable = act.action
++                    ))
++                }
++            } else if (data.actions.isNotEmpty()) {
++                for (notifAction in data.actions.take(3)) {
++                    actions.add(IslandAction(
++                        iconResId = R.drawable.ic_island_music,
++                        contentDescription = notifAction.contentDescription?.toString() ?: "Action",
++                        actionIntent = notifAction.actionIntent
++                    ))
++                }
++            }
++
++            val event = IslandEvent(
++                id = "media",
++                type = IslandEventType.MEDIA,
++                title = song,
++                subtitle = artist,
++                iconResId = R.drawable.ic_island_music,
++                customBitmap = artworkBitmap,
++                intent = data.clickIntent,
++                autoDismissDurationMs = if (isNewSong) 3500L else 0L,
++                isPersistent = true,
++                actions = actions
++            )
++            callback?.onEventUpdated(event)
++        } else {
++            callback?.onEventDismissed("media")
++        }
++    }
++
++    override fun onMediaDataRemoved(key: String, userInitiated: Boolean) {
++        callback?.onEventDismissed("media")
++    }
++}
+diff --git a/packages/SystemUI/src/org/avium/systemui/island/monitors/ScreenRecordEventMonitor.kt b/packages/SystemUI/src/org/avium/systemui/island/monitors/ScreenRecordEventMonitor.kt
+new file mode 100644
+index 00000000..551b0721
+--- /dev/null
++++ b/packages/SystemUI/src/org/avium/systemui/island/monitors/ScreenRecordEventMonitor.kt
+@@ -0,0 +1,83 @@
++/*
++ * Copyright (C) 2026 The AviumUI Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.avium.systemui.island.monitors
++
++import android.content.Context
++import android.media.projection.StopReason
++import android.os.SystemClock
++import com.android.systemui.dagger.SysUISingleton
++import com.android.systemui.res.R
++import com.android.systemui.screenrecord.RecordingController
++import com.android.systemui.screenrecord.ScreenRecordUxController
++import org.avium.systemui.island.model.IslandAction
++import org.avium.systemui.island.model.IslandEvent
++import org.avium.systemui.island.model.IslandEventType
++import javax.inject.Inject
++
++@SysUISingleton
++class ScreenRecordEventMonitor @Inject constructor(
++    private val context: Context,
++    private val recordingController: RecordingController
++) : ScreenRecordUxController.StateChangeCallback {
++
++    interface Callback {
++        fun onEventUpdated(event: IslandEvent)
++        fun onEventDismissed(id: String)
++    }
++
++    private var callback: Callback? = null
++    private var recordStartTime = 0L
++
++    fun start(callback: Callback) {
++        this.callback = callback
++        recordingController.addCallback(this)
++        if (recordingController.isRecording) {
++            onRecordingStart()
++        }
++    }
++
++    override fun onRecordingStart() {
++        if (recordStartTime == 0L) {
++            recordStartTime = SystemClock.elapsedRealtime()
++        }
++        val actions = listOf(
++            IslandAction(
++                iconResId = R.drawable.ic_island_call_end,
++                contentDescription = "Stop Recording",
++                actionRunnable = {
++                    recordingController.stopRecording(StopReason.STOP_USER_STOPPED)
++                }
++            )
++        )
++        val event = IslandEvent(
++            id = "recording",
++            type = IslandEventType.RECORDING,
++            title = "Recording Screen",
++            subtitle = "Live capture active",
++            iconResId = R.drawable.ic_island_record,
++            chronometerBase = recordStartTime,
++            isPersistent = true,
++            actions = actions
++        )
++        callback?.onEventUpdated(event)
++    }
++
++    override fun onRecordingEnd() {
++        recordStartTime = 0L
++        callback?.onEventDismissed("recording")
++    }
++}
+diff --git a/packages/SystemUI/src/org/avium/systemui/island/ui/EqualizerView.kt b/packages/SystemUI/src/org/avium/systemui/island/ui/EqualizerView.kt
+new file mode 100644
+index 00000000..421f8b3a
+--- /dev/null
++++ b/packages/SystemUI/src/org/avium/systemui/island/ui/EqualizerView.kt
+@@ -0,0 +1,113 @@
++/*
++ * Copyright (C) 2026 The AviumUI Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.avium.systemui.island.ui
++
++import android.animation.ValueAnimator
++import android.content.Context
++import android.graphics.Canvas
++import android.graphics.Paint
++import android.util.AttributeSet
++import android.view.View
++import android.view.animation.LinearInterpolator
++import kotlin.math.abs
++import kotlin.math.sin
++
++class EqualizerView @JvmOverloads constructor(
++    context: Context,
++    attrs: AttributeSet? = null,
++    defStyleAttr: Int = 0
++) : View(context, attrs, defStyleAttr) {
++
++    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
++        color = 0xFF00E676.toInt()
++        style = Paint.Style.STROKE
++        strokeCap = Paint.Cap.ROUND
++    }
++
++    private var isAnimating = false
++    private var phase = 0f
++    private var animator: ValueAnimator? = null
++
++    init {
++        paint.strokeWidth = 4f
++    }
++
++    fun setColor(color: Int) {
++        paint.color = color
++        invalidate()
++    }
++
++    fun setPlaying(playing: Boolean) {
++        if (playing) {
++            startAnimation()
++        } else {
++            stopAnimation()
++        }
++    }
++
++    private fun startAnimation() {
++        if (isAnimating) return
++        isAnimating = true
++        animator?.cancel()
++        animator = ValueAnimator.ofFloat(0f, 2f * Math.PI.toFloat()).apply {
++            duration = 1000L
++            repeatCount = ValueAnimator.INFINITE
++            interpolator = LinearInterpolator()
++            addUpdateListener {
++                phase = it.animatedValue as Float
++                invalidate()
++            }
++            start()
++        }
++    }
++
++    private fun stopAnimation() {
++        isAnimating = false
++        animator?.cancel()
++        animator = null
++        invalidate()
++    }
++
++    override fun onDetachedFromWindow() {
++        super.onDetachedFromWindow()
++        stopAnimation()
++    }
++
++    override fun onDraw(canvas: Canvas) {
++        super.onDraw(canvas)
++        val w = width.toFloat()
++        val h = height.toFloat()
++        if (w <= 0 || h <= 0) return
++
++        val barWidth = w / 5f
++        paint.strokeWidth = barWidth
++
++        val x1 = barWidth
++        val x2 = w / 2f
++        val x3 = w - barWidth
++
++        val h1 = if (isAnimating) h * (0.35f + 0.55f * abs(sin(phase.toDouble()).toFloat())) else h * 0.3f
++        val h2 = if (isAnimating) h * (0.25f + 0.65f * abs(sin((phase * 1.4f + 1.2f).toDouble()).toFloat())) else h * 0.4f
++        val h3 = if (isAnimating) h * (0.30f + 0.60f * abs(sin((phase * 0.9f + 2.4f).toDouble()).toFloat())) else h * 0.25f
++
++        val b = h - barWidth / 2f
++
++        canvas.drawLine(x1, b, x1, b - h1.coerceAtLeast(barWidth), paint)
++        canvas.drawLine(x2, b, x2, b - h2.coerceAtLeast(barWidth), paint)
++        canvas.drawLine(x3, b, x3, b - h3.coerceAtLeast(barWidth), paint)
++    }
++}
+diff --git a/packages/SystemUI/src/org/avium/systemui/island/ui/StatusBarCapsuleView.kt b/packages/SystemUI/src/org/avium/systemui/island/ui/StatusBarCapsuleView.kt
+new file mode 100644
+index 00000000..7f452975
+--- /dev/null
++++ b/packages/SystemUI/src/org/avium/systemui/island/ui/StatusBarCapsuleView.kt
+@@ -0,0 +1,170 @@
++/*
++ * Copyright (C) 2026 The AviumUI Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.avium.systemui.island.ui
++
++import android.animation.Animator
++import android.animation.AnimatorListenerAdapter
++import android.content.Context
++import android.content.res.ColorStateList
++import android.graphics.Rect
++import android.util.AttributeSet
++import android.view.LayoutInflater
++import android.view.View
++import android.view.animation.PathInterpolator
++import android.widget.Chronometer
++import android.widget.FrameLayout
++import android.widget.ImageView
++import android.widget.LinearLayout
++import android.widget.TextView
++import com.android.systemui.plugins.DarkIconDispatcher
++import com.android.systemui.res.R
++import org.avium.systemui.island.IslandController
++import org.avium.systemui.island.model.IslandEvent
++import org.avium.systemui.island.model.IslandEventType
++import java.util.ArrayList
++
++class StatusBarCapsuleView @JvmOverloads constructor(
++    context: Context,
++    attrs: AttributeSet? = null,
++    defStyleAttr: Int = 0
++) : FrameLayout(context, attrs, defStyleAttr), DarkIconDispatcher.DarkReceiver {
++
++    private val container: LinearLayout
++    private val iconView: ImageView
++    private val equalizerView: EqualizerView
++    private val textView: TextView
++    private val chronometerView: Chronometer
++
++    private var currentEvent: IslandEvent? = null
++    private val springInterpolator = PathInterpolator(0.18f, 0.9f, 0.2f, 1.05f)
++
++    init {
++        LayoutInflater.from(context).inflate(R.layout.status_bar_capsule_view, this, true)
++        container = findViewById(R.id.capsule_container)
++        iconView = findViewById(R.id.capsule_icon)
++        equalizerView = findViewById(R.id.capsule_equalizer)
++        textView = findViewById(R.id.capsule_text)
++        chronometerView = findViewById(R.id.capsule_chronometer)
++
++        setOnClickListener {
++            IslandController.instance?.onCapsuleClicked()
++        }
++        setOnLongClickListener {
++            currentEvent?.intent?.let { pendingIntent ->
++                try {
++                    pendingIntent.send()
++                    return@setOnLongClickListener true
++                } catch (ignored: Throwable) {}
++            }
++            false
++        }
++    }
++
++    override fun onAttachedToWindow() {
++        super.onAttachedToWindow()
++        IslandController.instance?.setCapsuleView(this)
++    }
++
++    override fun onDetachedFromWindow() {
++        super.onDetachedFromWindow()
++        IslandController.instance?.setCapsuleView(null)
++    }
++
++    override fun onDarkChanged(areas: ArrayList<Rect>?, darkIntensity: Float, tint: Int) {
++        // High contrast on dark capsule background; tint icon if light
++        iconView.imageTintList = ColorStateList.valueOf(0xFFFFFFFF.toInt())
++        textView.setTextColor(0xFFFFFFFF.toInt())
++        chronometerView.setTextColor(0xFFFFFFFF.toInt())
++    }
++
++    fun bindEvent(event: IslandEvent?) {
++        if (event == null) {
++            if (visibility != View.GONE) {
++                animate()
++                    .alpha(0f)
++                    .scaleX(0.85f)
++                    .scaleY(0.85f)
++                    .setDuration(220L)
++                    .setInterpolator(springInterpolator)
++                    .setListener(object : AnimatorListenerAdapter() {
++                        override fun onAnimationEnd(animation: Animator) {
++                            visibility = View.GONE
++                            currentEvent = null
++                            equalizerView.setPlaying(false)
++                            chronometerView.stop()
++                        }
++                    })
++                    .start()
++            }
++            return
++        }
++
++        val isNew = currentEvent == null
++        currentEvent = event
++
++        // Icon setup
++        if (event.iconResId != 0) {
++            iconView.setImageResource(event.iconResId)
++            iconView.visibility = View.VISIBLE
++        } else if (event.iconDrawable != null) {
++            iconView.setImageDrawable(event.iconDrawable)
++            iconView.visibility = View.VISIBLE
++        } else {
++            iconView.visibility = View.GONE
++        }
++
++        // Equalizer vs Chronometer vs Text
++        if (event.type == IslandEventType.MEDIA) {
++            equalizerView.visibility = View.VISIBLE
++            equalizerView.setPlaying(true)
++            chronometerView.visibility = View.GONE
++            textView.visibility = View.VISIBLE
++            textView.text = event.title
++            textView.isSelected = true
++        } else if (event.chronometerBase > 0L) {
++            equalizerView.visibility = View.GONE
++            equalizerView.setPlaying(false)
++            textView.visibility = View.GONE
++            chronometerView.visibility = View.VISIBLE
++            chronometerView.base = event.chronometerBase
++            chronometerView.isCountDown = event.isChronometerCountdown
++            chronometerView.start()
++        } else {
++            equalizerView.visibility = View.GONE
++            equalizerView.setPlaying(false)
++            chronometerView.visibility = View.GONE
++            textView.visibility = View.VISIBLE
++            textView.text = event.title
++            textView.isSelected = true
++        }
++
++        if (isNew || visibility != View.VISIBLE) {
++            visibility = View.VISIBLE
++            alpha = 0f
++            scaleX = 0.85f
++            scaleY = 0.85f
++            animate()
++                .alpha(1f)
++                .scaleX(1f)
++                .scaleY(1f)
++                .setDuration(320L)
++                .setInterpolator(springInterpolator)
++                .setListener(null)
++                .start()
++        }
++    }
++}
+diff --git a/packages/SystemUI/src/org/avium/systemui/island/ui/SuperIslandView.kt b/packages/SystemUI/src/org/avium/systemui/island/ui/SuperIslandView.kt
+new file mode 100644
+index 00000000..bde9fd4e
+--- /dev/null
++++ b/packages/SystemUI/src/org/avium/systemui/island/ui/SuperIslandView.kt
+@@ -0,0 +1,212 @@
++/*
++ * Copyright (C) 2026 The AviumUI Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.avium.systemui.island.ui
++
++import android.content.Context
++import android.util.AttributeSet
++import android.view.GestureDetector
++import android.view.LayoutInflater
++import android.view.MotionEvent
++import android.view.View
++import android.widget.Chronometer
++import android.widget.FrameLayout
++import android.widget.ImageView
++import android.widget.TextView
++import com.android.systemui.res.R
++import org.avium.systemui.island.IslandController
++import org.avium.systemui.island.model.IslandEvent
++import org.avium.systemui.island.model.IslandEventType
++import kotlin.math.abs
++
++class SuperIslandView @JvmOverloads constructor(
++    context: Context,
++    attrs: AttributeSet? = null,
++    defStyleAttr: Int = 0
++) : FrameLayout(context, attrs, defStyleAttr) {
++
++    val card: FrameLayout
++
++    // Media
++    private val mediaLayout: View
++    private val mediaArt: ImageView
++    private val mediaTitle: TextView
++    private val mediaArtist: TextView
++    private val mediaEqualizer: EqualizerView
++    private val actionPrev: ImageView
++    private val actionPlayPause: ImageView
++    private val actionNext: ImageView
++
++    // Generic
++    private val genericLayout: View
++    private val genericIcon: ImageView
++    private val genericTitle: TextView
++    private val genericSubtitle: TextView
++    private val genericChronometer: Chronometer
++    private val genericActionBtn: TextView
++
++    private var activeEvent: IslandEvent? = null
++
++    private val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
++        override fun onFling(
++            e1: MotionEvent?,
++            e2: MotionEvent,
++            velocityX: Float,
++            velocityY: Float
++        ): Boolean {
++            if (e1 == null) return false
++            val diffY = e2.y - e1.y
++            val diffX = e2.x - e1.x
++            if (abs(diffY) > abs(diffX) && diffY < -50 && abs(velocityY) > 100) {
++                // Swipe up: collapse
++                IslandController.instance?.collapseIsland()
++                return true
++            } else if (abs(diffX) > abs(diffY) && abs(velocityX) > 100) {
++                // Swipe horizontal: cycle event
++                if (diffX > 0) {
++                    IslandController.instance?.cycleEvent(forward = false)
++                } else {
++                    IslandController.instance?.cycleEvent(forward = true)
++                }
++                return true
++            }
++            return false
++        }
++    })
++
++    init {
++        LayoutInflater.from(context).inflate(R.layout.super_island_view, this, true)
++        card = findViewById(R.id.super_island_card)
++
++        mediaLayout = findViewById(R.id.island_media_layout)
++        mediaArt = findViewById(R.id.island_media_art)
++        mediaTitle = findViewById(R.id.island_media_title)
++        mediaArtist = findViewById(R.id.island_media_artist)
++        mediaEqualizer = findViewById(R.id.island_media_equalizer)
++        actionPrev = findViewById(R.id.island_action_prev)
++        actionPlayPause = findViewById(R.id.island_action_play_pause)
++        actionNext = findViewById(R.id.island_action_next)
++
++        genericLayout = findViewById(R.id.island_generic_layout)
++        genericIcon = findViewById(R.id.island_generic_icon)
++        genericTitle = findViewById(R.id.island_generic_title)
++        genericSubtitle = findViewById(R.id.island_generic_subtitle)
++        genericChronometer = findViewById(R.id.island_generic_chronometer)
++        genericActionBtn = findViewById(R.id.island_generic_action_btn)
++
++        card.setOnClickListener {
++            activeEvent?.intent?.let { pendingIntent ->
++                try {
++                    pendingIntent.send()
++                    IslandController.instance?.collapseIsland()
++                } catch (ignored: Throwable) {}
++            }
++        }
++    }
++
++    override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
++        gestureDetector.onTouchEvent(ev)
++        return super.onInterceptTouchEvent(ev)
++    }
++
++    override fun onTouchEvent(event: MotionEvent): Boolean {
++        if (gestureDetector.onTouchEvent(event)) {
++            return true
++        }
++        return super.onTouchEvent(event)
++    }
++
++    fun bindEvent(event: IslandEvent) {
++        activeEvent = event
++
++        if (event.type == IslandEventType.MEDIA) {
++            genericLayout.visibility = View.GONE
++            genericChronometer.stop()
++            mediaLayout.visibility = View.VISIBLE
++
++            mediaTitle.text = event.title
++            mediaTitle.isSelected = true
++            mediaArtist.text = event.subtitle ?: ""
++            mediaEqualizer.setPlaying(true)
++
++            if (event.customBitmap != null) {
++                mediaArt.setImageBitmap(event.customBitmap)
++            } else {
++                mediaArt.setImageResource(R.drawable.ic_island_music)
++            }
++
++            // Bind actions
++            val prevAction = event.actions.getOrNull(0)
++            val playAction = event.actions.getOrNull(1)
++            val nextAction = event.actions.getOrNull(2)
++
++            actionPrev.visibility = if (prevAction != null) View.VISIBLE else View.GONE
++            actionPrev.setOnClickListener {
++                prevAction?.actionRunnable?.run()
++                try { prevAction?.actionIntent?.send() } catch (ignored: Throwable) {}
++            }
++
++            actionPlayPause.visibility = if (playAction != null) View.VISIBLE else View.GONE
++            actionPlayPause.setOnClickListener {
++                playAction?.actionRunnable?.run()
++                try { playAction?.actionIntent?.send() } catch (ignored: Throwable) {}
++            }
++
++            actionNext.visibility = if (nextAction != null) View.VISIBLE else View.GONE
++            actionNext.setOnClickListener {
++                nextAction?.actionRunnable?.run()
++                try { nextAction?.actionIntent?.send() } catch (ignored: Throwable) {}
++            }
++        } else {
++            mediaLayout.visibility = View.GONE
++            mediaEqualizer.setPlaying(false)
++            genericLayout.visibility = View.VISIBLE
++
++            if (event.iconResId != 0) {
++                genericIcon.setImageResource(event.iconResId)
++                genericIcon.visibility = View.VISIBLE
++            } else {
++                genericIcon.visibility = View.GONE
++            }
++
++            genericTitle.text = event.title
++            genericSubtitle.text = event.subtitle ?: ""
++
++            if (event.chronometerBase > 0L) {
++                genericChronometer.visibility = View.VISIBLE
++                genericChronometer.base = event.chronometerBase
++                genericChronometer.isCountDown = event.isChronometerCountdown
++                genericChronometer.start()
++            } else {
++                genericChronometer.visibility = View.GONE
++                genericChronometer.stop()
++            }
++
++            val primaryAction = event.actions.firstOrNull()
++            if (primaryAction != null) {
++                genericActionBtn.visibility = View.VISIBLE
++                genericActionBtn.text = primaryAction.contentDescription
++                genericActionBtn.setOnClickListener {
++                    primaryAction.actionRunnable?.run()
++                    try { primaryAction.actionIntent?.send() } catch (ignored: Throwable) {}
++                    IslandController.instance?.collapseIsland()
++                }
++            } else {
++                genericActionBtn.visibility = View.GONE
++            }
++        }
++    }
++}

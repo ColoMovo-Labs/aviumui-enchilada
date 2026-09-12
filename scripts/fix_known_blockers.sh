@@ -80,13 +80,24 @@ if [ -d "$SEPOLICY_PATCH_DIR" ]; then
   done
 fi
 
-# 1.5 frameworks/base (SQLiteTokenizer & Google Photos unlimited storage spoof)
+# 1.5 frameworks/base (SQLiteTokenizer, Google Photos spoof, Status Bar Capsule & Super Island)
 FRAMEWORKS_BASE_DIR="$SOURCE_ROOT/frameworks/base"
 FRAMEWORKS_BASE_PATCH_DIR="$META_DIR/patches/frameworks_base"
 if [ -d "$FRAMEWORKS_BASE_PATCH_DIR" ]; then
-  apply_patch_if_needed "$FRAMEWORKS_BASE_DIR" "$FRAMEWORKS_BASE_PATCH_DIR/0001-Add-bracket-checking-support-to-SQLiteTokenizer.patch"
-  apply_patch_if_needed "$FRAMEWORKS_BASE_DIR" "$FRAMEWORKS_BASE_PATCH_DIR/0002-Spoof-Google-Photos-to-Pixel-XL-for-unlimited-storag.patch"
+  for p in $(ls "$FRAMEWORKS_BASE_PATCH_DIR"/*.patch 2>/dev/null | sort); do
+    apply_patch_if_needed "$FRAMEWORKS_BASE_DIR" "$p"
+  done
 fi
+
+# 1.6 packages/apps/FeatureSettings (Capsule & Super Island customization settings)
+FEATURE_SETTINGS_DIR="$SOURCE_ROOT/packages/apps/FeatureSettings"
+FEATURE_SETTINGS_PATCH_DIR="$META_DIR/patches/packages_apps_FeatureSettings"
+if [ -d "$FEATURE_SETTINGS_PATCH_DIR" ]; then
+  for p in $(ls "$FEATURE_SETTINGS_PATCH_DIR"/*.patch 2>/dev/null | sort); do
+    apply_patch_if_needed "$FEATURE_SETTINGS_DIR" "$p"
+  done
+fi
+
 
 echo "============================================================"
 echo "=== 2. AUDITING VENDOR PROPRIETARY BLOBS ==="
