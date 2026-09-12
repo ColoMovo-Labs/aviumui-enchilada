@@ -10,6 +10,7 @@ on:
         type: choice
         options:
           - "bacon"
+          - "SystemUI-core"
           - "bootimage"
           - "nothing"
           - "sync_audit_only"
@@ -511,6 +512,32 @@ jobs:
             exit 1
           fi
           echo "PASS: Free disk (${FREE_GIB} GiB) is >= 90 GiB. Safe to proceed to full m bacon."
+
+      - name: "Phase Gate 2.5: m SystemUI-core"
+        if: ${{ github.event.inputs.build_target == 'SystemUI-core' || github.event.inputs.build_target == 'bacon' }}
+        run: |
+          echo "=================================================="
+          echo "=== 12.5. EXECUTING: m SystemUI-core ==="
+          echo "=================================================="
+          cd /home/runner/android/avium
+          source build/envsetup.sh
+          lunch lineage_enchilada-bp4a-userdebug || lunch lineage_enchilada-userdebug
+
+          if [ "${{ github.event.inputs.use_ccache }}" = "true" ]; then
+            export CCACHE_DIR=/cache/ccache
+            export USE_CCACHE=1
+            export CCACHE_EXEC=/usr/bin/ccache
+          fi
+
+          mkdir -p /home/runner/android/logs
+          set -o pipefail
+          m -j16 SystemUI-core 2>&1 | tee /home/runner/android/logs/build_systemui.log
+          rc=${PIPESTATUS[0]}
+          if [ "$rc" -ne 0 ]; then
+            echo "ERROR: m SystemUI-core failed with rc=$rc"
+            exit "$rc"
+          fi
+          echo "PASS: m SystemUI-core succeeded!"
 
       - name: "Phase Gate 3: m bacon"
         if: ${{ github.event.inputs.build_target == 'bacon' }}

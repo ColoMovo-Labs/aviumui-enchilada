@@ -1219,7 +1219,7 @@ new file mode 100644
 index 00000000..6af3a806
 --- /dev/null
 +++ b/packages/SystemUI/src/org/avium/systemui/island/monitors/CallEventMonitor.kt
-@@ -0,0 +1,90 @@
+@@ -0,0 +1,98 @@
 +/*
 + * Copyright (C) 2026 The AviumUI Project
 + *
@@ -1260,7 +1260,7 @@ index 00000000..6af3a806
 +        fun onEventDismissed(id: String)
 +    }
 +
-+    private var callback: Callback? = null
++    private var eventCallback: Callback? = null
 +    private var callStartTime = 0L
 +
 +    private val telephonyCallback = object : TelephonyCallback(), TelephonyCallback.CallStateListener {
@@ -1292,21 +1292,29 @@ index 00000000..6af3a806
 +                        isPersistent = true,
 +                        actions = actions
 +                    )
-+                    callback?.onEventUpdated(event)
++                    eventCallback?.onEventUpdated(event)
 +                }
 +                TelephonyManager.CALL_STATE_IDLE -> {
 +                    callStartTime = 0L
-+                    callback?.onEventDismissed("call")
++                    eventCallback?.onEventDismissed("call")
 +                }
 +            }
 +        }
 +    }
 +
 +    fun start(callback: Callback) {
-+        this.callback = callback
++        this.eventCallback = callback
 +        try {
 +            val telephonyManager = context.getSystemService(TelephonyManager::class.java)
 +            telephonyManager?.registerTelephonyCallback(context.mainExecutor, telephonyCallback)
++        } catch (ignored: Throwable) {}
++    }
++
++    fun stop() {
++        this.eventCallback = null
++        try {
++            val telephonyManager = context.getSystemService(TelephonyManager::class.java)
++            telephonyManager?.unregisterTelephonyCallback(telephonyCallback)
 +        } catch (ignored: Throwable) {}
 +    }
 +}
@@ -1745,7 +1753,7 @@ new file mode 100644
 index 00000000..551b0721
 --- /dev/null
 +++ b/packages/SystemUI/src/org/avium/systemui/island/monitors/ScreenRecordEventMonitor.kt
-@@ -0,0 +1,83 @@
+@@ -0,0 +1,82 @@
 +/*
 + * Copyright (C) 2026 The AviumUI Project
 + *
@@ -1765,7 +1773,6 @@ index 00000000..551b0721
 +package org.avium.systemui.island.monitors
 +
 +import android.content.Context
-+import android.media.projection.StopReason
 +import android.os.SystemClock
 +import com.android.systemui.dagger.SysUISingleton
 +import com.android.systemui.res.R
@@ -1807,7 +1814,7 @@ index 00000000..551b0721
 +                iconResId = R.drawable.ic_island_call_end,
 +                contentDescription = "Stop Recording",
 +                actionRunnable = {
-+                    recordingController.stopRecording(StopReason.STOP_USER_STOPPED)
++                    recordingController.stopRecording()
 +                }
 +            )
 +        )
