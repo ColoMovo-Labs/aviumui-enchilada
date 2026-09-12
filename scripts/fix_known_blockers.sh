@@ -262,6 +262,25 @@ for d in vendor/pixel/gms vendor/pixel/clocks vendor/pixel/sounds; do
 done
 
 echo "============================================================"
+echo "=== 6.1 SLIMMING OPTIONAL GMS PACKAGES (VELVET & MAPS) ==="
+echo "============================================================"
+GMS_DIR="$SOURCE_ROOT/vendor/pixel/gms"
+GMS_PATCH_DIR="$META_DIR/patches/vendor_pixel_gms"
+if [ -d "$GMS_PATCH_DIR" ]; then
+  for p in $(ls "$GMS_PATCH_DIR"/*.patch 2>/dev/null | sort); do
+    apply_patch_if_needed "$GMS_DIR" "$p"
+  done
+fi
+
+GMS_VENDOR_MK="$SOURCE_ROOT/vendor/pixel/gms/common/common-vendor.mk"
+if [ -f "$GMS_VENDOR_MK" ]; then
+  echo "[GMS] Ensuring Velvet and Maps are excluded from $GMS_VENDOR_MK..."
+  sed -i '/^[[:space:]]*Velvet[[:space:]]*\\/d' "$GMS_VENDOR_MK" || true
+  sed -i '/^[[:space:]]*Maps[[:space:]]*\\/d' "$GMS_VENDOR_MK" || true
+  echo "[GMS] PASS: Optional GMS slimming applied successfully."
+fi
+
+echo "============================================================"
 echo "=== 7. VERIFYING SDM845-COMMON 4.19 & EROFS CONFIGURATION ==="
 echo "============================================================"
 COMMON_DIR="$SOURCE_ROOT/device/oneplus/sdm845-common"
