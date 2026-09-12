@@ -1841,7 +1841,7 @@ new file mode 100644
 index 00000000..421f8b3a
 --- /dev/null
 +++ b/packages/SystemUI/src/org/avium/systemui/island/ui/EqualizerView.kt
-@@ -0,0 +1,113 @@
+@@ -0,0 +1,133 @@
 +/*
 + * Copyright (C) 2026 The AviumUI Project
 + *
@@ -2156,7 +2156,7 @@ new file mode 100644
 index 00000000..bde9fd4e
 --- /dev/null
 +++ b/packages/SystemUI/src/org/avium/systemui/island/ui/SuperIslandView.kt
-@@ -0,0 +1,212 @@
+@@ -0,0 +1,218 @@
 +/*
 + * Copyright (C) 2026 The AviumUI Project
 + *
