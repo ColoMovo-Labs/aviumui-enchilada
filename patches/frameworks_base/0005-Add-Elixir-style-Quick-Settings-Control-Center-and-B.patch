@@ -592,10 +592,10 @@ index 00000000..543ced8e
 +}
 diff --git a/packages/SystemUI/src/org/avium/systemui/controlcenter/ElixirControlCenterView.kt b/packages/SystemUI/src/org/avium/systemui/controlcenter/ElixirControlCenterView.kt
 new file mode 100644
-index 00000000..5850426d
+index 00000000..11111111
 --- /dev/null
 +++ b/packages/SystemUI/src/org/avium/systemui/controlcenter/ElixirControlCenterView.kt
-@@ -0,0 +1,330 @@
+@@ -0,0 +1,331 @@
 +/*
 + * Copyright (C) 2026 The AviumUI Project
 + *
@@ -689,7 +689,7 @@ index 00000000..5850426d
 +        isClickable = true
 +        isFocusable = true
 +
-+        scrollView = NonInterceptingScrollView(context).apply {
++        scrollView = NonInterceptingScrollView(context, null).apply {
 +            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
 +            isVerticalScrollBarEnabled = false
 +            clipToPadding = false
@@ -751,7 +751,8 @@ index 00000000..5850426d
 +                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
 +            }
 +            context.startActivity(intent)
-+            mHost?.collapsePanels()
++            val statusBarManager = context.getSystemService(android.app.StatusBarManager::class.java)
++            statusBarManager?.collapsePanels()
 +        }
 +        buttonsLayout.addView(btnSettings)
 +
@@ -1397,10 +1398,10 @@ index 00000000..3fabbd05
 +}
 diff --git a/packages/SystemUI/src/org/avium/systemui/controlcenter/ui/ElixirPrimaryCardView.kt b/packages/SystemUI/src/org/avium/systemui/controlcenter/ui/ElixirPrimaryCardView.kt
 new file mode 100644
-index 00000000..9905878b
+index 00000000..11111111
 --- /dev/null
 +++ b/packages/SystemUI/src/org/avium/systemui/controlcenter/ui/ElixirPrimaryCardView.kt
-@@ -0,0 +1,176 @@
+@@ -0,0 +1,178 @@
 +/*
 + * Copyright (C) 2026 The AviumUI Project
 + *
@@ -1429,6 +1430,7 @@ index 00000000..9905878b
 +import android.widget.ImageView
 +import android.widget.LinearLayout
 +import android.widget.TextView
++import com.android.systemui.animation.Expandable
 +import com.android.systemui.plugins.qs.QSTile
 +
 +class ElixirPrimaryCardView @JvmOverloads constructor(
@@ -1511,9 +1513,10 @@ index 00000000..9905878b
 +        if (tile != null) {
 +            tile.addCallback(callback)
 +            updateFromState(tile.state)
-+            setOnClickListener { tile.click(this) }
++            val expandable = Expandable.fromView(this)
++            setOnClickListener { tile.click(expandable) }
 +            setOnLongClickListener {
-+                tile.longClick(this)
++                tile.longClick(expandable)
 +                true
 +            }
 +        } else {
@@ -1579,10 +1582,10 @@ index 00000000..9905878b
 +}
 diff --git a/packages/SystemUI/src/org/avium/systemui/controlcenter/ui/ElixirSecondaryTileView.kt b/packages/SystemUI/src/org/avium/systemui/controlcenter/ui/ElixirSecondaryTileView.kt
 new file mode 100644
-index 00000000..d21baae1
+index 00000000..11111111
 --- /dev/null
 +++ b/packages/SystemUI/src/org/avium/systemui/controlcenter/ui/ElixirSecondaryTileView.kt
-@@ -0,0 +1,166 @@
+@@ -0,0 +1,168 @@
 +/*
 + * Copyright (C) 2026 The AviumUI Project
 + *
@@ -1611,6 +1614,7 @@ index 00000000..d21baae1
 +import android.widget.ImageView
 +import android.widget.LinearLayout
 +import android.widget.TextView
++import com.android.systemui.animation.Expandable
 +import com.android.systemui.plugins.qs.QSTile
 +
 +class ElixirSecondaryTileView @JvmOverloads constructor(
@@ -1689,9 +1693,10 @@ index 00000000..d21baae1
 +        boundTile = tile
 +        tile.addCallback(callback)
 +        updateFromState(tile.state)
-+        setOnClickListener { tile.click(this) }
++        val expandable = Expandable.fromView(this)
++        setOnClickListener { tile.click(expandable) }
 +        setOnLongClickListener {
-+            tile.longClick(this)
++            tile.longClick(expandable)
 +            true
 +        }
 +    }

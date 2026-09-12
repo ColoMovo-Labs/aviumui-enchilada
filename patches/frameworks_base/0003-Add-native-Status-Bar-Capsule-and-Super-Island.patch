@@ -523,10 +523,10 @@ index 7763d0ba..62873ec0 100644
  ])
 diff --git a/packages/SystemUI/src/org/avium/systemui/island/IslandController.kt b/packages/SystemUI/src/org/avium/systemui/island/IslandController.kt
 new file mode 100644
-index 00000000..7feea902
+index 00000000..11111111
 --- /dev/null
 +++ b/packages/SystemUI/src/org/avium/systemui/island/IslandController.kt
-@@ -0,0 +1,191 @@
+@@ -0,0 +1,215 @@
 +/*
 + * Copyright (C) 2026 The AviumUI Project
 + *
@@ -583,6 +583,20 @@ index 00000000..7feea902
 +    private val mainHandler = Handler(Looper.getMainLooper())
 +    private val activeEvents = ConcurrentHashMap<IslandEventType, IslandEvent>()
 +    private var capsuleView: StatusBarCapsuleView? = null
++
++    private val mediaListeners = java.util.concurrent.CopyOnWriteArrayList<(IslandEvent?) -> Unit>()
++
++    fun addMediaListener(listener: (IslandEvent?) -> Unit) {
++        if (!mediaListeners.contains(listener)) {
++            mediaListeners.add(listener)
++        }
++        val currentMedia = activeEvents[IslandEventType.MEDIA]
++        listener(currentMedia)
++    }
++
++    fun removeMediaListener(listener: (IslandEvent?) -> Unit) {
++        mediaListeners.remove(listener)
++    }
 +    private var currentActiveEvent: IslandEvent? = null
 +
 +    init {
@@ -648,6 +662,11 @@ index 00000000..7feea902
 +        }
 +
 +        activeEvents[event.type] = event
++        if (event.type == IslandEventType.MEDIA) {
++            for (listener in mediaListeners) {
++                listener(event)
++            }
++        }
 +        mainHandler.post {
 +            updateAll()
 +            if (event.autoDismissDurationMs > 0L && islandSettings.isIslandEnabled) {
@@ -658,6 +677,11 @@ index 00000000..7feea902
 +
 +    private fun handleEventDismissed(type: IslandEventType) {
 +        activeEvents.remove(type)
++        if (type == IslandEventType.MEDIA) {
++            for (listener in mediaListeners) {
++                listener(null)
++            }
++        }
 +        mainHandler.post { updateAll() }
 +    }
 +
@@ -1750,10 +1774,10 @@ index 00000000..377f9997
 +}
 diff --git a/packages/SystemUI/src/org/avium/systemui/island/monitors/ScreenRecordEventMonitor.kt b/packages/SystemUI/src/org/avium/systemui/island/monitors/ScreenRecordEventMonitor.kt
 new file mode 100644
-index 00000000..551b0721
+index 00000000..11111111
 --- /dev/null
 +++ b/packages/SystemUI/src/org/avium/systemui/island/monitors/ScreenRecordEventMonitor.kt
-@@ -0,0 +1,82 @@
+@@ -0,0 +1,83 @@
 +/*
 + * Copyright (C) 2026 The AviumUI Project
 + *
@@ -1773,6 +1797,7 @@ index 00000000..551b0721
 +package org.avium.systemui.island.monitors
 +
 +import android.content.Context
++import android.media.projection.StopReason
 +import android.os.SystemClock
 +import com.android.systemui.dagger.SysUISingleton
 +import com.android.systemui.res.R
@@ -1814,7 +1839,7 @@ index 00000000..551b0721
 +                iconResId = R.drawable.ic_island_call_end,
 +                contentDescription = "Stop Recording",
 +                actionRunnable = {
-+                    recordingController.stopRecording()
++                    recordingController.stopRecording(StopReason.STOP_HOST_APP)
 +                }
 +            )
 +        )
