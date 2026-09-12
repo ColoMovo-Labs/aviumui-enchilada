@@ -427,8 +427,11 @@ jobs:
           fi
 
           START_BOOT=$(date +%s)
-          set -o pipefail
-          m -j16 TARGET_KERNEL_ADDITIONAL_FLAGS="-j8" bootimage 2>&1 | tee /home/runner/android/logs/build_bootimage.log
+          m -j16 TARGET_KERNEL_ADDITIONAL_FLAGS="-j8" bootimage 2>&1 | tee /home/runner/android/logs/build_bootimage.log || {
+            echo "Parallel bootimage build encountered an error. Re-running with -j1 for immediate single-threaded error capture..."
+            m -j1 bootimage 2>&1 | tee -a /home/runner/android/logs/build_bootimage.log
+            exit 1
+          }
           END_BOOT=$(date +%s)
           BOOT_DURATION=$((END_BOOT - START_BOOT))
           echo "BOOT_DURATION_SECONDS=$BOOT_DURATION" >> "$GITHUB_ENV"
