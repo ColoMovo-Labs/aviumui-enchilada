@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: LoMo <lomo@colomovo.com>
+Date: Sat, 12 Sep 2026 10:48:00 +0800
+Subject: [PATCH] version: Remove ro.avium.maintainer from version.mk
+
+Allow devices to canonically define ro.avium.maintainer via product.prop
+without causing duplicate sysprop assignment collision in post_process_props.
+
+Change-Id: I1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b
+Signed-off-by: LoMo <lomo@colomovo.com>
+---
+ config/version.mk | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/config/version.mk b/config/version.mk
+index 7d737e8..e51a9bf 100644
+--- a/config/version.mk
++++ b/config/version.mk
+@@ -63,5 +63,4 @@ PRODUCT_PRODUCT_PROPERTIES += \
+ 	ro.avium.build.version=$(AVIUM_MAJOR_VERSION).$(AVIUM_MINOR_VERSION).$(AVIUM_PATCH_VERSION) \
+ 	ro.avium.display.version=$(AVIUM_DISPLAY_VERSION) \
+ 	ro.avium.gms_status=$(WITH_GMS) \
+-	ro.avium.maintainer=$(AVIUM_MAINTAINER) \
+ 	ro.avium.is_official=$(AVIUM_IS_OFFICIAL) \
+ 	ro.avium.version=$(AVIUM_VER)
+-- 
+2.48.1

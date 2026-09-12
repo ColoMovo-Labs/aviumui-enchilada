@@ -1,0 +1,37 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: ColoMovo <lolojicoco@outlook.com>
+Date: Sun, 13 Sep 2026 00:30:00 +0800
+Subject: [PATCH] common-vendor: slim optional Velvet and Maps for system partition
+
+Exclude heavy standalone optional applications (Velvet ~337MB, Maps ~105MB)
+from PRODUCT_PACKAGES so that system.img fits within the physical legacy A/B
+system partition limit of OnePlus 6 (enchilada) with AVB hashtree footer.
+Both applications remain fully installable from the Google Play Store.
+
+Signed-off-by: ColoMovo <lolojicoco@outlook.com>
+---
+ common/common-vendor.mk | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/common/common-vendor.mk b/common/common-vendor.mk
+index 8b9f0aa..5c7e123 100644
+--- a/common/common-vendor.mk
++++ b/common/common-vendor.mk
+@@ -131,7 +131,6 @@ PRODUCT_PACKAGES += \
+     GoogleTTS \
+     LatinIMEGooglePrebuilt \
+     LocationHistoryPrebuilt \
+-    Maps \
+     MarkupGoogle_v2 \
+     ModuleMetadataGoogle \
+     NgaResources \
+@@ -170,7 +169,6 @@ PRODUCT_PACKAGES += \
+     SearchSelectorPrebuilt \
+     SettingsIntelligenceGooglePrebuilt \
+     TurboPrebuilt \
+-    Velvet \
+     WellbeingPrebuilt \
+     EmergencyInfoGoogleNoUi \
+     Flipendo \
+-- 
+2.48.1

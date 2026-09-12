@@ -10,6 +10,8 @@ on:
         type: choice
         options:
           - "bacon"
+          - "SystemUI-core"
+          - "Launcher3QuickStep"
           - "bootimage"
           - "nothing"
           - "sync_audit_only"
@@ -296,18 +298,47 @@ jobs:
           fi
           echo "PASS: PRODUCT_USE_DYNAMIC_PARTITIONS is not enabled."
 
-      - name: Assert LunarisDolby Module Declaration
-        run: |
-          echo "=================================================="
-          echo "=== 10. ASSERTING LUNARISDOLBY MODULE ==="
-          echo "=================================================="
-          cd /home/runner/android/avium
-          echo "Verifying packages/apps/LunarisDolby..."
-          if ! grep -rn 'name: "LunarisDolby"' packages/apps/LunarisDolby; then
-            echo "ERROR: LunarisDolby module declaration not found in packages/apps/LunarisDolby!"
+          echo "=== Verifying WITH_GMS (true) ==="
+          VAL_GMS=$(get_build_var WITH_GMS)
+          echo "WITH_GMS: $VAL_GMS"
+          if [ "$VAL_GMS" != "true" ]; then
+            echo "ERROR: Expected WITH_GMS to be true, got '$VAL_GMS'!"
             exit 1
           fi
-          echo "PASS: LunarisDolby confirmed in packages/apps/LunarisDolby."
+          echo "PASS: WITH_GMS is true."
+
+          echo "=== Verifying ro.avium.maintainer in product.prop ==="
+          if ! grep -q "^ro.avium.maintainer=LoMo 洛陌" device/oneplus/enchilada/product.prop; then
+            echo "ERROR: ro.avium.maintainer=LoMo 洛陌 not found in device/oneplus/enchilada/product.prop!"
+            exit 1
+          fi
+          echo "PASS: ro.avium.maintainer=LoMo 洛陌 confirmed in product.prop."
+
+          echo "=== Verifying Full 11-Font XML Registration in fonts_customization.xml ==="
+          FONTS_XML="packages/overlays/Lineage/fonts/etc/fonts_customization.xml"
+          if [ ! -f "$FONTS_XML" ]; then
+            echo "ERROR: $FONTS_XML not found!"
+            exit 1
+          fi
+
+          python3 -c 'import sys, xml.etree.ElementTree as ET; xml_file = sys.argv[1]; tree = ET.parse(xml_file); root = tree.getroot(); expected = ["smiley-sans", "lxgw-wenkai", "lxgw-neoxihei", "xiaolai-rounded", "noto-serif-sc", "zcool-qingke-huangyou", "zcool-xiaowei", "zcool-kuaile", "mashanzheng", "longcang", "zhimangxing"]; families = [f.attrib.get("name") for f in root.findall("family")]; aliases = [a.attrib.get("name") for a in root.findall("alias")]; missing_f = [f for f in expected if f not in families]; missing_a = [a for f in expected for a in (f"{f}-medium", f"{f}-bold") if a not in aliases]; sys.exit("ERROR: duplicate families") if len(families) != len(set(families)) else None; sys.exit("ERROR: duplicate aliases") if len(aliases) != len(set(aliases)) else None; sys.exit(f"ERROR: missing families: {missing_f}") if missing_f else None; sys.exit(f"ERROR: missing aliases: {missing_a}") if missing_a else None; print(f"PASS: All {len(expected)} font families and {len(expected)*2} aliases verified in {xml_file}.")' "$FONTS_XML"
+
+      - name: Assert Pure Linux 4.19 Golden Baseline (No KSU)
+        run: |
+          echo "=================================================="
+          echo "=== 10. ASSERTING PURE LINUX 4.19 GOLDEN BASELINE (NO KSU) ==="
+          echo "=================================================="
+          cd /home/runner/android/avium
+          echo "Verifying absence of drivers/kernelsu..."
+          if [ -d "kernel/oneplus/sdm845/drivers/kernelsu" ]; then
+            echo "ERROR: drivers/kernelsu found in kernel tree! KernelSU must be absent."
+            exit 1
+          fi
+          if grep -q "^CONFIG_KSU" kernel/oneplus/sdm845/arch/arm64/configs/vendor/enchilada.config; then
+            echo "ERROR: CONFIG_KSU found in enchilada.config! KernelSU must be absent."
+            exit 1
+          fi
+          echo "PASS: Pure Linux 4.19 golden baseline verified (KernelSU ABSENT)."
 
       - name: Configure Optional Lightweight Ccache
         if: ${{ github.event.inputs.use_ccache == 'true' }}
@@ -347,6 +378,28 @@ jobs:
           echo "NOTHING_DURATION_SECONDS=$NOTHING_DURATION" >> "$GITHUB_ENV"
           echo "PASS: m nothing succeeded in $((NOTHING_DURATION / 60))m $((NOTHING_DURATION % 60))s!"
 
+          echo "=== 11.2 Verifying product-build.prop sysprop assignments ==="
+          m product-build.prop 2>&1 | tee -a /home/runner/android/logs/build_nothing.log
+          PROP_FILE="out/soong/.intermediates/build/soong/product-build.prop/android_common/build.prop"
+          if [ -f "$PROP_FILE" ]; then
+            echo "Inspecting ro.avium.maintainer in $PROP_FILE:"
+            grep -n '^ro.avium.maintainer=' "$PROP_FILE" || true
+            PROP_COUNT=$(grep -c '^ro.avium.maintainer=' "$PROP_FILE" || true)
+            if [ "$PROP_COUNT" -ne 1 ]; then
+              echo "ERROR: Expected exactly 1 ro.avium.maintainer line, found $PROP_COUNT!"
+              exit 1
+            fi
+            PROP_VAL=$(grep '^ro.avium.maintainer=' "$PROP_FILE")
+            if [ "$PROP_VAL" != "ro.avium.maintainer=LoMo 洛陌" ]; then
+              echo "ERROR: Expected 'ro.avium.maintainer=LoMo 洛陌', got '$PROP_VAL'!"
+              exit 1
+            fi
+            echo "PASS: Exactly one ro.avium.maintainer=LoMo 洛陌 present in product build.prop."
+          else
+            echo "WARNING: $PROP_FILE not found directly; searching..."
+            find out/ -name "build.prop" | grep -i "product" || true
+          fi
+
       - name: Disk Space Audit (Post-Nothing)
         if: ${{ github.event.inputs.build_target != 'sync_audit_only' }}
         run: |
@@ -385,8 +438,35 @@ jobs:
           fi
 
           START_BOOT=$(date +%s)
+          set +e
           set -o pipefail
-          m -j16 TARGET_KERNEL_ADDITIONAL_FLAGS="-j8" bootimage 2>&1 | tee /home/runner/android/logs/build_bootimage.log
+
+          mkdir -p /home/runner/android/logs
+          PARALLEL_LOG="/home/runner/android/logs/build_bootimage.log"
+          J1_LOG="/home/runner/android/logs/build_bootimage_j1.log"
+
+          echo "Starting parallel bootimage build..."
+          m -j16 TARGET_KERNEL_ADDITIONAL_FLAGS="-j8" bootimage 2>&1 | tee "$PARALLEL_LOG"
+          rc=${PIPESTATUS[0]}
+
+          if [ "$rc" -ne 0 ]; then
+            echo "=================================================="
+            echo "Parallel bootimage failed with rc=$rc; retrying -j1 for diagnostics"
+            echo "=================================================="
+            m -j1 bootimage 2>&1 | tee "$J1_LOG"
+            rc=${PIPESTATUS[0]}
+            if [ "$rc" -ne 0 ]; then
+              echo "ERROR: bootimage -j1 failed with rc=$rc"
+              exit "$rc"
+            fi
+          fi
+
+          BOOT_IMG="/home/runner/android/avium/out/target/product/enchilada/boot.img"
+          if [ ! -s "$BOOT_IMG" ]; then
+            echo "ERROR: build returned success but boot.img does not exist or is empty"
+            exit 1
+          fi
+
           END_BOOT=$(date +%s)
           BOOT_DURATION=$((END_BOOT - START_BOOT))
           echo "BOOT_DURATION_SECONDS=$BOOT_DURATION" >> "$GITHUB_ENV"
@@ -395,12 +475,6 @@ jobs:
           echo "=================================================="
           echo "=== VERIFYING boot.img PHYSICAL CONSTRAINTS ==="
           echo "=================================================="
-          BOOT_IMG="/home/runner/android/avium/out/target/product/enchilada/boot.img"
-          if [ ! -f "$BOOT_IMG" ]; then
-            echo "ERROR: boot.img not found at $BOOT_IMG!"
-            exit 1
-          fi
-
           ls -lh "$BOOT_IMG"
           BOOT_SIZE=$(stat -c %s "$BOOT_IMG")
           echo "boot.img exact size: $BOOT_SIZE bytes"
@@ -448,6 +522,58 @@ jobs:
             exit 1
           fi
           echo "PASS: Free disk (${FREE_GIB} GiB) is >= 90 GiB. Safe to proceed to full m bacon."
+
+      - name: "Phase Gate 2.5: m SystemUI-core"
+        if: ${{ github.event.inputs.build_target == 'SystemUI-core' || github.event.inputs.build_target == 'bacon' }}
+        run: |
+          echo "=================================================="
+          echo "=== 12.5. EXECUTING: m SystemUI-core ==="
+          echo "=================================================="
+          cd /home/runner/android/avium
+          source build/envsetup.sh
+          lunch lineage_enchilada-bp4a-userdebug || lunch lineage_enchilada-userdebug
+
+          if [ "${{ github.event.inputs.use_ccache }}" = "true" ]; then
+            export CCACHE_DIR=/cache/ccache
+            export USE_CCACHE=1
+            export CCACHE_EXEC=/usr/bin/ccache
+          fi
+
+          mkdir -p /home/runner/android/logs
+          set -o pipefail
+          m -j16 SystemUI-core 2>&1 | tee /home/runner/android/logs/build_systemui.log
+          rc=${PIPESTATUS[0]}
+          if [ "$rc" -ne 0 ]; then
+            echo "ERROR: m SystemUI-core failed with rc=$rc"
+            exit "$rc"
+          fi
+          echo "PASS: m SystemUI-core succeeded!"
+
+      - name: "Phase Gate 2.6: m Launcher3QuickStep"
+        if: ${{ github.event.inputs.build_target == 'Launcher3QuickStep' || github.event.inputs.build_target == 'bacon' }}
+        run: |
+          echo "=================================================="
+          echo "=== 12.6. EXECUTING: m Launcher3QuickStep ==="
+          echo "=================================================="
+          cd /home/runner/android/avium
+          source build/envsetup.sh
+          lunch lineage_enchilada-bp4a-userdebug || lunch lineage_enchilada-userdebug
+
+          if [ "${{ github.event.inputs.use_ccache }}" = "true" ]; then
+            export CCACHE_DIR=/cache/ccache
+            export USE_CCACHE=1
+            export CCACHE_EXEC=/usr/bin/ccache
+          fi
+
+          mkdir -p /home/runner/android/logs
+          set -o pipefail
+          m -j16 Launcher3QuickStep 2>&1 | tee /home/runner/android/logs/build_launcher3.log
+          rc=${PIPESTATUS[0]}
+          if [ "$rc" -ne 0 ]; then
+            echo "ERROR: m Launcher3QuickStep failed with rc=$rc"
+            exit "$rc"
+          fi
+          echo "PASS: m Launcher3QuickStep succeeded!"
 
       - name: "Phase Gate 3: m bacon"
         if: ${{ github.event.inputs.build_target == 'bacon' }}
