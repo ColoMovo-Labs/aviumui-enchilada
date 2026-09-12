@@ -427,11 +427,35 @@ jobs:
           fi
 
           START_BOOT=$(date +%s)
-          m -j16 TARGET_KERNEL_ADDITIONAL_FLAGS="-j8" bootimage 2>&1 | tee /home/runner/android/logs/build_bootimage.log || {
-            echo "Parallel bootimage build encountered an error. Re-running with -j1 for immediate single-threaded error capture..."
-            m -j1 bootimage 2>&1 | tee -a /home/runner/android/logs/build_bootimage.log
+          set +e
+          set -o pipefail
+
+          mkdir -p /home/runner/android/logs
+          PARALLEL_LOG="/home/runner/android/logs/build_bootimage.log"
+          J1_LOG="/home/runner/android/logs/build_bootimage_j1.log"
+
+          echo "Starting parallel bootimage build..."
+          m -j16 TARGET_KERNEL_ADDITIONAL_FLAGS="-j8" bootimage 2>&1 | tee "$PARALLEL_LOG"
+          rc=${PIPESTATUS[0]}
+
+          if [ "$rc" -ne 0 ]; then
+            echo "=================================================="
+            echo "Parallel bootimage failed with rc=$rc; retrying -j1 for diagnostics"
+            echo "=================================================="
+            m -j1 bootimage 2>&1 | tee "$J1_LOG"
+            rc=${PIPESTATUS[0]}
+            if [ "$rc" -ne 0 ]; then
+              echo "ERROR: bootimage -j1 failed with rc=$rc"
+              exit "$rc"
+            fi
+          fi
+
+          BOOT_IMG="/home/runner/android/avium/out/target/product/enchilada/boot.img"
+          if [ ! -s "$BOOT_IMG" ]; then
+            echo "ERROR: build returned success but boot.img does not exist or is empty"
             exit 1
-          }
+          fi
+
           END_BOOT=$(date +%s)
           BOOT_DURATION=$((END_BOOT - START_BOOT))
           echo "BOOT_DURATION_SECONDS=$BOOT_DURATION" >> "$GITHUB_ENV"
@@ -440,12 +464,6 @@ jobs:
           echo "=================================================="
           echo "=== VERIFYING boot.img PHYSICAL CONSTRAINTS ==="
           echo "=================================================="
-          BOOT_IMG="/home/runner/android/avium/out/target/product/enchilada/boot.img"
-          if [ ! -f "$BOOT_IMG" ]; then
-            echo "ERROR: boot.img not found at $BOOT_IMG!"
-            exit 1
-          fi
-
           ls -lh "$BOOT_IMG"
           BOOT_SIZE=$(stat -c %s "$BOOT_IMG")
           echo "boot.img exact size: $BOOT_SIZE bytes"
