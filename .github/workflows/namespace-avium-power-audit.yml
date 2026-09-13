@@ -1,0 +1,350 @@
+name: AviumUI 16.2 Power Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      sync_jobs:
+        description: "Repo sync concurrency (-j)"
+        required: true
+        default: "16"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: namespace-avium-power-audit
+  cancel-in-progress: false
+
+jobs:
+  power-audit:
+    name: Power Audit
+    runs-on: namespace-profile-avium-run15
+    timeout-minutes: 180
+
+    steps:
+      - name: Runner Hardware & Environment Audit
+        run: |
+          echo "=================================================="
+          echo "=== 1. RUNNER HARDWARE & ENVIRONMENT AUDIT ==="
+          echo "=================================================="
+          hostname
+          whoami
+          pwd
+          uname -a
+          nproc
+          lscpu | head -n 25
+          free -h
+          df -hT / /cache /tmp /dev/shm || true
+
+      - name: Checkout Control Repository
+        uses: actions/checkout@v4
+        with:
+          path: control-repo
+
+      - name: Install Audit Dependencies & Tools
+        run: |
+          echo "=================================================="
+          echo "=== 2. INSTALLING AUDIT DEPENDENCIES & TOOLS ==="
+          echo "=================================================="
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc bison build-essential curl git git-lfs gnupg \
+            python3 python-is-python3 unzip wget zstd tar ripgrep jq pigz
+
+          git lfs install
+          sudo curl -sLo /usr/local/bin/repo https://storage.googleapis.com/git-repo-downloads/repo
+          sudo chmod a+rx /usr/local/bin/repo
+          repo version
+
+      - name: Setup Workspace on Root NVMe
+        run: |
+          echo "=================================================="
+          echo "=== 3. SETUP WORKSPACE ON ROOT NVMe ==="
+          echo "=================================================="
+          mkdir -p /home/runner/android/avium
+          mkdir -p /home/runner/android/audit_output
+          
+          git config --global user.name "ColoMovo"
+          git config --global user.email "colomovo@users.noreply.github.com"
+          git config --global color.ui false
+
+          df -hT /home/runner/android/avium
+
+      - name: Initialize AviumUI Source Tree
+        run: |
+          echo "=================================================="
+          echo "=== 4. REPO INIT AVIUMUI 16.2 ==="
+          echo "=================================================="
+          cd /home/runner/android/avium
+
+          repo init \
+            -u https://github.com/AviumUI/android_manifests \
+            -b avium-16.2 \
+            --git-lfs \
+            --depth=1
+
+      - name: Inject Validated Enchilada Local Manifest
+        run: |
+          echo "=================================================="
+          echo "=== 5. INJECTING ENCHILADA LOCAL MANIFEST ==="
+          echo "=================================================="
+          WORKSPACE_ROOT="$GITHUB_WORKSPACE"
+          CONTROL_DIR="$WORKSPACE_ROOT/control-repo"
+          if [ ! -d "$CONTROL_DIR" ]; then
+            CONTROL_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
+          fi
+
+          mkdir -p /home/runner/android/avium/.repo/local_manifests
+          cp "$CONTROL_DIR/local_manifests/enchilada.xml" /home/runner/android/avium/.repo/local_manifests/enchilada.xml
+
+          echo "=== Active .repo/local_manifests/enchilada.xml ==="
+          cat /home/runner/android/avium/.repo/local_manifests/enchilada.xml
+
+      - name: Synchronize Repositories
+        run: |
+          echo "=================================================="
+          echo "=== 6. SYNCHRONIZING REPOSITORIES ==="
+          echo "=================================================="
+          cd /home/runner/android/avium
+
+          SYNC_JOBS="${{ github.event.inputs.sync_jobs || '16' }}"
+          echo "Starting repo sync with -j${SYNC_JOBS}..."
+
+          repo sync \
+            -c \
+            --force-sync \
+            --no-clone-bundle \
+            --no-tags \
+            -j"${SYNC_JOBS}" || \
+          repo sync \
+            -c \
+            --force-sync \
+            --no-clone-bundle \
+            --no-tags \
+            -j4
+
+          echo "=== Workspace disk status after sync ==="
+          df -hT /home/runner/android/avium
+
+      - name: Apply Known Blocker Resolutions
+        run: |
+          echo "=================================================="
+          echo "=== 7. APPLYING BLOCKER RESOLUTIONS ==="
+          echo "=================================================="
+          WORKSPACE_ROOT="$GITHUB_WORKSPACE"
+          CONTROL_DIR="$WORKSPACE_ROOT/control-repo"
+          if [ ! -d "$CONTROL_DIR" ]; then
+            CONTROL_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
+          fi
+
+          if [ -f "$CONTROL_DIR/scripts/fix_known_blockers.sh" ]; then
+            bash "$CONTROL_DIR/scripts/fix_known_blockers.sh" /home/runner/android/avium "$CONTROL_DIR"
+          fi
+
+      - name: Lunch & Initialize Build Environment
+        run: |
+          echo "=================================================="
+          echo "=== 8. LUNCH & DYNAMIC ASSERTIONS ==="
+          echo "=================================================="
+          cd /home/runner/android/avium
+          source build/envsetup.sh || true
+
+          lunch lineage_enchilada-bp4a-userdebug || lunch lineage_enchilada-userdebug || true
+
+      - name: "Step 1: Build Identity Audit"
+        run: |
+          WORKSPACE_ROOT="$GITHUB_WORKSPACE"
+          CONTROL_DIR="$WORKSPACE_ROOT/control-repo"
+          [ ! -d "$CONTROL_DIR" ] && CONTROL_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
+          bash "$CONTROL_DIR/scripts/power_audit/run_audit_step.sh" 1 /home/runner/android/avium "$CONTROL_DIR" /home/runner/android/audit_output
+          cat /home/runner/android/audit_output/01-build-identity.txt
+
+      - name: "Step 2: Kernel Power Management Audit"
+        run: |
+          WORKSPACE_ROOT="$GITHUB_WORKSPACE"
+          CONTROL_DIR="$WORKSPACE_ROOT/control-repo"
+          [ ! -d "$CONTROL_DIR" ] && CONTROL_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
+          bash "$CONTROL_DIR/scripts/power_audit/run_audit_step.sh" 2 /home/runner/android/avium "$CONTROL_DIR" /home/runner/android/audit_output
+          cat /home/runner/android/audit_output/02-kernel-power.txt
+
+      - name: "Step 3: CPU & GPU Performance Configuration Audit"
+        run: |
+          WORKSPACE_ROOT="$GITHUB_WORKSPACE"
+          CONTROL_DIR="$WORKSPACE_ROOT/control-repo"
+          [ ! -d "$CONTROL_DIR" ] && CONTROL_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
+          bash "$CONTROL_DIR/scripts/power_audit/run_audit_step.sh" 3 /home/runner/android/avium "$CONTROL_DIR" /home/runner/android/audit_output
+          cat /home/runner/android/audit_output/03-cpu-gpu-power.txt
+
+      - name: "Step 4: Suspend & Deep Sleep Static Audit"
+        run: |
+          WORKSPACE_ROOT="$GITHUB_WORKSPACE"
+          CONTROL_DIR="$WORKSPACE_ROOT/control-repo"
+          [ ! -d "$CONTROL_DIR" ] && CONTROL_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
+          bash "$CONTROL_DIR/scripts/power_audit/run_audit_step.sh" 4 /home/runner/android/avium "$CONTROL_DIR" /home/runner/android/audit_output
+          cat /home/runner/android/audit_output/04-suspend-wakelock-static.txt
+
+      - name: "Step 5: SystemUI Background Runtime Loops & Animations Audit"
+        run: |
+          WORKSPACE_ROOT="$GITHUB_WORKSPACE"
+          CONTROL_DIR="$WORKSPACE_ROOT/control-repo"
+          [ ! -d "$CONTROL_DIR" ] && CONTROL_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
+          bash "$CONTROL_DIR/scripts/power_audit/run_audit_step.sh" 5 /home/runner/android/avium "$CONTROL_DIR" /home/runner/android/audit_output
+          cat /home/runner/android/audit_output/05-systemui-runtime-loops.txt
+
+      - name: "Step 6: Blur Rendering & RenderEffect Path Audit"
+        run: |
+          WORKSPACE_ROOT="$GITHUB_WORKSPACE"
+          CONTROL_DIR="$WORKSPACE_ROOT/control-repo"
+          [ ! -d "$CONTROL_DIR" ] && CONTROL_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
+          bash "$CONTROL_DIR/scripts/power_audit/run_audit_step.sh" 6 /home/runner/android/avium "$CONTROL_DIR" /home/runner/android/audit_output
+          cat /home/runner/android/audit_output/06-blur-rendering.txt
+
+      - name: "Step 7: Display & SurfaceFlinger Refresh / AOD Audit"
+        run: |
+          WORKSPACE_ROOT="$GITHUB_WORKSPACE"
+          CONTROL_DIR="$WORKSPACE_ROOT/control-repo"
+          [ ! -d "$CONTROL_DIR" ] && CONTROL_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
+          bash "$CONTROL_DIR/scripts/power_audit/run_audit_step.sh" 7 /home/runner/android/avium "$CONTROL_DIR" /home/runner/android/audit_output
+          cat /home/runner/android/audit_output/07-display-aod.txt
+
+      - name: "Step 8: Battery & Charger Configuration Audit"
+        run: |
+          WORKSPACE_ROOT="$GITHUB_WORKSPACE"
+          CONTROL_DIR="$WORKSPACE_ROOT/control-repo"
+          [ ! -d "$CONTROL_DIR" ] && CONTROL_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
+          bash "$CONTROL_DIR/scripts/power_audit/run_audit_step.sh" 8 /home/runner/android/avium "$CONTROL_DIR" /home/runner/android/audit_output
+          cat /home/runner/android/audit_output/08-charging-policy.txt
+
+      - name: "Step 9: Thermal Policy & Mitigation Audit"
+        run: |
+          WORKSPACE_ROOT="$GITHUB_WORKSPACE"
+          CONTROL_DIR="$WORKSPACE_ROOT/control-repo"
+          [ ! -d "$CONTROL_DIR" ] && CONTROL_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
+          bash "$CONTROL_DIR/scripts/power_audit/run_audit_step.sh" 9 /home/runner/android/avium "$CONTROL_DIR" /home/runner/android/audit_output
+          cat /home/runner/android/audit_output/09-thermal-policy.txt
+
+      - name: "Step 10: GNSS & Location Configuration Audit"
+        run: |
+          WORKSPACE_ROOT="$GITHUB_WORKSPACE"
+          CONTROL_DIR="$WORKSPACE_ROOT/control-repo"
+          [ ! -d "$CONTROL_DIR" ] && CONTROL_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
+          bash "$CONTROL_DIR/scripts/power_audit/run_audit_step.sh" 10 /home/runner/android/avium "$CONTROL_DIR" /home/runner/android/audit_output
+          cat /home/runner/android/audit_output/10-gnss-location.txt
+
+      - name: "Step 11: Mobile Radio & IMS / VoLTE Configuration Audit"
+        run: |
+          WORKSPACE_ROOT="$GITHUB_WORKSPACE"
+          CONTROL_DIR="$WORKSPACE_ROOT/control-repo"
+          [ ! -d "$CONTROL_DIR" ] && CONTROL_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
+          bash "$CONTROL_DIR/scripts/power_audit/run_audit_step.sh" 11 /home/runner/android/avium "$CONTROL_DIR" /home/runner/android/audit_output
+          cat /home/runner/android/audit_output/11-radio-ims.txt
+
+      - name: "Step 12: Wi-Fi & Bluetooth Configuration Audit"
+        run: |
+          WORKSPACE_ROOT="$GITHUB_WORKSPACE"
+          CONTROL_DIR="$WORKSPACE_ROOT/control-repo"
+          [ ! -d "$CONTROL_DIR" ] && CONTROL_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
+          bash "$CONTROL_DIR/scripts/power_audit/run_audit_step.sh" 12 /home/runner/android/avium "$CONTROL_DIR" /home/runner/android/audit_output
+          cat /home/runner/android/audit_output/12-wifi-bluetooth.txt
+
+      - name: "Step 13: Google Mobile Services (GMS) Power Risk Audit"
+        run: |
+          WORKSPACE_ROOT="$GITHUB_WORKSPACE"
+          CONTROL_DIR="$WORKSPACE_ROOT/control-repo"
+          [ ! -d "$CONTROL_DIR" ] && CONTROL_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
+          bash "$CONTROL_DIR/scripts/power_audit/run_audit_step.sh" 13 /home/runner/android/avium "$CONTROL_DIR" /home/runner/android/audit_output
+          cat /home/runner/android/audit_output/13-gms-risk.txt
+
+      - name: "Step 14: Debug Logging & Trace Overhead Audit"
+        run: |
+          WORKSPACE_ROOT="$GITHUB_WORKSPACE"
+          CONTROL_DIR="$WORKSPACE_ROOT/control-repo"
+          [ ! -d "$CONTROL_DIR" ] && CONTROL_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
+          bash "$CONTROL_DIR/scripts/power_audit/run_audit_step.sh" 14 /home/runner/android/avium "$CONTROL_DIR" /home/runner/android/audit_output
+          cat /home/runner/android/audit_output/14-debug-logging.txt
+
+      - name: "Step 15: Vanilla Baseline vs Feature Build Power-Sensitive Diff"
+        run: |
+          WORKSPACE_ROOT="$GITHUB_WORKSPACE"
+          CONTROL_DIR="$WORKSPACE_ROOT/control-repo"
+          [ ! -d "$CONTROL_DIR" ] && CONTROL_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
+          bash "$CONTROL_DIR/scripts/power_audit/run_audit_step.sh" 15 /home/runner/android/avium "$CONTROL_DIR" /home/runner/android/audit_output
+          cat /home/runner/android/audit_output/15-power-sensitive-diff.txt
+
+      - name: "Step 16: Generate Real-Device Runtime Power Capture Script"
+        run: |
+          WORKSPACE_ROOT="$GITHUB_WORKSPACE"
+          CONTROL_DIR="$WORKSPACE_ROOT/control-repo"
+          [ ! -d "$CONTROL_DIR" ] && CONTROL_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
+          bash "$CONTROL_DIR/scripts/power_audit/run_audit_step.sh" 16 /home/runner/android/avium "$CONTROL_DIR" /home/runner/android/audit_output
+          ls -la /home/runner/android/audit_output/avium-runtime-power-capture.sh
+
+      - name: "Step 17: Generate 3-Phase Runtime Power Test Protocol"
+        run: |
+          WORKSPACE_ROOT="$GITHUB_WORKSPACE"
+          CONTROL_DIR="$WORKSPACE_ROOT/control-repo"
+          [ ! -d "$CONTROL_DIR" ] && CONTROL_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
+          bash "$CONTROL_DIR/scripts/power_audit/run_audit_step.sh" 17 /home/runner/android/avium "$CONTROL_DIR" /home/runner/android/audit_output
+          cat /home/runner/android/audit_output/RUNTIME-POWER-TEST.md
+
+      - name: "Step 18: Generate Screen-On Charging Test Script & Guide"
+        run: |
+          WORKSPACE_ROOT="$GITHUB_WORKSPACE"
+          CONTROL_DIR="$WORKSPACE_ROOT/control-repo"
+          [ ! -d "$CONTROL_DIR" ] && CONTROL_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
+          bash "$CONTROL_DIR/scripts/power_audit/run_audit_step.sh" 18 /home/runner/android/avium "$CONTROL_DIR" /home/runner/android/audit_output
+          cat /home/runner/android/audit_output/CHARGING-TEST.md
+
+      - name: "Step 19: Synthesize Final Risk Scoring & Comprehensive Audit Report"
+        run: |
+          WORKSPACE_ROOT="$GITHUB_WORKSPACE"
+          CONTROL_DIR="$WORKSPACE_ROOT/control-repo"
+          [ ! -d "$CONTROL_DIR" ] && CONTROL_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
+          bash "$CONTROL_DIR/scripts/power_audit/run_audit_step.sh" 19 /home/runner/android/avium "$CONTROL_DIR" /home/runner/android/audit_output
+          cat /home/runner/android/audit_output/FINAL-POWER-AUDIT.md
+
+      - name: "Collect & Validate All Audit Artifacts"
+        run: |
+          echo "=== Summary of Generated Audit Files ==="
+          ls -la /home/runner/android/audit_output/
+          
+          REQUIRED_FILES=(
+            "01-build-identity.txt"
+            "02-kernel-power.txt"
+            "03-cpu-gpu-power.txt"
+            "04-suspend-wakelock-static.txt"
+            "05-systemui-runtime-loops.txt"
+            "06-blur-rendering.txt"
+            "07-display-aod.txt"
+            "08-charging-policy.txt"
+            "09-thermal-policy.txt"
+            "10-gnss-location.txt"
+            "11-radio-ims.txt"
+            "12-wifi-bluetooth.txt"
+            "13-gms-risk.txt"
+            "14-debug-logging.txt"
+            "15-power-sensitive-diff.txt"
+            "avium-runtime-power-capture.sh"
+            "RUNTIME-POWER-TEST.md"
+            "avium-charge-test.sh"
+            "CHARGING-TEST.md"
+            "FINAL-POWER-AUDIT.md"
+          )
+          
+          for f in "${REQUIRED_FILES[@]}"; do
+            if [ -f "/home/runner/android/audit_output/$f" ]; then
+              echo "[✓] Present: $f"
+            else
+              echo "[✗] Missing: $f"
+              exit 1
+            fi
+          done
+
+      - name: "Upload Power Audit Artifacts"
+        uses: actions/upload-artifact@v4
+        with:
+          name: avium-power-audit-${{ github.run_id }}
+          path: /home/runner/android/audit_output/
+          retention-days: 90
+          if-no-files-found: error
