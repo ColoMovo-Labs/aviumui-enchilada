@@ -1,5 +1,7 @@
 # AviumUI 16.2 Bring-up for OnePlus 6 (enchilada)
 
+[简体中文](README.zh-CN.md)
+
 [![Status: Experimental](https://img.shields.io/badge/Status-Experimental%20%2F%20Unofficial-orange.svg)](#status)
 [![Android Version](https://img.shields.io/badge/Android-16%20QPR2-blue.svg)](#android-version)
 [![Target Device](https://img.shields.io/badge/Device-OnePlus%206%20(enchilada)-red.svg)](#target-device)
