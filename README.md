@@ -185,6 +185,20 @@ aviumui-enchilada/
 
 ---
 
+## 💖 Acknowledgements & Special Thanks / 鸣谢
+
+We would like to express our deepest gratitude to the following projects, organizations, and infrastructure sponsors:
+
+* **[Namespace](https://namespace.so)**: **Special thanks to Namespace for generously providing the high-performance computing runners that made compiling the complete AviumUI 16.2.1 Android ROM (`m bacon`) possible.**  
+  Powered by Namespace's 32 vCPU AMD EPYC Zen 4, 62 GiB RAM, and high-speed NVMe cloud instances (`namespace-profile-avium-run15`), our pipeline was able to handle full AOSP repo syncs, high-throughput build caching, and complete ROM compilation in record time.
+* **[LineageOS Project](https://lineageos.org/)**: For providing the rock-solid device, kernel, and hardware trees for OnePlus 6 (`enchilada`) and SDM845 platform.
+* **[AviumUI Team](https://github.com/AviumUI)**: For the expressive, modern Android UI design and platform framework.
+* **[AOSP (Android Open Source Project)](https://source.android.com/)**: For the open Android foundation.
+* **[OnePlus](https://www.oneplus.com/) & [Qualcomm](https://www.qualcomm.com/)**: For releasing the open-source kernel and device hardware references.
+* **EdwinMoq & uwugl**: For pioneering SDM845 modern Android bring-up research and community references.
+
+---
+
 ## ⚖️ License & Disclaimers
 
 * **Source License**: Project orchestration files and custom bring-up scripts in this repository are licensed under the [Apache License 2.0](LICENSE).

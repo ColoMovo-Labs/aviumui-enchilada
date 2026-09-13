@@ -201,16 +201,17 @@ Super Island 支持通过 SurfaceFlinger 渲染背景模糊（Background Blur）
 
 ---
 
-## 致谢
+## 鸣谢
 
-感谢以下开源项目、组织与开发者为本项目的实现提供的坚实基础与灵感：
+我们在此向以下开源项目、组织以及为本项目提供算力支持的赞助方致以诚挚的谢意：
 
-* [LineageOS](https://lineageos.org/) 项目团队：提供了卓越且长期受维护的 Android 设备基准树与硬件抽象支持。
-* [AviumUI](https://github.com/AviumUI) 核心开发团队：提供了极富表现力的现代系统设计与界面框架。
-* [Android 开源项目 (AOSP)](https://source.android.com/)：提供了开放的操作系统基础。
-* OnePlus 与 Qualcomm 开源协作生态：提供了必要的设备内核与驱动程序源代码。
+* **[Namespace](https://namespace.so)**：**特别鸣谢 Namespace 提供的云端机器与计算资源，使我们能够成功且完整地编译出 AviumUI 16.2.1 Android ROM (`m bacon`)。**  
+  感谢 Namespace 提供的 32 vCPU AMD EPYC Zen 4 处理器、62 GiB 内存与超高速 NVMe 存储实例（`namespace-profile-avium-run15`）。正是得益于 Namespace 稳定强大的云原生基础设施与 GitHub Actions 运行环境，使得大型 Android 操作系统构建、全量缓存优化以及深度静态审计能够在极短的时间内可靠完成。
+* **[LineageOS](https://lineageos.org/) 项目团队**：提供了卓越且长期受维护的 Android 设备基准树、底层内核与硬件抽象层支持。
+* **[AviumUI](https://github.com/AviumUI) 核心开发团队**：提供了极富表现力的现代系统设计与界面框架。
+* **[Android 开源项目 (AOSP)](https://source.android.com/)**：提供了开放可靠的移动操作系统基础。
+* **OnePlus 与 Qualcomm 开源协作生态**：提供了必要的设备内核与驱动程序源代码。
 * **EdwinMoq** 与 **uwugl**：为 SDM845 平台的现代 Android 适配提供了宝贵的社区参考与技术探索。
-* **Namespace**：特别感谢 [Namespace](https://namespace.so) 为本项目提供的强大云原生计算资源与 GitHub Actions 高性能运行程序。通过使用 Namespace 32 vCPU EPYC 算力支持，使得大型 Android 操作系统构建、全量缓存优化与深度静态审计能够在极短的时间内可靠完成。
 
 ---
 
