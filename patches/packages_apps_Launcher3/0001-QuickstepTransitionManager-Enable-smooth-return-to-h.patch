@@ -1,0 +1,43 @@
+From 219d415311f71761f815cb0ea9c3a6070a3ef580 Mon Sep 17 00:00:00 2001
+From: LoMo <lolojicoco@outlook.com>
+Date: Sat, 12 Sep 2026 15:44:40 +0800
+Subject: [PATCH] QuickstepTransitionManager: Enable smooth return-to-home
+ animation on Back
+
+---
+ .../android/launcher3/QuickstepTransitionManager.java | 11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)
+
+diff --git a/quickstep/src/com/android/launcher3/QuickstepTransitionManager.java b/quickstep/src/com/android/launcher3/QuickstepTransitionManager.java
+index b547ec6..49cdd97 100644
+--- a/quickstep/src/com/android/launcher3/QuickstepTransitionManager.java
++++ b/quickstep/src/com/android/launcher3/QuickstepTransitionManager.java
+@@ -1407,23 +1407,16 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
+ 
+         homeCheck.mRequirements =
+                 new TransitionFilter.Requirement[]{new TransitionFilter.Requirement(),
+-                        new TransitionFilter.Requirement(),
+                         new TransitionFilter.Requirement()};
+ 
+         homeCheck.mRequirements[0].mActivityType = ACTIVITY_TYPE_HOME;
+         homeCheck.mRequirements[0].mTopActivity = mLauncher.getComponentName();
+         homeCheck.mRequirements[0].mModes = new int[]{TRANSIT_OPEN, TRANSIT_TO_FRONT};
+-        if (!com.android.window.flags.Flags.polishCloseWallpaperIncludesOpenChange()) {
+-            homeCheck.mRequirements[0].mOrder = CONTAINER_ORDER_TOP;
+-        }
+ 
+         homeCheck.mRequirements[1].mActivityType = ACTIVITY_TYPE_STANDARD;
+         homeCheck.mRequirements[1].mModes = new int[]{TRANSIT_CLOSE, TRANSIT_TO_BACK};
+-
+-        homeCheck.mRequirements[2].mNot = true;
+-        homeCheck.mRequirements[2].mCustomAnimation = true;
+-        homeCheck.mRequirements[2].mMustBeTask = true;
+-        homeCheck.mRequirements[2].mMustBeIndependent = true;
++        homeCheck.mRequirements[1].mMustBeTask = true;
++        homeCheck.mRequirements[1].mMustBeIndependent = true;
+ 
+         SystemUiProxy.INSTANCE.get(mLauncher)
+                 .registerRemoteTransition(mLauncherOpenTransition, homeCheck);
+-- 
+2.53.0
+

@@ -1,0 +1,53 @@
+diff --git a/core/java/android/app/Instrumentation.java b/core/java/android/app/Instrumentation.java
+index 9938a19..38343ca 100644
+--- a/core/java/android/app/Instrumentation.java
++++ b/core/java/android/app/Instrumentation.java
+@@ -1356,6 +1356,9 @@ public class Instrumentation {
+     public Application newApplication(ClassLoader cl, String className, Context context)
+             throws InstantiationException, IllegalAccessException, 
+             ClassNotFoundException {
++        if (context != null && "com.google.android.apps.photos".equals(context.getPackageName())) {
++            spoofGooglePhotos();
++        }
+         Application app = getFactory(context.getPackageName())
+                 .instantiateApplication(cl, className);
+         app.attach(context);
+@@ -1375,11 +1378,38 @@ public class Instrumentation {
+     static public Application newApplication(Class<?> clazz, Context context)
+             throws InstantiationException, IllegalAccessException, 
+             ClassNotFoundException {
++        if (context != null && "com.google.android.apps.photos".equals(context.getPackageName())) {
++            spoofGooglePhotos();
++        }
+         Application app = (Application)clazz.newInstance();
+         app.attach(context);
+         return app;
+     }
+ 
++    private static void spoofGooglePhotos() {
++        try {
++            setBuildProp("BRAND", "google");
++            setBuildProp("MANUFACTURER", "Google");
++            setBuildProp("DEVICE", "marlin");
++            setBuildProp("PRODUCT", "marlin");
++            setBuildProp("HARDWARE", "marlin");
++            setBuildProp("MODEL", "Pixel XL");
++            setBuildProp("ID", "QP1A.191005.007.A3");
++            setBuildProp("FINGERPRINT", "google/marlin/marlin:10/QP1A.191005.007.A3/5972272:user/release-keys");
++        } catch (Throwable ignored) {
++        }
++    }
++
++    private static void setBuildProp(String key, String value) {
++        try {
++            java.lang.reflect.Field field = Build.class.getDeclaredField(key);
++            field.setAccessible(true);
++            field.set(null, value);
++            field.setAccessible(false);
++        } catch (Throwable ignored) {
++        }
++    }
++
+     /**
+      * Perform calling of the application's {@link Application#onCreate}
+      * method.  The default implementation simply calls through to that method.

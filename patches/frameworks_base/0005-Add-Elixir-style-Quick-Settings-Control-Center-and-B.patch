@@ -1,0 +1,1850 @@
+From: LoMo <lomo@aviumui.org>
+Date: Sat, 12 Sep 2026 15:34:00 +0800
+Subject: [PATCH] SystemUI: Add switchable Project Elixir style Control Center and System Blur
+
+Implements a clean, decoupled second Quick Settings presentation layer
+inspired by Project Elixir, switchable via Settings between Avium (Default)
+and Elixir style. Retains 100% of the original Avium QS implementation.
+Includes real-time frosted glass backdrop blur with low (15px default),
+medium (30px), and high (60px) intensity levels.
+---
+
+diff --git a/packages/SystemUI/src/org/avium/systemui/di/AviumSystemUIModule.kt b/packages/SystemUI/src/org/avium/systemui/di/AviumSystemUIModule.kt
+--- a/packages/SystemUI/src/org/avium/systemui/di/AviumSystemUIModule.kt
++++ b/packages/SystemUI/src/org/avium/systemui/di/AviumSystemUIModule.kt
+@@ -28,6 +28,7 @@ import dagger.Module
+ import dagger.Provides
+ import org.avium.systemui.aod.di.AviumAodModule
+ import org.avium.systemui.chips.di.AviumChipsModule
++import org.avium.systemui.controlcenter.di.AviumControlCenterModule
+ import org.avium.systemui.island.di.AviumIslandModule
+ import org.avium.systemui.keyguard.AviumMusicLockscreenController
+ import org.avium.systemui.lockscreen.di.AviumLockscreenModule
+@@ -36,6 +37,7 @@ import org.avium.systemui.mistouch.di.MistouchModule
+ @Module(includes = [
+     AviumAodModule::class,
+     AviumChipsModule::class,
++    AviumControlCenterModule::class,
+     AviumIslandModule::class,
+     AviumLockscreenModule::class,
+     MistouchModule::class
+diff --git a/packages/SystemUI/res/drawable/ic_brightness_slider_sun.xml b/packages/SystemUI/res/drawable/ic_brightness_slider_sun.xml
+new file mode 100644
+index 00000000..65dc725b
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_brightness_slider_sun.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++  <path
++      android:fillColor="#FFFFFFFF"
++      android:pathData="M20,8.69V4h-4.69L12,0.69 8.69,4H4v4.69L0.69,12 4,15.31V20h4.69L12,23.31 15.31,20H20v-4.69L23.31,12 20,8.69zM12,18c-3.31,0 -6,-2.69 -6,-6s2.69,-6 6,-6 6,2.69 6,6 -2.69,6 -6,6z"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/ic_control_center_bluetooth.xml b/packages/SystemUI/res/drawable/ic_control_center_bluetooth.xml
+new file mode 100644
+index 00000000..a6674ab1
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_control_center_bluetooth.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++  <path
++      android:fillColor="#FFFFFFFF"
++      android:pathData="M17.71,7.71L12,2h-1v7.59L6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 11,14.41V22h1l5.71,-5.71 -4.3,-4.29 4.3,-4.29zM13,5.83l1.88,1.88L13,9.59V5.83zm1.88,10.46L13,18.17v-3.76l1.88,1.88z"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/ic_control_center_cellular.xml b/packages/SystemUI/res/drawable/ic_control_center_cellular.xml
+new file mode 100644
+index 00000000..7651699f
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_control_center_cellular.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++  <path
++      android:fillColor="#FFFFFFFF"
++      android:pathData="M2,22h20V2L2,22z"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/ic_control_center_edit.xml b/packages/SystemUI/res/drawable/ic_control_center_edit.xml
+new file mode 100644
+index 00000000..dd0d25a0
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_control_center_edit.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++  <path
++      android:fillColor="#FFFFFFFF"
++      android:pathData="M3,17.25V21h3.75L17.81,9.94l-3.75,-3.75L3,17.25zM20.71,7.04c0.39,-0.39 0.39,-1.02 0,-1.41l-2.34,-2.34c-0.39,-0.39 -1.02,-0.39 -1.41,0l-1.83,1.83 3.75,3.75 1.83,-1.83z"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/ic_control_center_flashlight.xml b/packages/SystemUI/res/drawable/ic_control_center_flashlight.xml
+new file mode 100644
+index 00000000..874613bb
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_control_center_flashlight.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++  <path
++      android:fillColor="#FFFFFFFF"
++      android:pathData="M6,2h12v3l-4,4v11a2,2 0 0,1 -2,2h-4a2,2 0 0,1 -2,-2V9L6,5V2z"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/ic_control_center_music.xml b/packages/SystemUI/res/drawable/ic_control_center_music.xml
+new file mode 100644
+index 00000000..59dad8f1
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_control_center_music.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++  <path
++      android:fillColor="#FFFFFFFF"
++      android:pathData="M12,3v10.55c-0.59,-0.34 -1.27,-0.55 -2,-0.55 -2.21,0 -4,1.79 -4,4s1.79,4 4,4 4,-1.79 4,-4V7h4V3h-6z"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/ic_control_center_next.xml b/packages/SystemUI/res/drawable/ic_control_center_next.xml
+new file mode 100644
+index 00000000..0406e1c8
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_control_center_next.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++  <path
++      android:fillColor="#FFFFFFFF"
++      android:pathData="M6,18l8.5,-6L6,6v12zM16,6v12h2V6h-2z"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/ic_control_center_pause.xml b/packages/SystemUI/res/drawable/ic_control_center_pause.xml
+new file mode 100644
+index 00000000..d0a79518
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_control_center_pause.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++  <path
++      android:fillColor="#FFFFFFFF"
++      android:pathData="M6,19h4V5H6v14zm8,-14v14h4V5h-4z"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/ic_control_center_play.xml b/packages/SystemUI/res/drawable/ic_control_center_play.xml
+new file mode 100644
+index 00000000..c85bcf3a
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_control_center_play.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++  <path
++      android:fillColor="#FFFFFFFF"
++      android:pathData="M8,5v14l11,-7z"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/ic_control_center_power.xml b/packages/SystemUI/res/drawable/ic_control_center_power.xml
+new file mode 100644
+index 00000000..154e194c
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_control_center_power.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++  <path
++      android:fillColor="#FFFFFFFF"
++      android:pathData="M13,3h-2v10h2V3zm4.83,2.17l-1.42,1.42C17.99,7.86 19,9.81 19,12c0,3.87 -3.13,7 -7,7s-7,-3.13 -7,-7c0,-2.19 1.01,-4.14 2.58,-5.42L6.17,5.17C4.23,6.82 3,9.26 3,12c0,4.97 4.03,9 9,9s9,-4.03 9,-9c0,-2.74 -1.23,-5.18 -3.17,-6.83z"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/ic_control_center_prev.xml b/packages/SystemUI/res/drawable/ic_control_center_prev.xml
+new file mode 100644
+index 00000000..ad49ccea
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_control_center_prev.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++  <path
++      android:fillColor="#FFFFFFFF"
++      android:pathData="M6,6h2v12H6zm3.5,6l8.5,6V6z"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/ic_control_center_settings.xml b/packages/SystemUI/res/drawable/ic_control_center_settings.xml
+new file mode 100644
+index 00000000..0f6b8dd6
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_control_center_settings.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++  <path
++      android:fillColor="#FFFFFFFF"
++      android:pathData="M19.14,12.94c0.04,-0.3 0.06,-0.61 0.06,-0.94 0,-0.32 -0.02,-0.64 -0.07,-0.94l2.03,-1.58c0.18,-0.14 0.23,-0.41 0.12,-0.61l-1.92,-3.32c-0.12,-0.22 -0.37,-0.29 -0.59,-0.22l-2.39,0.96c-0.5,-0.38 -1.03,-0.7 -1.62,-0.94l-0.36,-2.54c-0.04,-0.24 -0.24,-0.41 -0.48,-0.41h-3.84c-0.24,0 -0.43,0.17 -0.47,0.41L9.25,5.35C8.66,5.59 8.12,5.92 7.63,6.29L5.24,5.33c-0.22,-0.08 -0.47,0 -0.59,0.22L2.74,8.87c-0.12,0.21 -0.08,0.47 0.12,0.61l2.03,1.58c-0.05,0.3 -0.09,0.63 -0.09,0.94s0.02,0.64 0.07,0.94l-2.03,1.58c-0.18,0.14 -0.23,0.41 -0.12,0.61l1.92,3.32c0.12,0.22 0.37,0.29 0.59,0.22l2.39,-0.96c0.5,0.38 1.03,0.7 1.62,0.94l0.36,2.54c0.05,0.24 0.24,0.41 0.48,0.41h3.84c0.24,0 0.44,-0.17 0.47,-0.41l0.36,-2.54c0.59,-0.24 1.13,-0.56 1.62,-0.94l2.39,0.96c0.22,0.08 0.47,0 0.59,-0.22l1.92,-3.32c0.12,-0.22 0.07,-0.47 -0.12,-0.61l-2.01,-1.58zM12,15.6c-1.98,0 -3.6,-1.62 -3.6,-3.6s1.62,-3.6 3.6,-3.6 3.6,1.62 3.6,3.6 -1.62,3.6 -3.6,3.6z"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/ic_control_center_wifi.xml b/packages/SystemUI/res/drawable/ic_control_center_wifi.xml
+new file mode 100644
+index 00000000..384f1cef
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_control_center_wifi.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++  <path
++      android:fillColor="#FFFFFFFF"
++      android:pathData="M12,4C7.31,4 3.07,5.9 0,8.98L12,21 24,8.98C20.93,5.9 16.69,4 12,4z"/>
++</vector>
+diff --git a/packages/SystemUI/res/layout/qs_panel.xml b/packages/SystemUI/res/layout/qs_panel.xml
+index 5f77f61d..8a15da96 100644
+--- a/packages/SystemUI/res/layout/qs_panel.xml
++++ b/packages/SystemUI/res/layout/qs_panel.xml
+@@ -54,6 +54,12 @@
+         android:layout_gravity="bottom"
+         android:elevation="@dimen/qs_panel_elevation" />
+ 
++    <org.avium.systemui.controlcenter.ElixirControlCenterView
++        android:id="@+id/elixir_control_center"
++        android:layout_width="match_parent"
++        android:layout_height="match_parent"
++        android:visibility="gone" />
++
+     <include
+         android:id="@+id/qs_customize"
+         layout="@layout/qs_customize_panel"
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/QSContainerImpl.java b/packages/SystemUI/src/com/android/systemui/qs/QSContainerImpl.java
+index 9fc1b7ae..e0f71e8d 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/QSContainerImpl.java
++++ b/packages/SystemUI/src/com/android/systemui/qs/QSContainerImpl.java
+@@ -57,6 +57,8 @@ public class QSContainerImpl extends FrameLayout implements Dumpable {
+     private QSCustomizer mQSCustomizer;
+     private QSPanel mQSPanel;
+     private NonInterceptingScrollView mQSPanelContainer;
++    private org.avium.systemui.controlcenter.ElixirControlCenterView mElixirControlCenter;
++    private int mControlCenterStyle = 0;
+ 
+     private int mHorizontalMargins;
+     private int mTilesPageMargin;
+@@ -78,9 +80,43 @@ public class QSContainerImpl extends FrameLayout implements Dumpable {
+         mQSPanel = findViewById(R.id.quick_settings_panel);
+         mHeader = findViewById(R.id.header);
+         mQSCustomizer = findViewById(R.id.qs_customize);
++        mElixirControlCenter = findViewById(R.id.elixir_control_center);
+         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
+     }
+ 
++    public org.avium.systemui.controlcenter.ElixirControlCenterView getElixirControlCenter() {
++        return mElixirControlCenter;
++    }
++
++    public void setControlCenterStyle(int style) {
++        if (mControlCenterStyle == style) return;
++        mControlCenterStyle = style;
++        updateStyleVisibility();
++    }
++
++    public int getControlCenterStyle() {
++        return mControlCenterStyle;
++    }
++
++    private void updateStyleVisibility() {
++        if (mElixirControlCenter == null) return;
++        boolean isElixir = (mControlCenterStyle == 1);
++        if (isElixir) {
++            if (mQSPanelContainer != null) mQSPanelContainer.setVisibility(GONE);
++            if (mHeader != null) mHeader.setVisibility(GONE);
++            View footer = findViewById(R.id.qs_footer_actions);
++            if (footer != null) footer.setVisibility(GONE);
++            mElixirControlCenter.setVisibility(VISIBLE);
++        } else {
++            if (mQSPanelContainer != null) mQSPanelContainer.setVisibility(VISIBLE);
++            if (mHeader != null) mHeader.setVisibility(VISIBLE);
++            View footer = findViewById(R.id.qs_footer_actions);
++            if (footer != null) footer.setVisibility(VISIBLE);
++            mElixirControlCenter.setVisibility(GONE);
++        }
++        updateExpansion();
++    }
++
+     void setSceneContainerEnabled(boolean enabled) {
+         mSceneContainerEnabled = enabled;
+         if (enabled) {
+@@ -152,7 +188,7 @@ public class QSContainerImpl extends FrameLayout implements Dumpable {
+             // This prevents the pages in PagedTileLayout to be remeasured with a different
+             // (incorrect) size to the one used for determining the number of rows and then the
+             // number of pages.
+-            if (child != mQSPanelContainer) {
++            if (child != mQSPanelContainer && child != mElixirControlCenter) {
+                 super.measureChildWithMargins(child, parentWidthMeasureSpec, widthUsed,
+                         parentHeightMeasureSpec, heightUsed);
+             }
+@@ -242,6 +278,9 @@ public class QSContainerImpl extends FrameLayout implements Dumpable {
+ 
+     protected int calculateContainerHeight() {
+         int heightOverride = mHeightOverride != -1 ? mHeightOverride : getMeasuredHeight();
++        if (mControlCenterStyle == 1 && mElixirControlCenter != null) {
++            return Math.round(mQsExpansion * heightOverride);
++        }
+         // Need to add the dragHandle height so touches will be intercepted by it.
+         return mQSCustomizer.isCustomizing() ? mQSCustomizer.getHeight()
+                 : Math.round(mQsExpansion * (heightOverride - mHeader.getHeight()))
+@@ -287,6 +326,9 @@ public class QSContainerImpl extends FrameLayout implements Dumpable {
+         if (mQSPanelContainer != null) {
+             mQSPanelContainer.setScrollingEnabled(expansion > 0f);
+         }
++        if (mElixirControlCenter != null && mControlCenterStyle == 1) {
++            mElixirControlCenter.setExpansion(expansion);
++        }
+         updateExpansion();
+     }
+ 
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/QSContainerImplController.java b/packages/SystemUI/src/com/android/systemui/qs/QSContainerImplController.java
+index 946eccd0..c075f4c9 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/QSContainerImplController.java
++++ b/packages/SystemUI/src/com/android/systemui/qs/QSContainerImplController.java
+@@ -86,8 +86,30 @@ public class QSContainerImplController extends ViewController<QSContainerImpl> {
+         }
+     }
+ 
++    private final android.database.ContentObserver mStyleObserver =
++            new android.database.ContentObserver(new android.os.Handler(android.os.Looper.getMainLooper())) {
++        @Override
++        public void onChange(boolean selfChange) {
++            updateControlCenterStyle();
++        }
++    };
++
++    private void updateControlCenterStyle() {
++        if (mView != null && mView.getElixirControlCenter() != null) {
++            int style = android.provider.Settings.System.getIntForUser(
++                    getContext().getContentResolver(),
++                    "avium_control_center_style",
++                    0,
++                    android.os.UserHandle.USER_CURRENT);
++            mView.setControlCenterStyle(style);
++        }
++    }
++
+     public void setListening(boolean listening) {
+         mQuickStatusBarHeaderController.setListening(listening);
++        if (mView != null && mView.getElixirControlCenter() != null) {
++            mView.getElixirControlCenter().setListening(listening);
++        }
+     }
+ 
+     @Override
+@@ -97,6 +119,18 @@ public class QSContainerImplController extends ViewController<QSContainerImpl> {
+         if (!mSceneContainerEnabled && mQSPanelContainer != null) {
+             mQSPanelContainer.setOnTouchListener(mContainerTouchHandler);
+         }
++        if (mView.getElixirControlCenter() != null) {
++            mView.getElixirControlCenter().init(
++                    mQsPanelController.getHost(),
++                    mQsPanelController.getBrightnessControllerFactory(),
++                    mQsPanelController.getCustomizerController());
++            updateControlCenterStyle();
++            getContext().getContentResolver().registerContentObserver(
++                    android.provider.Settings.System.getUriFor("avium_control_center_style"),
++                    false,
++                    mStyleObserver,
++                    android.os.UserHandle.USER_ALL);
++        }
+     }
+ 
+     @Override
+@@ -105,6 +139,7 @@ public class QSContainerImplController extends ViewController<QSContainerImpl> {
+         if (mQSPanelContainer != null) {
+             mQSPanelContainer.setOnTouchListener(null);
+         }
++        getContext().getContentResolver().unregisterContentObserver(mStyleObserver);
+     }
+ 
+     public QSContainerImpl getView() {
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/QSPanelController.java b/packages/SystemUI/src/com/android/systemui/qs/QSPanelController.java
+index fddef2ed..2cf7054d 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/QSPanelController.java
++++ b/packages/SystemUI/src/com/android/systemui/qs/QSPanelController.java
+@@ -307,5 +307,9 @@ public class QSPanelController extends QSPanelControllerBase<QSPanel> {
+     int getViewBottom() {
+         return mView.getBottom();
+     }
++
++    public BrightnessController.Factory getBrightnessControllerFactory() {
++        return mBrightnessControllerFactory;
++    }
+ }
+ 
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/QSPanelControllerBase.java b/packages/SystemUI/src/com/android/systemui/qs/QSPanelControllerBase.java
+index 23f9df95..9c02670c 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/QSPanelControllerBase.java
++++ b/packages/SystemUI/src/com/android/systemui/qs/QSPanelControllerBase.java
+@@ -632,6 +632,14 @@ public abstract class QSPanelControllerBase<T extends QSPanel> extends ViewContr
+         mView.setShouldMoveMediaOnExpansion(!isOnSplitShadeLockscreen);
+     }
+ 
++    public QSHost getHost() {
++        return mHost;
++    }
++
++    public QSCustomizerController getCustomizerController() {
++        return mQsCustomizerController;
++    }
++
+     /** */
+     public static final class TileRecord {
+         public TileRecord(QSTile tile, com.android.systemui.plugins.qs.QSTileView tileView) {
+diff --git a/packages/SystemUI/src/org/avium/systemui/controlcenter/ControlCenterController.kt b/packages/SystemUI/src/org/avium/systemui/controlcenter/ControlCenterController.kt
+new file mode 100644
+index 00000000..428ddf7b
+--- /dev/null
++++ b/packages/SystemUI/src/org/avium/systemui/controlcenter/ControlCenterController.kt
+@@ -0,0 +1,42 @@
++/*
++ * Copyright (C) 2026 The AviumUI Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.avium.systemui.controlcenter
++
++import android.content.Context
++import com.android.systemui.CoreStartable
++import com.android.systemui.dagger.SysUISingleton
++import javax.inject.Inject
++
++@SysUISingleton
++class ControlCenterController @Inject constructor(
++    private val context: Context,
++    private val settings: ControlCenterSettings
++) : CoreStartable {
++
++    companion object {
++        var instance: ControlCenterController? = null
++            private set
++    }
++
++    init {
++        instance = this
++    }
++
++    override fun start() {
++        settings.start()
++    }
++}
+diff --git a/packages/SystemUI/src/org/avium/systemui/controlcenter/ControlCenterSettings.kt b/packages/SystemUI/src/org/avium/systemui/controlcenter/ControlCenterSettings.kt
+new file mode 100644
+index 00000000..543ced8e
+--- /dev/null
++++ b/packages/SystemUI/src/org/avium/systemui/controlcenter/ControlCenterSettings.kt
+@@ -0,0 +1,115 @@
++/*
++ * Copyright (C) 2026 The AviumUI Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.avium.systemui.controlcenter
++
++import android.content.Context
++import android.database.ContentObserver
++import android.net.Uri
++import android.os.Handler
++import android.os.Looper
++import android.os.UserHandle
++import android.provider.Settings
++import com.android.systemui.dagger.SysUISingleton
++import java.util.concurrent.CopyOnWriteArrayList
++import javax.inject.Inject
++
++@SysUISingleton
++class ControlCenterSettings @Inject constructor(
++    private val context: Context
++) {
++    companion object {
++        const val KEY_CONTROL_CENTER_STYLE = "avium_control_center_style" // 0: Avium, 1: Elixir
++        const val KEY_CONTROL_CENTER_BLUR = "avium_control_center_blur" // 0: off, 1: on
++        const val KEY_CONTROL_CENTER_BLUR_INTENSITY = "avium_control_center_blur_intensity" // 0: 15px, 1: 30px, 2: 60px
++
++        const val STYLE_AVIUM = 0
++        const val STYLE_ELIXIR = 1
++
++        const val BLUR_LOW_PX = 15
++        const val BLUR_MEDIUM_PX = 30
++        const val BLUR_HIGH_PX = 60
++
++        fun isElixirStyle(context: Context): Boolean {
++            return Settings.System.getIntForUser(
++                context.contentResolver,
++                KEY_CONTROL_CENTER_STYLE,
++                STYLE_AVIUM,
++                UserHandle.USER_CURRENT
++            ) == STYLE_ELIXIR
++        }
++
++        fun isBlurEnabled(context: Context): Boolean {
++            return Settings.System.getIntForUser(
++                context.contentResolver,
++                KEY_CONTROL_CENTER_BLUR,
++                1,
++                UserHandle.USER_CURRENT
++            ) == 1
++        }
++
++        fun getBlurRadiusPx(context: Context): Int {
++            return when (Settings.System.getIntForUser(
++                context.contentResolver,
++                KEY_CONTROL_CENTER_BLUR_INTENSITY,
++                0, // Default to Low (15px) to guarantee 60Hz fluidity on SDM845
++                UserHandle.USER_CURRENT
++            )) {
++                0 -> BLUR_LOW_PX
++                1 -> BLUR_MEDIUM_PX
++                2 -> BLUR_HIGH_PX
++                else -> BLUR_LOW_PX
++            }
++        }
++    }
++
++    private val resolver = context.contentResolver
++    private val listeners = CopyOnWriteArrayList<() -> Unit>()
++
++    private val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
++        override fun onChange(selfChange: Boolean, uri: Uri?) {
++            listeners.forEach { it.invoke() }
++        }
++    }
++
++    fun start() {
++        registerKey(KEY_CONTROL_CENTER_STYLE)
++        registerKey(KEY_CONTROL_CENTER_BLUR)
++        registerKey(KEY_CONTROL_CENTER_BLUR_INTENSITY)
++    }
++
++    private fun registerKey(key: String) {
++        val uri = Settings.System.getUriFor(key) ?: return
++        resolver.registerContentObserver(uri, false, observer, UserHandle.USER_ALL)
++    }
++
++    fun addListener(listener: () -> Unit) {
++        listeners.add(listener)
++    }
++
++    fun removeListener(listener: () -> Unit) {
++        listeners.remove(listener)
++    }
++
++    val isElixirStyle: Boolean
++        get() = isElixirStyle(context)
++
++    val isBlurEnabled: Boolean
++        get() = isBlurEnabled(context)
++
++    val blurRadiusPx: Int
++        get() = getBlurRadiusPx(context)
++}
+diff --git a/packages/SystemUI/src/org/avium/systemui/controlcenter/ElixirControlCenterView.kt b/packages/SystemUI/src/org/avium/systemui/controlcenter/ElixirControlCenterView.kt
+new file mode 100644
+index 00000000..11111111
+--- /dev/null
++++ b/packages/SystemUI/src/org/avium/systemui/controlcenter/ElixirControlCenterView.kt
+@@ -0,0 +1,331 @@
++/*
++ * Copyright (C) 2026 The AviumUI Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.avium.systemui.controlcenter
++
++import android.content.Context
++import android.content.Intent
++import android.content.res.Configuration
++import android.graphics.Color
++import android.graphics.drawable.GradientDrawable
++import android.os.SystemProperties
++import android.provider.Settings
++import android.util.AttributeSet
++import android.view.Gravity
++import android.view.View
++import android.view.WindowInsets
++import android.widget.FrameLayout
++import android.widget.ImageButton
++import android.widget.ImageView
++import android.widget.LinearLayout
++import android.widget.TextClock
++import android.widget.TextView
++import com.android.internal.graphics.drawable.BackgroundBlurDrawable
++import com.android.systemui.plugins.qs.QSTile
++import com.android.systemui.qs.NonInterceptingScrollView
++import com.android.systemui.qs.QSHost
++import com.android.systemui.qs.customize.QSCustomizerController
++import com.android.systemui.res.R
++import com.android.systemui.settings.brightness.BrightnessController
++import org.avium.systemui.controlcenter.ui.ElixirBrightnessSliderView
++import org.avium.systemui.controlcenter.ui.ElixirMediaCardView
++import org.avium.systemui.controlcenter.ui.ElixirPrimaryCardView
++import org.avium.systemui.controlcenter.ui.ElixirTilesGridView
++import org.avium.systemui.island.IslandController
++
++class ElixirControlCenterView @JvmOverloads constructor(
++    context: Context,
++    attrs: AttributeSet? = null,
++    defStyleAttr: Int = 0
++) : FrameLayout(context, attrs, defStyleAttr) {
++
++    private val scrollView: NonInterceptingScrollView
++    private val contentLayout: LinearLayout
++
++    // Header
++    private val headerLayout: LinearLayout
++    private val clockView: TextClock
++    private val dateView: TextClock
++    private val btnSettings: ImageButton
++    private val btnEdit: ImageButton
++    private val btnPower: ImageButton
++
++    // Primary Cards
++    private val primaryRow1: LinearLayout
++    private val primaryRow2: LinearLayout
++    private val wifiCard: ElixirPrimaryCardView
++    private val cellCard: ElixirPrimaryCardView
++    private val btCard: ElixirPrimaryCardView
++    private val flashCard: ElixirPrimaryCardView
++
++    // Brightness Slider
++    private val brightnessSlider: ElixirBrightnessSliderView
++
++    // Media Card
++    private val mediaCard: ElixirMediaCardView
++
++    // Secondary Tiles Grid
++    private val secondaryGrid: ElixirTilesGridView
++
++    private var mHost: QSHost? = null
++    private var mBrightnessController: BrightnessController? = null
++    private var mCustomizerController: QSCustomizerController? = null
++
++    private var backgroundBlurDrawable: BackgroundBlurDrawable? = null
++
++    init {
++        layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
++        isClickable = true
++        isFocusable = true
++
++        scrollView = NonInterceptingScrollView(context, null).apply {
++            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
++            isVerticalScrollBarEnabled = false
++            clipToPadding = false
++            clipChildren = false
++        }
++        addView(scrollView)
++
++        contentLayout = LinearLayout(context).apply {
++            orientation = LinearLayout.VERTICAL
++            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
++            clipToPadding = false
++            clipChildren = false
++        }
++        scrollView.addView(contentLayout)
++
++        // 1. Header Row (Clock, Date, Action Buttons)
++        headerLayout = LinearLayout(context).apply {
++            orientation = LinearLayout.HORIZONTAL
++            gravity = Gravity.CENTER_VERTICAL
++            layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
++                bottomMargin = dpToPx(14)
++            }
++        }
++
++        val clockDateCol = LinearLayout(context).apply {
++            orientation = LinearLayout.VERTICAL
++        }
++        clockView = TextClock(context).apply {
++            format12Hour = "h:mm"
++            format24Hour = "HH:mm"
++            setTextColor(Color.WHITE)
++            textSize = 28f
++            typeface = android.graphics.Typeface.DEFAULT_BOLD
++        }
++        clockDateCol.addView(clockView, LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
++
++        dateView = TextClock(context).apply {
++            format12Hour = "EEE, MMM d"
++            format24Hour = "EEE, MMM d"
++            setTextColor(Color.parseColor("#B3FFFFFF"))
++            textSize = 13f
++        }
++        clockDateCol.addView(dateView, LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
++        headerLayout.addView(clockDateCol, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
++
++        // Header Buttons (Edit, Settings, Power)
++        val buttonsLayout = LinearLayout(context).apply {
++            orientation = LinearLayout.HORIZONTAL
++            gravity = Gravity.CENTER_VERTICAL
++        }
++
++        btnEdit = createHeaderButton(R.drawable.ic_control_center_edit) {
++            mCustomizerController?.show(0, 0, false)
++        }
++        buttonsLayout.addView(btnEdit)
++
++        btnSettings = createHeaderButton(R.drawable.ic_control_center_settings) {
++            val intent = Intent(Settings.ACTION_SETTINGS).apply {
++                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
++            }
++            context.startActivity(intent)
++            val statusBarManager = context.getSystemService(android.app.StatusBarManager::class.java)
++            statusBarManager?.collapsePanels()
++        }
++        buttonsLayout.addView(btnSettings)
++
++        btnPower = createHeaderButton(R.drawable.ic_control_center_power) {
++            val intent = Intent(Intent.ACTION_POWER_USAGE_SUMMARY).apply {
++                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
++            }
++            try { context.startActivity(intent) } catch (ignored: Throwable) {}
++        }
++        buttonsLayout.addView(btnPower)
++
++        headerLayout.addView(buttonsLayout, LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
++        contentLayout.addView(headerLayout)
++
++        // 2. Primary Cards (2 Rows of 2 Cards)
++        primaryRow1 = LinearLayout(context).apply {
++            orientation = LinearLayout.HORIZONTAL
++            layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
++                bottomMargin = dpToPx(8)
++            }
++        }
++        wifiCard = ElixirPrimaryCardView(context)
++        cellCard = ElixirPrimaryCardView(context)
++        primaryRow1.addView(wifiCard, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dpToPx(4) })
++        primaryRow1.addView(cellCard, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dpToPx(4) })
++        contentLayout.addView(primaryRow1)
++
++        primaryRow2 = LinearLayout(context).apply {
++            orientation = LinearLayout.HORIZONTAL
++            layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
++                bottomMargin = dpToPx(12)
++            }
++        }
++        btCard = ElixirPrimaryCardView(context)
++        flashCard = ElixirPrimaryCardView(context)
++        primaryRow2.addView(btCard, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dpToPx(4) })
++        primaryRow2.addView(flashCard, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dpToPx(4) })
++        contentLayout.addView(primaryRow2)
++
++        // 3. Brightness Slider
++        brightnessSlider = ElixirBrightnessSliderView(context)
++        val sliderParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
++            bottomMargin = dpToPx(12)
++        }
++        contentLayout.addView(brightnessSlider, sliderParams)
++
++        // 4. Media Player Card
++        mediaCard = ElixirMediaCardView(context)
++        val mediaParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
++            bottomMargin = dpToPx(12)
++        }
++        contentLayout.addView(mediaCard, mediaParams)
++
++        // 5. Secondary Tiles Grid
++        secondaryGrid = ElixirTilesGridView(context)
++        val gridParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
++            bottomMargin = dpToPx(32)
++        }
++        contentLayout.addView(secondaryGrid, gridParams)
++    }
++
++    private fun createHeaderButton(iconResId: Int, onClick: () -> Unit): ImageButton {
++        return ImageButton(context).apply {
++            setImageResource(iconResId)
++            setColorFilter(Color.WHITE)
++            background = GradientDrawable().apply {
++                shape = GradientDrawable.OVAL
++                setColor(Color.parseColor("#26FFFFFF"))
++            }
++            val size = dpToPx(38)
++            layoutParams = LinearLayout.LayoutParams(size, size).apply {
++                marginStart = dpToPx(8)
++            }
++            setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8))
++            setOnClickListener { onClick() }
++        }
++    }
++
++    override fun onAttachedToWindow() {
++        super.onAttachedToWindow()
++        applyNotchPadding()
++        updateBlurEffect()
++    }
++
++    override fun onApplyWindowInsets(insets: WindowInsets): WindowInsets {
++        applyNotchPadding()
++        return super.onApplyWindowInsets(insets)
++    }
++
++    private fun applyNotchPadding() {
++        val statusBarRes = resources.getIdentifier("status_bar_height", "dimen", "android")
++        val statusBarHeight = if (statusBarRes > 0) resources.getDimensionPixelSize(statusBarRes) else dpToPx(48)
++        val cutoutTop = rootWindowInsets?.displayCutout?.safeInsetTop ?: 0
++        val topPadding = Math.max(statusBarHeight, cutoutTop) + dpToPx(12)
++        setPadding(dpToPx(16), topPadding, dpToPx(16), dpToPx(16))
++    }
++
++    fun updateBlurEffect() {
++        val supportsBlur = SystemProperties.getBoolean("ro.surface_flinger.supports_background_blur", false)
++        val blurEnabled = ControlCenterSettings.isBlurEnabled(context)
++        val blurRadius = ControlCenterSettings.getBlurRadiusPx(context)
++
++        if (supportsBlur && blurEnabled && viewRootImpl != null) {
++            if (backgroundBlurDrawable == null) {
++                backgroundBlurDrawable = viewRootImpl.createBackgroundBlurDrawable()
++            }
++            backgroundBlurDrawable?.let { blur ->
++                blur.setBlurRadius(blurRadius)
++                blur.setCornerRadius(0f)
++                val isDark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
++                val tintColor = if (isDark) Color.argb(160, 16, 16, 20) else Color.argb(140, 245, 245, 247)
++                blur.setColor(tintColor)
++                background = blur
++                return
++            }
++        }
++
++        val isDark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
++        val fallbackColor = if (isDark) Color.argb(235, 18, 18, 22) else Color.argb(235, 245, 245, 247)
++        setBackgroundColor(fallbackColor)
++    }
++
++    fun init(
++        host: QSHost?,
++        brightnessFactory: BrightnessController.Factory?,
++        customizerController: QSCustomizerController?
++    ) {
++        this.mHost = host
++        this.mCustomizerController = customizerController
++
++        if (brightnessFactory != null && mBrightnessController == null) {
++            mBrightnessController = brightnessFactory.create(brightnessSlider)
++        }
++
++        val tiles = host?.tiles ?: emptyList()
++        val wifiTile = tiles.find { it.tileSpec == "internet" || it.tileSpec == "wifi" }
++        val cellTile = tiles.find { it.tileSpec == "cell" || it.tileSpec == "hotspot" }
++        val btTile = tiles.find { it.tileSpec == "bt" }
++        val flashTile = tiles.find { it.tileSpec == "flashlight" }
++
++        wifiCard.bindTile(wifiTile, "Internet", R.drawable.ic_control_center_wifi)
++        cellCard.bindTile(cellTile, "Mobile Data", R.drawable.ic_control_center_cellular)
++        btCard.bindTile(btTile, "Bluetooth", R.drawable.ic_control_center_bluetooth)
++        flashCard.bindTile(flashTile, "Flashlight", R.drawable.ic_control_center_flashlight)
++
++        secondaryGrid.setHost(host)
++    }
++
++    fun setListening(listening: Boolean) {
++        if (listening) {
++            mBrightnessController?.registerCallbacks()
++        } else {
++            mBrightnessController?.unregisterCallbacks()
++        }
++    }
++
++    fun setExpansion(expansion: Float) {
++        if (expansion <= 0f) {
++            visibility = View.GONE
++            alpha = 0f
++            return
++        }
++
++        visibility = View.VISIBLE
++        alpha = (expansion * 1.5f).coerceIn(0f, 1f)
++        translationY = -(1f - expansion) * dpToPx(60)
++
++        if (expansion > 0.05f) {
++            IslandController.instance?.collapseIsland()
++        }
++    }
++
++    private fun dpToPx(dp: Int): Int = (dp * resources.displayMetrics.density).toInt()
++}
+diff --git a/packages/SystemUI/src/org/avium/systemui/controlcenter/di/AviumControlCenterModule.kt b/packages/SystemUI/src/org/avium/systemui/controlcenter/di/AviumControlCenterModule.kt
+new file mode 100644
+index 00000000..00824cf0
+--- /dev/null
++++ b/packages/SystemUI/src/org/avium/systemui/controlcenter/di/AviumControlCenterModule.kt
+@@ -0,0 +1,32 @@
++/*
++ * Copyright (C) 2026 The AviumUI Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.avium.systemui.controlcenter.di
++
++import com.android.systemui.CoreStartable
++import dagger.Binds
++import dagger.Module
++import dagger.multibindings.ClassKey
++import dagger.multibindings.IntoMap
++import org.avium.systemui.controlcenter.ControlCenterController
++
++@Module
++abstract class AviumControlCenterModule {
++    @Binds
++    @IntoMap
++    @ClassKey(ControlCenterController::class)
++    abstract fun bindControlCenterController(controller: ControlCenterController): CoreStartable
++}
+diff --git a/packages/SystemUI/src/org/avium/systemui/controlcenter/ui/ElixirBrightnessSliderView.kt b/packages/SystemUI/src/org/avium/systemui/controlcenter/ui/ElixirBrightnessSliderView.kt
+new file mode 100644
+index 00000000..907ecc16
+--- /dev/null
++++ b/packages/SystemUI/src/org/avium/systemui/controlcenter/ui/ElixirBrightnessSliderView.kt
+@@ -0,0 +1,186 @@
++/*
++ * Copyright (C) 2026 The AviumUI Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.avium.systemui.controlcenter.ui
++
++import android.content.Context
++import android.graphics.Color
++import android.graphics.drawable.GradientDrawable
++import android.util.AttributeSet
++import android.view.Gravity
++import android.view.HapticFeedbackConstants
++import android.view.MotionEvent
++import android.view.View
++import android.widget.FrameLayout
++import android.widget.ImageView
++import android.widget.TextView
++import com.android.settingslib.RestrictedLockUtils
++import com.android.systemui.res.R
++import com.android.systemui.settings.brightness.MirrorController
++import com.android.systemui.settings.brightness.ToggleSlider
++
++class ElixirBrightnessSliderView @JvmOverloads constructor(
++    context: Context,
++    attrs: AttributeSet? = null,
++    defStyleAttr: Int = 0
++) : FrameLayout(context, attrs, defStyleAttr), ToggleSlider {
++
++    private var mListener: ToggleSlider.Listener? = null
++    private var mMax: Int = 10000
++    private var mValue: Int = 0
++    private var isTracking: Boolean = false
++
++    private val backgroundTrack: View
++    private val progressFill: View
++    private val sunIcon: ImageView
++    private val percentText: TextView
++    private val fillDrawable: GradientDrawable
++
++    init {
++        layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, dpToPx(50))
++        isClickable = true
++        isFocusable = true
++
++        backgroundTrack = View(context).apply {
++            background = GradientDrawable().apply {
++                setColor(Color.parseColor("#33FFFFFF"))
++                cornerRadius = dpToPx(25).toFloat()
++                setStroke(dpToPx(1), Color.parseColor("#26FFFFFF"))
++            }
++        }
++        addView(backgroundTrack, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
++
++        fillDrawable = GradientDrawable().apply {
++            val accent = getAccentColor()
++            setColor(accent)
++            cornerRadius = dpToPx(25).toFloat()
++        }
++        progressFill = View(context).apply {
++            background = fillDrawable
++        }
++        addView(progressFill, LayoutParams(0, LayoutParams.MATCH_PARENT))
++
++        sunIcon = ImageView(context).apply {
++            setImageResource(R.drawable.ic_brightness_slider_sun)
++            setColorFilter(Color.WHITE)
++        }
++        val iconParams = LayoutParams(dpToPx(22), dpToPx(22)).apply {
++            gravity = Gravity.CENTER_VERTICAL or Gravity.START
++            marginStart = dpToPx(16)
++        }
++        addView(sunIcon, iconParams)
++
++        percentText = TextView(context).apply {
++            setTextColor(Color.WHITE)
++            textSize = 13f
++            typeface = android.graphics.Typeface.DEFAULT_BOLD
++            gravity = Gravity.CENTER_VERTICAL or Gravity.END
++            text = "0%"
++        }
++        val textParams = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
++            gravity = Gravity.CENTER_VERTICAL or Gravity.END
++            marginEnd = dpToPx(16)
++        }
++        addView(percentText, textParams)
++    }
++
++    private fun getAccentColor(): Int {
++        val typedValue = android.util.TypedValue()
++        if (context.theme.resolveAttribute(android.R.attr.colorAccent, typedValue, true)) {
++            return typedValue.data
++        }
++        return Color.parseColor("#FF4F8DF7")
++    }
++
++    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
++        super.onLayout(changed, left, top, right, bottom)
++        updateProgressWidth()
++    }
++
++    private fun updateProgressWidth() {
++        val totalWidth = width
++        if (totalWidth <= 0 || mMax <= 0) return
++        val fraction = (mValue.toFloat() / mMax).coerceIn(0f, 1f)
++        val fillWidth = (totalWidth * fraction).toInt().coerceAtLeast(if (fraction > 0f) dpToPx(24) else 0)
++        val lp = progressFill.layoutParams
++        if (lp.width != fillWidth) {
++            lp.width = fillWidth
++            progressFill.layoutParams = lp
++        }
++        val pct = (fraction * 100).toInt()
++        percentText.text = "$pct%"
++    }
++
++    override fun onTouchEvent(event: MotionEvent): Boolean {
++        when (event.actionMasked) {
++            MotionEvent.ACTION_DOWN -> {
++                isTracking = true
++                parent?.requestDisallowInterceptTouchEvent(true)
++                performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
++                handleTouchPosition(event.x)
++                mListener?.onChanged(true, mValue, false)
++                return true
++            }
++            MotionEvent.ACTION_MOVE -> {
++                handleTouchPosition(event.x)
++                mListener?.onChanged(true, mValue, false)
++                return true
++            }
++            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
++                isTracking = false
++                parent?.requestDisallowInterceptTouchEvent(false)
++                handleTouchPosition(event.x)
++                mListener?.onChanged(false, mValue, true)
++                return true
++            }
++        }
++        return super.onTouchEvent(event)
++    }
++
++    private fun handleTouchPosition(x: Float) {
++        val totalWidth = width.toFloat()
++        if (totalWidth <= 0f) return
++        val fraction = (x / totalWidth).coerceIn(0f, 1f)
++        val newValue = (fraction * mMax).toInt()
++        if (newValue != mValue) {
++            mValue = newValue
++            updateProgressWidth()
++        }
++    }
++
++    override fun setEnforcedAdmin(admin: RestrictedLockUtils.EnforcedAdmin?) {}
++    override fun setMirrorControllerAndMirror(c: MirrorController?) {}
++    override fun mirrorTouchEvent(ev: MotionEvent?): Boolean = false
++    override fun setOnChangedListener(l: ToggleSlider.Listener?) { mListener = l }
++    override fun setMax(max: Int) {
++        mMax = max
++        updateProgressWidth()
++    }
++    override fun getMax(): Int = mMax
++    override fun setValue(value: Int) {
++        if (!isTracking && mValue != value) {
++            mValue = value
++            post { updateProgressWidth() }
++        }
++    }
++    override fun getValue(): Int = mValue
++    override fun showView() { visibility = View.VISIBLE }
++    override fun hideView() { visibility = View.GONE }
++    override fun showToast(resId: Int) {}
++    override fun isVisible(): Boolean = visibility == View.VISIBLE
++
++    private fun dpToPx(dp: Int): Int = (dp * resources.displayMetrics.density).toInt()
++}
+diff --git a/packages/SystemUI/src/org/avium/systemui/controlcenter/ui/ElixirMediaCardView.kt b/packages/SystemUI/src/org/avium/systemui/controlcenter/ui/ElixirMediaCardView.kt
+new file mode 100644
+index 00000000..3fabbd05
+--- /dev/null
++++ b/packages/SystemUI/src/org/avium/systemui/controlcenter/ui/ElixirMediaCardView.kt
+@@ -0,0 +1,233 @@
++/*
++ * Copyright (C) 2026 The AviumUI Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.avium.systemui.controlcenter.ui
++
++import android.content.Context
++import android.graphics.Color
++import android.graphics.drawable.GradientDrawable
++import android.util.AttributeSet
++import android.view.Gravity
++import android.view.View
++import android.widget.FrameLayout
++import android.widget.ImageButton
++import android.widget.ImageView
++import android.widget.LinearLayout
++import android.widget.TextView
++import org.avium.systemui.island.IslandController
++import org.avium.systemui.island.model.IslandAction
++import org.avium.systemui.island.model.IslandEvent
++import com.android.systemui.res.R
++
++class ElixirMediaCardView @JvmOverloads constructor(
++    context: Context,
++    attrs: AttributeSet? = null,
++    defStyleAttr: Int = 0
++) : FrameLayout(context, attrs, defStyleAttr) {
++
++    private val albumArt: ImageView
++    private val titleText: TextView
++    private val artistText: TextView
++    private val btnPrev: ImageButton
++    private val btnPlayPause: ImageButton
++    private val btnNext: ImageButton
++    private val placeholderLayout: LinearLayout
++    private val mediaContentLayout: LinearLayout
++
++    private var currentEvent: IslandEvent? = null
++
++    private val mediaListener: (IslandEvent?) -> Unit = { event ->
++        post { bindMediaEvent(event) }
++    }
++
++    init {
++        layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
++        updateCardBackground()
++
++        val rootLayout = LinearLayout(context).apply {
++            orientation = LinearLayout.VERTICAL
++            setPadding(dpToPx(14), dpToPx(12), dpToPx(14), dpToPx(12))
++        }
++        addView(rootLayout, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
++
++        placeholderLayout = LinearLayout(context).apply {
++            orientation = LinearLayout.HORIZONTAL
++            gravity = Gravity.CENTER_VERTICAL
++            visibility = View.VISIBLE
++        }
++        val noteIcon = ImageView(context).apply {
++            setImageResource(R.drawable.ic_control_center_music)
++            setColorFilter(Color.parseColor("#99FFFFFF"))
++        }
++        placeholderLayout.addView(noteIcon, LayoutParams(dpToPx(24), dpToPx(24)))
++
++        val placeholderText = TextView(context).apply {
++            text = "No media playing"
++            setTextColor(Color.parseColor("#99FFFFFF"))
++            textSize = 13f
++            setPadding(dpToPx(12), 0, 0, 0)
++        }
++        placeholderLayout.addView(placeholderText, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
++        rootLayout.addView(placeholderLayout, LayoutParams(LayoutParams.MATCH_PARENT, dpToPx(44)))
++
++        mediaContentLayout = LinearLayout(context).apply {
++            orientation = LinearLayout.HORIZONTAL
++            gravity = Gravity.CENTER_VERTICAL
++            visibility = View.GONE
++        }
++
++        albumArt = ImageView(context).apply {
++            scaleType = ImageView.ScaleType.CENTER_CROP
++            background = GradientDrawable().apply {
++                cornerRadius = dpToPx(10).toFloat()
++                setColor(Color.parseColor("#33FFFFFF"))
++            }
++            clipToOutline = true
++        }
++        mediaContentLayout.addView(albumArt, LayoutParams(dpToPx(48), dpToPx(48)))
++
++        val textColumn = LinearLayout(context).apply {
++            orientation = LinearLayout.VERTICAL
++            setPadding(dpToPx(12), 0, dpToPx(8), 0)
++        }
++        titleText = TextView(context).apply {
++            setTextColor(Color.WHITE)
++            textSize = 14f
++            typeface = android.graphics.Typeface.DEFAULT_BOLD
++            maxLines = 1
++            ellipsize = android.text.TextUtils.TruncateAt.END
++        }
++        textColumn.addView(titleText, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
++
++        artistText = TextView(context).apply {
++            setTextColor(Color.parseColor("#B3FFFFFF"))
++            textSize = 12f
++            maxLines = 1
++            ellipsize = android.text.TextUtils.TruncateAt.END
++        }
++        textColumn.addView(artistText, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
++        mediaContentLayout.addView(textColumn, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
++
++        val controlsLayout = LinearLayout(context).apply {
++            orientation = LinearLayout.HORIZONTAL
++            gravity = Gravity.CENTER_VERTICAL
++        }
++
++        btnPrev = ImageButton(context).apply {
++            setImageResource(R.drawable.ic_control_center_prev)
++            setColorFilter(Color.WHITE)
++            background = null
++            setPadding(dpToPx(4), dpToPx(4), dpToPx(4), dpToPx(4))
++        }
++        controlsLayout.addView(btnPrev, LayoutParams(dpToPx(32), dpToPx(32)))
++
++        btnPlayPause = ImageButton(context).apply {
++            setImageResource(R.drawable.ic_control_center_play)
++            setColorFilter(Color.WHITE)
++            background = GradientDrawable().apply {
++                shape = GradientDrawable.OVAL
++                setColor(Color.parseColor("#4DFFFFFF"))
++            }
++            setPadding(dpToPx(6), dpToPx(6), dpToPx(6), dpToPx(6))
++        }
++        val playParams = LayoutParams(dpToPx(38), dpToPx(38)).apply {
++            marginStart = dpToPx(4)
++            marginEnd = dpToPx(4)
++        }
++        controlsLayout.addView(btnPlayPause, playParams)
++
++        btnNext = ImageButton(context).apply {
++            setImageResource(R.drawable.ic_control_center_next)
++            setColorFilter(Color.WHITE)
++            background = null
++            setPadding(dpToPx(4), dpToPx(4), dpToPx(4), dpToPx(4))
++        }
++        controlsLayout.addView(btnNext, LayoutParams(dpToPx(32), dpToPx(32)))
++
++        mediaContentLayout.addView(controlsLayout, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
++        rootLayout.addView(mediaContentLayout, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
++
++        setOnClickListener {
++            currentEvent?.intent?.let { pendingIntent ->
++                try { pendingIntent.send() } catch (ignored: Throwable) {}
++            }
++        }
++    }
++
++    fun updateCardBackground() {
++        background = GradientDrawable().apply {
++            cornerRadius = dpToPx(20).toFloat()
++            setColor(Color.parseColor("#26FFFFFF"))
++            setStroke(dpToPx(1), Color.parseColor("#1FFFFFFF"))
++        }
++    }
++
++    override fun onAttachedToWindow() {
++        super.onAttachedToWindow()
++        IslandController.instance?.addMediaListener(mediaListener)
++    }
++
++    override fun onDetachedFromWindow() {
++        super.onDetachedFromWindow()
++        IslandController.instance?.removeMediaListener(mediaListener)
++    }
++
++    fun bindMediaEvent(event: IslandEvent?) {
++        currentEvent = event
++        if (event == null) {
++            placeholderLayout.visibility = View.VISIBLE
++            mediaContentLayout.visibility = View.GONE
++            return
++        }
++
++        placeholderLayout.visibility = View.GONE
++        mediaContentLayout.visibility = View.VISIBLE
++
++        titleText.text = event.title
++        artistText.text = event.subtitle
++
++        if (event.customBitmap != null) {
++            albumArt.setImageBitmap(event.customBitmap)
++        } else {
++            albumArt.setImageResource(R.drawable.ic_control_center_music)
++        }
++
++        val actions = event.actions
++        if (actions.isNotEmpty()) {
++            val prevAction = actions.getOrNull(0)
++            btnPrev.setOnClickListener { executeAction(prevAction) }
++
++            val playAction = actions.getOrNull(1)
++            btnPlayPause.setOnClickListener { executeAction(playAction) }
++            btnPlayPause.setImageResource(R.drawable.ic_control_center_pause)
++
++            val nextAction = actions.getOrNull(2)
++            btnNext.setOnClickListener { executeAction(nextAction) }
++        } else {
++            btnPlayPause.setImageResource(R.drawable.ic_control_center_play)
++        }
++    }
++
++    private fun executeAction(action: IslandAction?) {
++        if (action == null) return
++        action.actionRunnable?.run()
++        action.actionIntent?.let {
++            try { it.send() } catch (ignored: Throwable) {}
++        }
++    }
++
++    private fun dpToPx(dp: Int): Int = (dp * resources.displayMetrics.density).toInt()
++}
+diff --git a/packages/SystemUI/src/org/avium/systemui/controlcenter/ui/ElixirPrimaryCardView.kt b/packages/SystemUI/src/org/avium/systemui/controlcenter/ui/ElixirPrimaryCardView.kt
+new file mode 100644
+index 00000000..11111111
+--- /dev/null
++++ b/packages/SystemUI/src/org/avium/systemui/controlcenter/ui/ElixirPrimaryCardView.kt
+@@ -0,0 +1,178 @@
++/*
++ * Copyright (C) 2026 The AviumUI Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.avium.systemui.controlcenter.ui
++
++import android.content.Context
++import android.graphics.Color
++import android.graphics.drawable.GradientDrawable
++import android.service.quicksettings.Tile
++import android.util.AttributeSet
++import android.view.Gravity
++import android.widget.FrameLayout
++import android.widget.ImageView
++import android.widget.LinearLayout
++import android.widget.TextView
++import com.android.systemui.animation.Expandable
++import com.android.systemui.plugins.qs.QSTile
++
++class ElixirPrimaryCardView @JvmOverloads constructor(
++    context: Context,
++    attrs: AttributeSet? = null,
++    defStyleAttr: Int = 0
++) : FrameLayout(context, attrs, defStyleAttr) {
++
++    private val iconView: ImageView
++    private val iconContainer: FrameLayout
++    private val titleView: TextView
++    private val subtitleView: TextView
++    private var boundTile: QSTile? = null
++
++    private val callback = object : QSTile.Callback {
++        override fun onStateChanged(state: QSTile.State) {
++            post { updateFromState(state) }
++        }
++    }
++
++    init {
++        layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, dpToPx(74))
++        isClickable = true
++        isFocusable = true
++        setInactiveBackground()
++
++        val root = LinearLayout(context).apply {
++            orientation = LinearLayout.HORIZONTAL
++            gravity = Gravity.CENTER_VERTICAL
++            setPadding(dpToPx(14), dpToPx(12), dpToPx(14), dpToPx(12))
++        }
++
++        iconContainer = FrameLayout(context).apply {
++            background = GradientDrawable().apply {
++                shape = GradientDrawable.OVAL
++                setColor(Color.parseColor("#33FFFFFF"))
++            }
++        }
++        iconView = ImageView(context).apply {
++            setColorFilter(Color.WHITE)
++        }
++        val iconSize = dpToPx(24)
++        val iconLp = LayoutParams(iconSize, iconSize).apply {
++            gravity = Gravity.CENTER
++        }
++        iconContainer.addView(iconView, iconLp)
++
++        val containerSize = dpToPx(44)
++        root.addView(iconContainer, LinearLayout.LayoutParams(containerSize, containerSize))
++
++        val textLayout = LinearLayout(context).apply {
++            orientation = LinearLayout.VERTICAL
++            setPadding(dpToPx(12), 0, 0, 0)
++        }
++
++        titleView = TextView(context).apply {
++            setTextColor(Color.WHITE)
++            textSize = 14f
++            typeface = android.graphics.Typeface.DEFAULT_BOLD
++            maxLines = 1
++            ellipsize = android.text.TextUtils.TruncateAt.END
++        }
++        textLayout.addView(titleView, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
++
++        subtitleView = TextView(context).apply {
++            setTextColor(Color.parseColor("#B3FFFFFF"))
++            textSize = 12f
++            maxLines = 1
++            ellipsize = android.text.TextUtils.TruncateAt.END
++        }
++        textLayout.addView(subtitleView, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
++
++        root.addView(textLayout, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
++        addView(root, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
++    }
++
++    fun bindTile(tile: QSTile?, defaultTitle: String, defaultIconRes: Int) {
++        boundTile?.removeCallback(callback)
++        boundTile = tile
++        if (tile != null) {
++            tile.addCallback(callback)
++            updateFromState(tile.state)
++            val expandable = Expandable.fromView(this)
++            setOnClickListener { tile.click(expandable) }
++            setOnLongClickListener {
++                tile.longClick(expandable)
++                true
++            }
++        } else {
++            titleView.text = defaultTitle
++            subtitleView.text = "Off"
++            iconView.setImageResource(defaultIconRes)
++            setInactiveBackground()
++        }
++    }
++
++    private fun updateFromState(state: QSTile.State) {
++        titleView.text = state.label ?: ""
++        subtitleView.text = state.secondaryLabel ?: (if (state.state == Tile.STATE_ACTIVE) "On" else "Off")
++        val d = state.icon?.getDrawable(context)
++        if (d != null) {
++            iconView.setImageDrawable(d)
++        }
++        if (state.state == Tile.STATE_ACTIVE) {
++            setActiveBackground()
++        } else {
++            setInactiveBackground()
++        }
++    }
++
++    private fun setActiveBackground() {
++        val accent = getAccentColor()
++        background = GradientDrawable().apply {
++            cornerRadius = dpToPx(20).toFloat()
++            setColor(accent)
++        }
++        (iconContainer.background as? GradientDrawable)?.setColor(Color.argb(60, 255, 255, 255))
++        iconView.setColorFilter(Color.WHITE)
++        titleView.setTextColor(Color.WHITE)
++        subtitleView.setTextColor(Color.parseColor("#E6FFFFFF"))
++    }
++
++    private fun setInactiveBackground() {
++        background = GradientDrawable().apply {
++            cornerRadius = dpToPx(20).toFloat()
++            setColor(Color.parseColor("#26FFFFFF"))
++            setStroke(dpToPx(1), Color.parseColor("#1FFFFFFF"))
++        }
++        (iconContainer.background as? GradientDrawable)?.setColor(Color.parseColor("#26FFFFFF"))
++        iconView.setColorFilter(Color.WHITE)
++        titleView.setTextColor(Color.WHITE)
++        subtitleView.setTextColor(Color.parseColor("#99FFFFFF"))
++    }
++
++    private fun getAccentColor(): Int {
++        val typedValue = android.util.TypedValue()
++        if (context.theme.resolveAttribute(android.R.attr.colorAccent, typedValue, true)) {
++            return typedValue.data
++        }
++        return Color.parseColor("#FF4F8DF7")
++    }
++
++    override fun onDetachedFromWindow() {
++        super.onDetachedFromWindow()
++        boundTile?.removeCallback(callback)
++    }
++
++    private fun dpToPx(dp: Int): Int = (dp * resources.displayMetrics.density).toInt()
++}
+diff --git a/packages/SystemUI/src/org/avium/systemui/controlcenter/ui/ElixirSecondaryTileView.kt b/packages/SystemUI/src/org/avium/systemui/controlcenter/ui/ElixirSecondaryTileView.kt
+new file mode 100644
+index 00000000..11111111
+--- /dev/null
++++ b/packages/SystemUI/src/org/avium/systemui/controlcenter/ui/ElixirSecondaryTileView.kt
+@@ -0,0 +1,168 @@
++/*
++ * Copyright (C) 2026 The AviumUI Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.avium.systemui.controlcenter.ui
++
++import android.content.Context
++import android.graphics.Color
++import android.graphics.drawable.GradientDrawable
++import android.service.quicksettings.Tile
++import android.util.AttributeSet
++import android.view.Gravity
++import android.widget.FrameLayout
++import android.widget.ImageView
++import android.widget.LinearLayout
++import android.widget.TextView
++import com.android.systemui.animation.Expandable
++import com.android.systemui.plugins.qs.QSTile
++
++class ElixirSecondaryTileView @JvmOverloads constructor(
++    context: Context,
++    attrs: AttributeSet? = null,
++    defStyleAttr: Int = 0
++) : FrameLayout(context, attrs, defStyleAttr) {
++
++    private val iconView: ImageView
++    private val iconContainer: FrameLayout
++    private val labelView: TextView
++    private val sublabelView: TextView
++    private var boundTile: QSTile? = null
++
++    private val callback = object : QSTile.Callback {
++        override fun onStateChanged(state: QSTile.State) {
++            post { updateFromState(state) }
++        }
++    }
++
++    init {
++        layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, dpToPx(66))
++        isClickable = true
++        isFocusable = true
++        setInactiveBackground()
++
++        val root = LinearLayout(context).apply {
++            orientation = LinearLayout.HORIZONTAL
++            gravity = Gravity.CENTER_VERTICAL
++            setPadding(dpToPx(10), dpToPx(8), dpToPx(10), dpToPx(8))
++        }
++
++        iconContainer = FrameLayout(context).apply {
++            background = GradientDrawable().apply {
++                shape = GradientDrawable.OVAL
++                setColor(Color.parseColor("#33FFFFFF"))
++            }
++        }
++        iconView = ImageView(context).apply {
++            setColorFilter(Color.WHITE)
++        }
++        val iconSize = dpToPx(20)
++        iconContainer.addView(iconView, LayoutParams(iconSize, iconSize).apply {
++            gravity = Gravity.CENTER
++        })
++        val containerSize = dpToPx(38)
++        root.addView(iconContainer, LinearLayout.LayoutParams(containerSize, containerSize))
++
++        val textLayout = LinearLayout(context).apply {
++            orientation = LinearLayout.VERTICAL
++            setPadding(dpToPx(10), 0, 0, 0)
++        }
++        labelView = TextView(context).apply {
++            setTextColor(Color.WHITE)
++            textSize = 13f
++            typeface = android.graphics.Typeface.DEFAULT_BOLD
++            maxLines = 1
++            ellipsize = android.text.TextUtils.TruncateAt.END
++        }
++        textLayout.addView(labelView, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
++
++        sublabelView = TextView(context).apply {
++            setTextColor(Color.parseColor("#99FFFFFF"))
++            textSize = 11f
++            maxLines = 1
++            ellipsize = android.text.TextUtils.TruncateAt.END
++        }
++        textLayout.addView(sublabelView, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
++
++        root.addView(textLayout, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
++        addView(root, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
++    }
++
++    fun bindTile(tile: QSTile) {
++        boundTile?.removeCallback(callback)
++        boundTile = tile
++        tile.addCallback(callback)
++        updateFromState(tile.state)
++        val expandable = Expandable.fromView(this)
++        setOnClickListener { tile.click(expandable) }
++        setOnLongClickListener {
++            tile.longClick(expandable)
++            true
++        }
++    }
++
++    private fun updateFromState(state: QSTile.State) {
++        labelView.text = state.label ?: ""
++        sublabelView.text = state.secondaryLabel ?: (if (state.state == Tile.STATE_ACTIVE) "On" else "Off")
++        val d = state.icon?.getDrawable(context)
++        if (d != null) {
++            iconView.setImageDrawable(d)
++        }
++        if (state.state == Tile.STATE_ACTIVE) {
++            setActiveBackground()
++        } else {
++            setInactiveBackground()
++        }
++    }
++
++    private fun setActiveBackground() {
++        val accent = getAccentColor()
++        background = GradientDrawable().apply {
++            cornerRadius = dpToPx(16).toFloat()
++            setColor(accent)
++        }
++        (iconContainer.background as? GradientDrawable)?.setColor(Color.argb(60, 255, 255, 255))
++        iconView.setColorFilter(Color.WHITE)
++        labelView.setTextColor(Color.WHITE)
++        sublabelView.setTextColor(Color.parseColor("#E6FFFFFF"))
++    }
++
++    private fun setInactiveBackground() {
++        background = GradientDrawable().apply {
++            cornerRadius = dpToPx(16).toFloat()
++            setColor(Color.parseColor("#26FFFFFF"))
++            setStroke(dpToPx(1), Color.parseColor("#1FFFFFFF"))
++        }
++        (iconContainer.background as? GradientDrawable)?.setColor(Color.parseColor("#26FFFFFF"))
++        iconView.setColorFilter(Color.WHITE)
++        labelView.setTextColor(Color.WHITE)
++        sublabelView.setTextColor(Color.parseColor("#99FFFFFF"))
++    }
++
++    private fun getAccentColor(): Int {
++        val typedValue = android.util.TypedValue()
++        if (context.theme.resolveAttribute(android.R.attr.colorAccent, typedValue, true)) {
++            return typedValue.data
++        }
++        return Color.parseColor("#FF4F8DF7")
++    }
++
++    override fun onDetachedFromWindow() {
++        super.onDetachedFromWindow()
++        boundTile?.removeCallback(callback)
++    }
++
++    private fun dpToPx(dp: Int): Int = (dp * resources.displayMetrics.density).toInt()
++}
+diff --git a/packages/SystemUI/src/org/avium/systemui/controlcenter/ui/ElixirTilesGridView.kt b/packages/SystemUI/src/org/avium/systemui/controlcenter/ui/ElixirTilesGridView.kt
+new file mode 100644
+index 00000000..46a8b53e
+--- /dev/null
++++ b/packages/SystemUI/src/org/avium/systemui/controlcenter/ui/ElixirTilesGridView.kt
+@@ -0,0 +1,85 @@
++/*
++ * Copyright (C) 2026 The AviumUI Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.avium.systemui.controlcenter.ui
++
++import android.content.Context
++import android.util.AttributeSet
++import android.view.ViewGroup
++import android.widget.GridLayout
++import com.android.systemui.plugins.qs.QSTile
++import com.android.systemui.qs.QSHost
++
++class ElixirTilesGridView @JvmOverloads constructor(
++    context: Context,
++    attrs: AttributeSet? = null,
++    defStyleAttr: Int = 0
++) : GridLayout(context, attrs, defStyleAttr) {
++
++    private var host: QSHost? = null
++    private val primarySpecs = setOf("internet", "wifi", "cell", "bt", "flashlight")
++
++    private val hostCallback = QSHost.Callback {
++        post { updateTiles() }
++    }
++
++    init {
++        columnCount = 2
++        layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
++        useDefaultMargins = false
++        alignmentMode = ALIGN_BOUNDS
++    }
++
++    fun setHost(qsHost: QSHost?) {
++        host?.removeCallback(hostCallback)
++        host = qsHost
++        host?.addCallback(hostCallback)
++        updateTiles()
++    }
++
++    fun updateTiles() {
++        removeAllViews()
++        val h = host ?: return
++        val tiles = h.tiles.filter { !primarySpecs.contains(it.tileSpec) }
++
++        for ((index, tile) in tiles.withIndex()) {
++            val tileView = ElixirSecondaryTileView(context)
++            tileView.bindTile(tile)
++
++            val row = index / 2
++            val col = index % 2
++            val params = LayoutParams(
++                spec(row, 1f),
++                spec(col, 1f)
++            ).apply {
++                width = 0
++                height = dpToPx(66)
++                topMargin = dpToPx(4)
++                bottomMargin = dpToPx(4)
++                leftMargin = if (col == 0) 0 else dpToPx(4)
++                rightMargin = if (col == 1) 0 else dpToPx(4)
++            }
++            addView(tileView, params)
++        }
++    }
++
++    override fun onDetachedFromWindow() {
++        super.onDetachedFromWindow()
++        host?.removeCallback(hostCallback)
++    }
++
++    private fun dpToPx(dp: Int): Int = (dp * resources.displayMetrics.density).toInt()
++}
+
+-- 
+2.53.0

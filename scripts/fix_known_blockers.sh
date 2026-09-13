@@ -80,13 +80,81 @@ if [ -d "$SEPOLICY_PATCH_DIR" ]; then
   done
 fi
 
-# 1.5 frameworks/base (SQLiteTokenizer bracket check security fix)
+# 1.5 frameworks/base (SQLiteTokenizer, Google Photos spoof, Status Bar Capsule & Super Island)
 FRAMEWORKS_BASE_DIR="$SOURCE_ROOT/frameworks/base"
 FRAMEWORKS_BASE_PATCH_DIR="$META_DIR/patches/frameworks_base"
 if [ -d "$FRAMEWORKS_BASE_PATCH_DIR" ]; then
-  apply_patch_if_needed "$FRAMEWORKS_BASE_DIR" "$FRAMEWORKS_BASE_PATCH_DIR/0001-Add-bracket-checking-support-to-SQLiteTokenizer.patch"
+  for p in $(ls "$FRAMEWORKS_BASE_PATCH_DIR"/*.patch 2>/dev/null | sort); do
+    apply_patch_if_needed "$FRAMEWORKS_BASE_DIR" "$p"
+  done
 fi
 
+# 1.6 packages/apps/FeatureSettings (Capsule & Super Island customization settings)
+FEATURE_SETTINGS_DIR="$SOURCE_ROOT/packages/apps/FeatureSettings"
+FEATURE_SETTINGS_PATCH_DIR="$META_DIR/patches/packages_apps_FeatureSettings"
+if [ -d "$FEATURE_SETTINGS_PATCH_DIR" ]; then
+  for p in $(ls "$FEATURE_SETTINGS_PATCH_DIR"/*.patch 2>/dev/null | sort); do
+    apply_patch_if_needed "$FEATURE_SETTINGS_DIR" "$p"
+  done
+fi
+
+# 1.6b packages/apps/Launcher3 (Smooth return-to-home animation on Back)
+LAUNCHER3_DIR="$SOURCE_ROOT/packages/apps/Launcher3"
+LAUNCHER3_PATCH_DIR="$META_DIR/patches/packages_apps_Launcher3"
+if [ -d "$LAUNCHER3_PATCH_DIR" ]; then
+  for p in $(ls "$LAUNCHER3_PATCH_DIR"/*.patch 2>/dev/null | sort); do
+    apply_patch_if_needed "$LAUNCHER3_DIR" "$p"
+  done
+fi
+
+# 1.7 packages/overlays/Lineage (Add Chinese font families to Soong fonts_customization module)
+OVERLAYS_LINEAGE_DIR="$SOURCE_ROOT/packages/overlays/Lineage"
+OVERLAYS_LINEAGE_PATCH_DIR="$META_DIR/patches/packages_overlays_Lineage"
+if [ -d "$OVERLAYS_LINEAGE_PATCH_DIR" ]; then
+  for p in $(ls "$OVERLAYS_LINEAGE_PATCH_DIR"/*.patch 2>/dev/null | sort); do
+    apply_patch_if_needed "$OVERLAYS_LINEAGE_DIR" "$p"
+  done
+fi
+
+DEVICE_FONTS_XML="$SOURCE_ROOT/device/oneplus/enchilada/fonts/fonts_customization.xml"
+TARGET_FONTS_XML="$SOURCE_ROOT/packages/overlays/Lineage/fonts/etc/fonts_customization.xml"
+if [ -f "$DEVICE_FONTS_XML" ] && [ -f "$TARGET_FONTS_XML" ]; then
+  ALL_11_FONTS_PRESENT=true
+  for f in \
+    smiley-sans \
+    lxgw-wenkai \
+    lxgw-neoxihei \
+    xiaolai-rounded \
+    noto-serif-sc \
+    zcool-qingke-huangyou \
+    zcool-xiaowei \
+    zcool-kuaile \
+    mashanzheng \
+    longcang \
+    zhimangxing; do
+    if ! grep -q "name=\"$f\"" "$TARGET_FONTS_XML"; then
+      ALL_11_FONTS_PRESENT=false
+      break
+    fi
+  done
+  if [ "$ALL_11_FONTS_PRESENT" != "true" ]; then
+    echo "[+] Populating $TARGET_FONTS_XML with complete 11 fonts from $DEVICE_FONTS_XML"
+    cp -f "$DEVICE_FONTS_XML" "$TARGET_FONTS_XML"
+  fi
+fi
+
+# 1.8 vendor/avium (Remove ro.avium.maintainer from version.mk to allow device product.prop)
+VENDOR_AVIUM_DIR="$SOURCE_ROOT/vendor/avium"
+VENDOR_AVIUM_PATCH_DIR="$META_DIR/patches/vendor_avium"
+if [ -d "$VENDOR_AVIUM_PATCH_DIR" ]; then
+  for p in $(ls "$VENDOR_AVIUM_PATCH_DIR"/*.patch 2>/dev/null | sort); do
+    apply_patch_if_needed "$VENDOR_AVIUM_DIR" "$p"
+  done
+fi
+VERSION_MK="$SOURCE_ROOT/vendor/avium/config/version.mk"
+if [ -f "$VERSION_MK" ]; then
+  sed -i '/ro\.avium\.maintainer=/d' "$VERSION_MK" || true
+fi
 echo "============================================================"
 echo "=== 2. AUDITING VENDOR PROPRIETARY BLOBS ==="
 echo "============================================================"
@@ -144,14 +212,13 @@ if [ -f "$CI_TEST_ZIP" ]; then
 fi
 
 echo "============================================================"
-echo "=== 4. VERIFYING LunarisDolby & HARDWARE DOLBY ==="
+echo "=== 4. PURGING LunarisDolby & AUDITING HARDWARE DOLBY ==="
 echo "============================================================"
-if [ -d "$SOURCE_ROOT/packages/apps/LunarisDolby" ]; then
-  echo "[DOLBY] PASS: LunarisDolby exists in packages/apps/LunarisDolby."
-  grep -rn 'name: "LunarisDolby"' "$SOURCE_ROOT/packages/apps/LunarisDolby" || true
-else
-  echo "[DOLBY] ERROR: LunarisDolby not found in $SOURCE_ROOT/packages/apps/LunarisDolby!"
-  exit 1
+DOLBY_MK="$SOURCE_ROOT/hardware/dolby/dolby.mk"
+if [ -f "$DOLBY_MK" ]; then
+  echo "[DOLBY] Stripping LunarisDolby package declaration from $DOLBY_MK..."
+  sed -i '/LunarisDolby/d' "$DOLBY_MK" || true
+  echo "[DOLBY] PASS: LunarisDolby package purged from dolby.mk."
 fi
 
 if [ -d "$SOURCE_ROOT/hardware/dolby" ]; then
@@ -162,7 +229,59 @@ else
 fi
 
 echo "============================================================"
-echo "=== 5. VERIFYING SDM845-COMMON 4.19 & EROFS CONFIGURATION ==="
+echo "=== 5. ASSERTING PURE LINUX 4.19 GOLDEN BASELINE (NO KSU) ==="
+echo "============================================================"
+KERNEL_DIR="$SOURCE_ROOT/kernel/oneplus/sdm845"
+if [ -d "$KERNEL_DIR" ]; then
+  echo "[KERNEL] Verifying pure Linux 4.19 golden baseline in $KERNEL_DIR..."
+  if [ -d "$KERNEL_DIR/drivers/kernelsu" ]; then
+    echo "[KERNEL] ERROR: drivers/kernelsu found in kernel tree! KernelSU must be completely absent."
+    exit 1
+  fi
+
+  ENCHILADA_CONF="$KERNEL_DIR/arch/arm64/configs/vendor/enchilada.config"
+  if grep -q "^CONFIG_KSU" "$ENCHILADA_CONF"; then
+    echo "[KERNEL] ERROR: CONFIG_KSU found in $ENCHILADA_CONF! KernelSU must be completely absent."
+    exit 1
+  fi
+
+  echo "[KERNEL] PASS: Pure Linux 4.19 golden baseline verified (KernelSU ABSENT)."
+fi
+
+
+echo "============================================================"
+echo "=== 6. VERIFYING AVIUMUI OFFICIAL GMS REPOSITORIES ==="
+echo "============================================================"
+for d in vendor/pixel/gms vendor/pixel/clocks vendor/pixel/sounds; do
+  if [ -d "$SOURCE_ROOT/$d" ]; then
+    echo "[GMS] PASS: $d exists in source tree."
+  else
+    echo "[GMS] ERROR: Required directory $d not found!"
+    exit 1
+  fi
+done
+
+echo "============================================================"
+echo "=== 6.1 SLIMMING OPTIONAL GMS PACKAGES (VELVET & MAPS) ==="
+echo "============================================================"
+GMS_DIR="$SOURCE_ROOT/vendor/pixel/gms"
+GMS_PATCH_DIR="$META_DIR/patches/vendor_pixel_gms"
+if [ -d "$GMS_PATCH_DIR" ]; then
+  for p in $(ls "$GMS_PATCH_DIR"/*.patch 2>/dev/null | sort); do
+    apply_patch_if_needed "$GMS_DIR" "$p"
+  done
+fi
+
+GMS_VENDOR_MK="$SOURCE_ROOT/vendor/pixel/gms/common/common-vendor.mk"
+if [ -f "$GMS_VENDOR_MK" ]; then
+  echo "[GMS] Ensuring Velvet and Maps are excluded from $GMS_VENDOR_MK..."
+  sed -i '/^[[:space:]]*Velvet[[:space:]]*\\/d' "$GMS_VENDOR_MK" || true
+  sed -i '/^[[:space:]]*Maps[[:space:]]*\\/d' "$GMS_VENDOR_MK" || true
+  echo "[GMS] PASS: Optional GMS slimming applied successfully."
+fi
+
+echo "============================================================"
+echo "=== 7. VERIFYING SDM845-COMMON 4.19 & EROFS CONFIGURATION ==="
 echo "============================================================"
 COMMON_DIR="$SOURCE_ROOT/device/oneplus/sdm845-common"
 if [ -d "$COMMON_DIR" ]; then
@@ -196,5 +315,5 @@ else
 fi
 
 echo "============================================================"
-echo "=== 6. ALL 4.19 BLOCKER RESOLUTIONS APPLIED SUCCESSFULLY ==="
+echo "=== 8. ALL 4.19 BLOCKER RESOLUTIONS APPLIED SUCCESSFULLY ==="
 echo "============================================================"
