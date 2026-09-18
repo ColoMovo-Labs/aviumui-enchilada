@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:title="@string/category_pixel_features_title">
+
+    <PreferenceCategory android:title="@string/category_pixel_features_title">
+        <Preference
+            android:key="lomolab_ai_wallpaper"
+            android:title="@string/ai_wallpaper_title"
+            android:summary="@string/ai_wallpaper_summary" />
+
+        <Preference
+            android:key="lomolab_google_photos_spoof"
+            android:title="@string/google_photos_spoof_title"
+            android:summary="@string/google_photos_spoof_summary"
+            android:selectable="false" />
+    </PreferenceCategory>
+
+</PreferenceScreen>

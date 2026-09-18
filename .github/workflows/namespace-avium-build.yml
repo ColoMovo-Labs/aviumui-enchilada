@@ -10,7 +10,10 @@ on:
         type: choice
         options:
           - "bacon"
+          - "LoMoLab"
+          - "Settings"
           - "SystemUI-core"
+          - "SystemUI-application"
           - "Launcher3QuickStep"
           - "bootimage"
           - "nothing"
@@ -421,6 +424,58 @@ jobs:
           echo "=== 5. First-level directory breakdown (sorted) ==="
           du -h -d1 /home/runner/android/avium 2>/dev/null | sort -h || true
 
+      - name: "Phase Gate 1.2: m LoMoLab"
+        if: ${{ github.event.inputs.build_target == 'LoMoLab' || github.event.inputs.build_target == 'bacon' }}
+        run: |
+          echo "=================================================="
+          echo "=== 11.3. EXECUTING: m LoMoLab ==="
+          echo "=================================================="
+          cd /home/runner/android/avium
+          source build/envsetup.sh
+          lunch lineage_enchilada-bp4a-userdebug || lunch lineage_enchilada-userdebug
+
+          if [ "${{ github.event.inputs.use_ccache }}" = "true" ]; then
+            export CCACHE_DIR=/cache/ccache
+            export USE_CCACHE=1
+            export CCACHE_EXEC=/usr/bin/ccache
+          fi
+
+          mkdir -p /home/runner/android/logs
+          set -o pipefail
+          m -j16 LoMoLab 2>&1 | tee /home/runner/android/logs/build_lomolab.log
+          rc=${PIPESTATUS[0]}
+          if [ "$rc" -ne 0 ]; then
+            echo "ERROR: m LoMoLab failed with rc=$rc"
+            exit "$rc"
+          fi
+          echo "PASS: m LoMoLab succeeded!"
+
+      - name: "Phase Gate 1.3: m Settings"
+        if: ${{ github.event.inputs.build_target == 'Settings' || github.event.inputs.build_target == 'bacon' }}
+        run: |
+          echo "=================================================="
+          echo "=== 11.4. EXECUTING: m Settings ==="
+          echo "=================================================="
+          cd /home/runner/android/avium
+          source build/envsetup.sh
+          lunch lineage_enchilada-bp4a-userdebug || lunch lineage_enchilada-userdebug
+
+          if [ "${{ github.event.inputs.use_ccache }}" = "true" ]; then
+            export CCACHE_DIR=/cache/ccache
+            export USE_CCACHE=1
+            export CCACHE_EXEC=/usr/bin/ccache
+          fi
+
+          mkdir -p /home/runner/android/logs
+          set -o pipefail
+          m -j16 Settings 2>&1 | tee /home/runner/android/logs/build_settings.log
+          rc=${PIPESTATUS[0]}
+          if [ "$rc" -ne 0 ]; then
+            echo "ERROR: m Settings failed with rc=$rc"
+            exit "$rc"
+          fi
+          echo "PASS: m Settings succeeded!"
+
       - name: "Phase Gate 2: m bootimage"
         if: ${{ github.event.inputs.build_target == 'bootimage' || github.event.inputs.build_target == 'bacon' }}
         run: |
@@ -549,6 +604,32 @@ jobs:
           fi
           echo "PASS: m SystemUI-core succeeded!"
 
+      - name: "Phase Gate 2.55: m SystemUI-application"
+        if: ${{ github.event.inputs.build_target == 'SystemUI-application' || github.event.inputs.build_target == 'bacon' }}
+        run: |
+          echo "=================================================="
+          echo "=== 12.55. EXECUTING: m SystemUI-application ==="
+          echo "=================================================="
+          cd /home/runner/android/avium
+          source build/envsetup.sh
+          lunch lineage_enchilada-bp4a-userdebug || lunch lineage_enchilada-userdebug
+
+          if [ "${{ github.event.inputs.use_ccache }}" = "true" ]; then
+            export CCACHE_DIR=/cache/ccache
+            export USE_CCACHE=1
+            export CCACHE_EXEC=/usr/bin/ccache
+          fi
+
+          mkdir -p /home/runner/android/logs
+          set -o pipefail
+          m -j16 SystemUI-application 2>&1 | tee /home/runner/android/logs/build_systemui_app.log
+          rc=${PIPESTATUS[0]}
+          if [ "$rc" -ne 0 ]; then
+            echo "ERROR: m SystemUI-application failed with rc=$rc"
+            exit "$rc"
+          fi
+          echo "PASS: m SystemUI-application succeeded!"
+
       - name: "Phase Gate 2.6: m Launcher3QuickStep"
         if: ${{ github.event.inputs.build_target == 'Launcher3QuickStep' || github.event.inputs.build_target == 'bacon' }}
         run: |
@@ -649,6 +730,31 @@ jobs:
           if [ -f "$OUT_DIR"/vendor.img ]; then
             stat -c '%n %s bytes' "$OUT_DIR"/vendor.img
             file "$OUT_DIR"/vendor.img
+          fi
+
+          echo "=== 7. System Partition Headroom Calculation ==="
+          MAX_SYSTEM_SIZE=2998927360
+          if [ -f "$OUT_DIR"/system.img ]; then
+            SYS_BYTES=$(stat -c %s "$OUT_DIR"/system.img)
+            HEADROOM_BYTES=$((MAX_SYSTEM_SIZE - SYS_BYTES))
+            HEADROOM_MIB=$((HEADROOM_BYTES / 1024 / 1024))
+            echo "system.img size: $SYS_BYTES bytes"
+            echo "AVB max system size: $MAX_SYSTEM_SIZE bytes"
+            echo "system headroom: $HEADROOM_BYTES bytes ($HEADROOM_MIB MiB)"
+            if [ "$HEADROOM_MIB" -lt 50 ]; then
+              echo "ERROR: System headroom is ${HEADROOM_MIB} MiB (< 50 MiB threshold)!"
+              exit 1
+            fi
+            echo "PASS: System headroom is ${HEADROOM_MIB} MiB (>= 50 MiB threshold)."
+          fi
+
+          echo "=== 8. Verifying LoMoLab packaging ==="
+          LOMOLAB_APK=$(find "$OUT_DIR" -name "LoMoLab.apk" | head -n 1)
+          if [ -n "$LOMOLAB_APK" ]; then
+            echo "PASS: LoMoLab APK found at $LOMOLAB_APK"
+          else
+            echo "WARNING: LoMoLab APK check: searching target product directory..."
+            find "$OUT_DIR" -name "*LoMoLab*" || true
           fi
 
       - name: Final Disk Space Audit (Post-Bacon)

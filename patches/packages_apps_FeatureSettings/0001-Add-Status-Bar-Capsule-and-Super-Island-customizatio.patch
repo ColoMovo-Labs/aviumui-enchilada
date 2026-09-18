@@ -257,7 +257,7 @@ diff --git a/app/src/main/res/xml/feature_settings_ui.xml b/app/src/main/res/xml
 index 758ed5b..eb1ec76 100644
 --- a/app/src/main/res/xml/feature_settings_ui.xml
 +++ b/app/src/main/res/xml/feature_settings_ui.xml
-@@ -15,8 +15,81 @@
+@@ -15,8 +15,75 @@
       limitations under the License.
  -->
  <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
@@ -327,12 +327,6 @@ index 758ed5b..eb1ec76 100644
 +            android:key="island_event_flashlight"
 +            android:title="@string/island_event_flashlight_title"
 +            android:summary="@string/island_event_flashlight_summary"
-+            android:defaultValue="true" />
-+
-+        <SwitchPreferenceCompat
-+            android:key="island_blur_enabled"
-+            android:title="@string/island_blur_title"
-+            android:summary="@string/island_blur_summary"
 +            android:defaultValue="true" />
 +    </PreferenceCategory>
 +

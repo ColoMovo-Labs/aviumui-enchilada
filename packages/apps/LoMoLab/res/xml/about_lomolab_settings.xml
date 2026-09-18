@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:title="@string/category_about_lomolab_title">
+
+    <PreferenceCategory android:title="@string/category_about_lomolab_title">
+        <Preference
+            android:key="about_version"
+            android:title="@string/about_version_title"
+            android:summary="@string/about_version_summary" />
+
+        <Preference
+            android:key="about_maintainer"
+            android:title="@string/about_maintainer_title"
+            android:summary="@string/about_maintainer_summary" />
+
+        <Preference
+            android:key="about_device"
+            android:title="@string/about_device_title"
+            android:summary="@string/about_device_summary" />
+
+        <Preference
+            android:key="about_baseline"
+            android:title="@string/about_baseline_title"
+            android:summary="@string/about_baseline_summary" />
+    </PreferenceCategory>
+
+</PreferenceScreen>

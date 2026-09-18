@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:title="@string/category_appearance_fonts_title">
+
+    <PreferenceCategory android:title="@string/category_appearance_fonts_title">
+        <ListPreference
+            android:key="lomolab_font_picker"
+            android:title="@string/font_manager_title"
+            android:summary="%s"
+            android:entries="@array/font_picker_entries"
+            android:entryValues="@array/font_picker_values"
+            android:defaultValue="android" />
+
+        <Preference
+            android:key="lomolab_font_preview"
+            android:title="字体样例预览 (Typography Preview)"
+            android:summary="@string/font_preview_sample"
+            android:selectable="false" />
+
+        <Preference
+            android:key="deep_link_avium_personalization"
+            android:title="@string/avium_personalization_title"
+            android:summary="@string/avium_personalization_summary" />
+    </PreferenceCategory>
+
+</PreferenceScreen>

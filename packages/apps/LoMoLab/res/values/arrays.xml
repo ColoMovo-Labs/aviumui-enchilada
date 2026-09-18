@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Copyright (C) 2026 The AviumUI / LoMoLab Project
+    SPDX-License-Identifier: Apache-2.0
+-->
+<resources>
+    <!-- Fonts -->
+    <string-array name="font_picker_entries">
+        <item>@string/font_default</item>
+        <item>@string/font_smiley_sans</item>
+        <item>@string/font_lxgw_wenkai</item>
+        <item>@string/font_lxgw_neoxihei</item>
+        <item>@string/font_xiaolai</item>
+        <item>@string/font_noto_serif</item>
+        <item>@string/font_zcool_qingke</item>
+        <item>@string/font_zcool_xiaowei</item>
+        <item>@string/font_zcool_kuaile</item>
+        <item>@string/font_mashanzheng</item>
+        <item>@string/font_longcang</item>
+        <item>@string/font_zhimangxing</item>
+    </string-array>
+
+    <string-array name="font_picker_values">
+        <item>android</item>
+        <item>org.avium.overlay.font.smileysans</item>
+        <item>org.avium.overlay.font.lxgwwenkai</item>
+        <item>org.avium.overlay.font.lxgwneoxihei</item>
+        <item>org.avium.overlay.font.xiaolai</item>
+        <item>org.avium.overlay.font.notoserifsc</item>
+        <item>org.avium.overlay.font.zcoolqingkehuangyou</item>
+        <item>org.avium.overlay.font.zcoolxiaowei</item>
+        <item>org.avium.overlay.font.zcoolkuaile</item>
+        <item>org.avium.overlay.font.mashanzheng</item>
+        <item>org.avium.overlay.font.longcang</item>
+        <item>org.avium.overlay.font.zhimangxing</item>
+    </string-array>
+
+    <!-- Super Island Display Mode -->
+    <string-array name="island_display_mode_entries">
+        <item>@string/island_mode_both</item>
+        <item>@string/island_mode_capsule</item>
+        <item>@string/island_mode_island</item>
+    </string-array>
+
+    <string-array name="island_display_mode_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+
+    <!-- Control Center Style -->
+    <string-array name="control_center_style_entries">
+        <item>@string/control_center_style_stock</item>
+        <item>@string/control_center_style_elixir</item>
+    </string-array>
+
+    <string-array name="control_center_style_values">
+        <item>0</item>
+        <item>1</item>
+    </string-array>
+
+    <!-- Control Center Blur Intensity -->
+    <string-array name="control_center_blur_intensity_entries">
+        <item>Low (15px - Recommended)</item>
+        <item>Medium (30px)</item>
+        <item>High (60px)</item>
+    </string-array>
+
+    <string-array name="control_center_blur_intensity_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+
+    <!-- Quick Pulldown -->
+    <string-array name="quick_pulldown_entries">
+        <item>@string/quick_pulldown_off</item>
+        <item>@string/quick_pulldown_right</item>
+        <item>@string/quick_pulldown_left</item>
+    </string-array>
+
+    <string-array name="quick_pulldown_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+
+    <!-- Screen Off Animations -->
+    <string-array name="screen_off_anim_entries">
+        <item>@string/screen_off_anim_default</item>
+        <item>@string/screen_off_anim_crt</item>
+        <item>@string/screen_off_anim_scale</item>
+    </string-array>
+
+    <string-array name="screen_off_anim_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+
+    <!-- Battery Styles -->
+    <string-array name="battery_style_entries">
+        <item>Portrait (Standard)</item>
+        <item>Circle</item>
+        <item>Dotted Circle</item>
+        <item>Filled</item>
+        <item>Hidden</item>
+    </string-array>
+
+    <string-array name="battery_style_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+    </string-array>
+
+    <!-- Test LED Colors -->
+    <string-array name="test_led_entries">
+        <item>@string/test_led_red</item>
+        <item>@string/test_led_green</item>
+        <item>@string/test_led_blue</item>
+        <item>@string/test_led_cyan</item>
+        <item>@string/test_led_purple</item>
+        <item>@string/test_led_white</item>
+    </string-array>
+
+    <string-array name="test_led_values">
+        <item>0xFFFF0000</item>
+        <item>0xFF00FF00</item>
+        <item>0xFF0000FF</item>
+        <item>0xFF00FFFF</item>
+        <item>0xFF9C27B0</item>
+        <item>0xFFFFFFFF</item>
+    </string-array>
+</resources>

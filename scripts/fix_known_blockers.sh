@@ -155,6 +155,83 @@ VERSION_MK="$SOURCE_ROOT/vendor/avium/config/version.mk"
 if [ -f "$VERSION_MK" ]; then
   sed -i '/ro\.avium\.maintainer=/d' "$VERSION_MK" || true
 fi
+
+# 1.9 Deploy LoMoLab & Wire Settings Entry
+echo "============================================================"
+echo "=== DEPLOYING LOMOLAB AND SETTINGS WIRING ==="
+echo "============================================================"
+if [ -d "$META_DIR/packages/apps/LoMoLab" ]; then
+  echo "[+] Deploying packages/apps/LoMoLab..."
+  mkdir -p "$SOURCE_ROOT/packages/apps/LoMoLab"
+  cp -rf "$META_DIR/packages/apps/LoMoLab/." "$SOURCE_ROOT/packages/apps/LoMoLab/"
+fi
+
+# Ensure device/oneplus/enchilada packages LoMoLab and purges legacy wallpapers
+ENCHILADA_MK="$SOURCE_ROOT/device/oneplus/enchilada/lineage_enchilada.mk"
+if [ -f "$ENCHILADA_MK" ]; then
+  sed -i '/wallpapers\.mk/d' "$ENCHILADA_MK" || true
+  if ! grep -q "LoMoLab" "$ENCHILADA_MK"; then
+    echo -e "\nPRODUCT_PACKAGES += LoMoLab" >> "$ENCHILADA_MK"
+  fi
+fi
+if [ -d "$SOURCE_ROOT/device/oneplus/enchilada/wallpapers" ]; then
+  echo "[-] Purging legacy 27 wallpapers directory from device tree..."
+  rm -rf "$SOURCE_ROOT/device/oneplus/enchilada/wallpapers"
+fi
+
+# Inject LoMoLab icon and strings into Settings
+SETTINGS_DIR="$SOURCE_ROOT/packages/apps/Settings"
+if [ -d "$SETTINGS_DIR" ]; then
+  echo "[+] Configuring Settings LoMoLab integration..."
+  mkdir -p "$SETTINGS_DIR/res/drawable"
+  if [ -f "$META_DIR/packages/apps/LoMoLab/res/drawable/ic_lomolab.xml" ]; then
+    cp -f "$META_DIR/packages/apps/LoMoLab/res/drawable/ic_lomolab.xml" "$SETTINGS_DIR/res/drawable/ic_lomolab.xml"
+  fi
+
+  STRINGS_EN="$SETTINGS_DIR/res/values/strings.xml"
+  if [ -f "$STRINGS_EN" ] && ! grep -q "lomolab_app_name" "$STRINGS_EN"; then
+    sed -i 's|</resources>|    <string name="lomolab_app_name">LoMoLab</string>\n    <string name="lomolab_summary">Personalization hub and advanced experimental laboratory</string>\n</resources>|' "$STRINGS_EN"
+  fi
+
+  STRINGS_ZH="$SETTINGS_DIR/res/values-zh-rCN/strings.xml"
+  if [ -f "$STRINGS_ZH" ] && ! grep -q "lomolab_app_name" "$STRINGS_ZH"; then
+    sed -i 's|</resources>|    <string name="lomolab_app_name">LoMoLab 洛陌实验室</string>\n    <string name="lomolab_summary">个性化自定义中心与进阶实验室，让前沿科技触手可及</string>\n</resources>|' "$STRINGS_ZH"
+  fi
+
+  TOP_LEVEL_XML="$SETTINGS_DIR/res/xml/top_level_settings.xml"
+  if [ -f "$TOP_LEVEL_XML" ] && ! grep -q "top_level_lomolab" "$TOP_LEVEL_XML"; then
+    python3 - "$TOP_LEVEL_XML" << 'PYEOF' || true
+import sys
+
+path = sys.argv[1]
+with open(path, 'r', encoding='utf-8') as f:
+    content = f.read()
+
+lomolab_entry = """
+    <!-- LoMoLab Customization Center -->
+    <com.android.settings.widget.HomepagePreference
+        android:key="top_level_lomolab"
+        android:title="@string/lomolab_app_name"
+        android:summary="@string/lomolab_summary"
+        android:icon="@drawable/ic_lomolab"
+        android:order="-90">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="org.lomolab.settings"
+            android:targetClass="org.lomolab.settings.LoMoLabActivity" />
+    </com.android.settings.widget.HomepagePreference>
+"""
+
+if "</PreferenceScreen>" in content and "top_level_lomolab" not in content:
+    idx = content.rfind("</PreferenceScreen>")
+    content = content[:idx] + lomolab_entry + "\n" + content[idx:]
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(content)
+    print("[SETTINGS] Injected LoMoLab HomepagePreference into top_level_settings.xml")
+PYEOF
+  fi
+fi
+
 echo "============================================================"
 echo "=== 2. AUDITING VENDOR PROPRIETARY BLOBS ==="
 echo "============================================================"
