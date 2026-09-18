@@ -68,7 +68,11 @@ object HiLightController {
         try {
             val lightsManager = context.getSystemService(LightsManager::class.java) ?: return
             val targetLight = lightsManager.lights.firstOrNull {
-                it.type == Light.LIGHT_TYPE_NOTIFICATIONS || it.type == Light.LIGHT_TYPE_STATUS
+                it.hasRgbControl()
+            } ?: lightsManager.lights.firstOrNull {
+                it.name.contains("notification", ignoreCase = true) ||
+                it.name.contains("status", ignoreCase = true) ||
+                it.name.contains("led", ignoreCase = true)
             } ?: lightsManager.lights.firstOrNull() ?: return
 
             if (activeSession == null) {
