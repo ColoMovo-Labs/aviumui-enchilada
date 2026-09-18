@@ -1,0 +1,327 @@
+From 0c919e867806a3078d8228303b76febfd0ab6500 Mon Sep 17 00:00:00 2001
+From: ColoMovo <lolojicoco@outlook.com>
+Date: Fri, 18 Sep 2026 20:16:49 +0800
+Subject: [PATCH] Add LoMoHiLight framework bridge and SystemUI controller
+
+---
+ .../internal/statusbar/IStatusBarService.aidl |   3 +
+ .../systemui/hilight/LoMoHiLightController.kt | 263 ++++++++++++++++++
+ .../statusbar/StatusBarManagerService.java    |  20 ++
+ 3 files changed, 286 insertions(+)
+ create mode 100644 packages/SystemUI/src/org/avium/systemui/hilight/LoMoHiLightController.kt
+
+diff --git a/core/java/com/android/internal/statusbar/IStatusBarService.aidl b/core/java/com/android/internal/statusbar/IStatusBarService.aidl
+index 3e2f301..d7a6b3c 100644
+--- a/core/java/com/android/internal/statusbar/IStatusBarService.aidl
++++ b/core/java/com/android/internal/statusbar/IStatusBarService.aidl
+@@ -236,4 +236,7 @@ interface IStatusBarService
+ 
+     /** Shows rear display educational dialog */
+     void showRearDisplayDialog(int currentBaseState);
++
++    /** Controls hardware notification LED state for LoMo HiLight assistant interactions */
++    void setHiLightState(int color, int mode, int onMs, int offMs);
+ }
+diff --git a/packages/SystemUI/src/org/avium/systemui/hilight/LoMoHiLightController.kt b/packages/SystemUI/src/org/avium/systemui/hilight/LoMoHiLightController.kt
+new file mode 100644
+index 0000000..d789a63
+--- /dev/null
++++ b/packages/SystemUI/src/org/avium/systemui/hilight/LoMoHiLightController.kt
+@@ -0,0 +1,263 @@
++/*
++ * Copyright (C) 2026 The AviumUI / LoMoLab Project
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++package org.avium.systemui.hilight
++
++import android.app.role.RoleManager
++import android.content.BroadcastReceiver
++import android.content.Context
++import android.content.Intent
++import android.content.IntentFilter
++import android.database.ContentObserver
++import android.media.AudioManager
++import android.media.AudioPlaybackConfiguration
++import android.media.AudioRecordingConfiguration
++import android.net.Uri
++import android.os.BatteryManager
++import android.os.Handler
++import android.os.Looper
++import android.os.PowerManager
++import android.os.ServiceManager
++import android.provider.Settings
++import android.util.Log
++import com.android.internal.statusbar.IStatusBarService
++
++class LoMoHiLightController private constructor(private val context: Context) {
++
++    companion object {
++        private const val TAG = "LoMoHiLightController"
++
++        const val KEY_ENABLED = "lomolab_hilight_enabled"
++        const val KEY_LISTENING_ENABLED = "lomolab_hilight_listening_enabled"
++        const val KEY_THINKING_ENABLED = "lomolab_hilight_thinking_enabled"
++        const val KEY_RESPONDING_ENABLED = "lomolab_hilight_responding_enabled"
++        const val KEY_SCREEN_OFF_ONLY = "lomolab_hilight_screen_off_only"
++        const val KEY_DISABLE_CHARGING = "lomolab_hilight_disable_charging"
++        const val KEY_TEST_TRIGGER = "lomolab_hilight_test_trigger"
++        const val KEY_TEST_COLOR = "lomolab_hilight_test_color"
++
++        const val DEFAULT_COLOR_LISTENING = 0xFF00FFFF.toInt()   // Cyan
++        const val DEFAULT_COLOR_THINKING = 0xFF9C27B0.toInt()    // Purple
++        const val DEFAULT_COLOR_RESPONDING = 0xFF2979FF.toInt()  // Blue
++
++        @Volatile
++        private var instance: LoMoHiLightController? = null
++
++        fun getInstance(context: Context): LoMoHiLightController {
++            return instance ?: synchronized(this) {
++                instance ?: LoMoHiLightController(context.applicationContext ?: context).also { instance = it }
++            }
++        }
++    }
++
++    private val mainHandler = Handler(Looper.getMainLooper())
++    private var barService: IStatusBarService? = null
++
++    private var isEnabled = false
++    private var listeningEnabled = true
++    private var thinkingEnabled = true
++    private var respondingEnabled = true
++    private var screenOffOnly = false
++    private var disableCharging = true
++
++    private var isRecording = false
++    private var isPlaying = false
++    private var isCharging = false
++    private var isScreenOn = true
++
++    private var isTesting = false
++    private var testResetRunnable: Runnable? = null
++
++    private enum class HiLightState {
++        IDLE,
++        LISTENING,
++        THINKING,
++        RESPONDING
++    }
++
++    private var currentState = HiLightState.IDLE
++
++    private val audioRecordingCallback = object : AudioManager.AudioRecordingCallback() {
++        override fun onRecordingConfigChanged(configs: List<AudioRecordingConfiguration>?) {
++            val assistantUid = getAssistantUid()
++            val recording = configs?.any { config ->
++                assistantUid > 0 && config.clientUid == assistantUid
++            } ?: false
++
++            mainHandler.post {
++                if (isRecording != recording) {
++                    isRecording = recording
++                    updateState()
++                }
++            }
++        }
++    }
++
++    private val audioPlaybackCallback = object : AudioManager.AudioPlaybackCallback() {
++        override fun onPlaybackConfigChanged(configs: List<AudioPlaybackConfiguration>?) {
++            val assistantUid = getAssistantUid()
++            val playing = configs?.any { config ->
++                assistantUid > 0 && config.clientUid == assistantUid && config.isActive
++            } ?: false
++
++            mainHandler.post {
++                if (isPlaying != playing) {
++                    isPlaying = playing
++                    updateState()
++                }
++            }
++        }
++    }
++
++    private val broadcastReceiver = object : BroadcastReceiver() {
++        override fun onReceive(context: Context?, intent: Intent?) {
++            when (intent?.action) {
++                Intent.ACTION_SCREEN_ON -> {
++                    isScreenOn = true
++                    updateState()
++                }
++                Intent.ACTION_SCREEN_OFF -> {
++                    isScreenOn = false
++                    updateState()
++                }
++                Intent.ACTION_POWER_CONNECTED -> {
++                    isCharging = true
++                    updateState()
++                }
++                Intent.ACTION_POWER_DISCONNECTED -> {
++                    isCharging = false
++                    updateState()
++                }
++            }
++        }
++    }
++
++    private val settingsObserver = object : ContentObserver(mainHandler) {
++        override fun onChange(selfChange: Boolean, uri: Uri?) {
++            reloadSettings()
++            if (uri != null && uri == Settings.System.getUriFor(KEY_TEST_TRIGGER)) {
++                handleTestTrigger()
++            } else {
++                updateState()
++            }
++        }
++    }
++
++    fun start() {
++        Log.i(TAG, "Initializing LoMoHiLightController in SystemUI")
++        reloadSettings()
++
++        val resolver = context.contentResolver
++        resolver.registerContentObserver(Settings.System.getUriFor(KEY_ENABLED), false, settingsObserver)
++        resolver.registerContentObserver(Settings.System.getUriFor(KEY_LISTENING_ENABLED), false, settingsObserver)
++        resolver.registerContentObserver(Settings.System.getUriFor(KEY_THINKING_ENABLED), false, settingsObserver)
++        resolver.registerContentObserver(Settings.System.getUriFor(KEY_RESPONDING_ENABLED), false, settingsObserver)
++        resolver.registerContentObserver(Settings.System.getUriFor(KEY_SCREEN_OFF_ONLY), false, settingsObserver)
++        resolver.registerContentObserver(Settings.System.getUriFor(KEY_DISABLE_CHARGING), false, settingsObserver)
++        resolver.registerContentObserver(Settings.System.getUriFor(KEY_TEST_TRIGGER), false, settingsObserver)
++
++        val powerManager = context.getSystemService(PowerManager::class.java)
++        isScreenOn = powerManager?.isInteractive ?: true
++
++        val batteryIntent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
++        val status = batteryIntent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
++        isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
++
++        val filter = IntentFilter().apply {
++            addAction(Intent.ACTION_SCREEN_ON)
++            addAction(Intent.ACTION_SCREEN_OFF)
++            addAction(Intent.ACTION_POWER_CONNECTED)
++            addAction(Intent.ACTION_POWER_DISCONNECTED)
++        }
++        context.registerReceiver(broadcastReceiver, filter)
++
++        try {
++            val audioManager = context.getSystemService(AudioManager::class.java)
++            audioManager?.registerAudioRecordingCallback(audioRecordingCallback, mainHandler)
++            audioManager?.registerAudioPlaybackCallback(audioPlaybackCallback, mainHandler)
++        } catch (e: Exception) {
++            Log.e(TAG, "Failed to register audio callbacks", e)
++        }
++
++        updateState()
++    }
++
++    private fun reloadSettings() {
++        val resolver = context.contentResolver
++        isEnabled = Settings.System.getInt(resolver, KEY_ENABLED, 0) == 1
++        listeningEnabled = Settings.System.getInt(resolver, KEY_LISTENING_ENABLED, 1) == 1
++        thinkingEnabled = Settings.System.getInt(resolver, KEY_THINKING_ENABLED, 1) == 1
++        respondingEnabled = Settings.System.getInt(resolver, KEY_RESPONDING_ENABLED, 1) == 1
++        screenOffOnly = Settings.System.getInt(resolver, KEY_SCREEN_OFF_ONLY, 0) == 1
++        disableCharging = Settings.System.getInt(resolver, KEY_DISABLE_CHARGING, 1) == 1
++    }
++
++    private fun handleTestTrigger() {
++        val resolver = context.contentResolver
++        val testColor = Settings.System.getInt(resolver, KEY_TEST_COLOR, DEFAULT_COLOR_LISTENING)
++        isTesting = true
++        testResetRunnable?.let { mainHandler.removeCallbacks(it) }
++
++        setLedState(testColor, 1, 400, 400)
++
++        val reset = Runnable {
++            isTesting = false
++            updateState()
++        }
++        testResetRunnable = reset
++        mainHandler.postDelayed(reset, 2500)
++    }
++
++    private fun getAssistantUid(): Int {
++        return try {
++            val roleManager = context.getSystemService(RoleManager::class.java)
++            val holders = roleManager?.getRoleHolders(RoleManager.ROLE_ASSISTANT)
++            val pkg = holders?.firstOrNull() ?: return -1
++            context.packageManager.getPackageUid(pkg, 0)
++        } catch (e: Exception) {
++            -1
++        }
++    }
++
++    private fun updateState() {
++        if (isTesting) return
++
++        if (!isEnabled || (screenOffOnly && isScreenOn) || (disableCharging && isCharging)) {
++            transitionTo(HiLightState.IDLE)
++            return
++        }
++
++        when {
++            isRecording && listeningEnabled -> transitionTo(HiLightState.LISTENING)
++            isPlaying && respondingEnabled -> transitionTo(HiLightState.RESPONDING)
++            isRecording && !isPlaying && thinkingEnabled -> transitionTo(HiLightState.THINKING)
++            else -> transitionTo(HiLightState.IDLE)
++        }
++    }
++
++    private fun transitionTo(newState: HiLightState) {
++        if (currentState == newState) return
++        currentState = newState
++
++        when (newState) {
++            HiLightState.IDLE -> setLedState(0, 0, 0, 0)
++            HiLightState.LISTENING -> setLedState(DEFAULT_COLOR_LISTENING, 1, 500, 500)
++            HiLightState.THINKING -> setLedState(DEFAULT_COLOR_THINKING, 1, 250, 250)
++            HiLightState.RESPONDING -> setLedState(DEFAULT_COLOR_RESPONDING, 0, 0, 0)
++        }
++    }
++
++    private fun setLedState(color: Int, mode: Int, onMs: Int, offMs: Int) {
++        try {
++            if (barService == null) {
++                barService = IStatusBarService.Stub.asInterface(ServiceManager.getService(Context.STATUS_BAR_SERVICE))
++            }
++            barService?.setHiLightState(color, mode, onMs, offMs)
++            Log.d(TAG, "setHiLightState: color=0x" + Integer.toHexString(color) + ", mode=" + mode + ", onMs=" + onMs + ", offMs=" + offMs)
++        } catch (e: Exception) {
++            Log.e(TAG, "Error invoking setHiLightState via IStatusBarService", e)
++        }
++    }
++}
+diff --git a/services/core/java/com/android/server/statusbar/StatusBarManagerService.java b/services/core/java/com/android/server/statusbar/StatusBarManagerService.java
+index a05e7e0..da30dce 100644
+--- a/services/core/java/com/android/server/statusbar/StatusBarManagerService.java
++++ b/services/core/java/com/android/server/statusbar/StatusBarManagerService.java
+@@ -2693,6 +2693,26 @@ public class StatusBarManagerService extends IStatusBarService.Stub implements D
+         }
+     }
+ 
++    @Override
++    public void setHiLightState(int color, int mode, int onMs, int offMs) {
++        enforceStatusBar();
++        com.android.server.lights.LightsManager lm =
++                com.android.server.LocalServices.getService(com.android.server.lights.LightsManager.class);
++        if (lm != null) {
++            com.android.server.lights.LogicalLight light =
++                    lm.getLight(com.android.server.lights.LightsManager.LIGHT_ID_NOTIFICATIONS);
++            if (light != null) {
++                if (color == 0) {
++                    light.turnOff();
++                } else if (mode == 0) {
++                    light.setColor(color);
++                } else {
++                    light.setFlashing(color, mode, onMs, offMs);
++                }
++            }
++        }
++    }
++
+     /** @hide */
+     public void passThroughShellCommand(String[] args, FileDescriptor fd) {
+         enforceStatusBarOrShell();
+-- 
+2.53.0
+

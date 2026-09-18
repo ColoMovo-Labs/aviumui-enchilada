@@ -5,86 +5,91 @@
 
 package org.lomolab.settings
 
+import android.app.role.RoleManager
 import android.os.Bundle
+import android.provider.Settings
 import android.widget.Toast
 import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.TwoStatePreference
-import org.lomolab.settings.hilight.HiLightController
-import org.lomolab.settings.hilight.HiLightService
 import org.lomolab.settings.utils.SettingsHelper
 
 class GeminiHiLightFragment : PreferenceFragmentCompat() {
+
+    companion object {
+        const val KEY_HILIGHT_ENABLED = "lomolab_hilight_enabled"
+        const val KEY_LISTENING_ENABLED = "lomolab_hilight_listening_enabled"
+        const val KEY_THINKING_ENABLED = "lomolab_hilight_thinking_enabled"
+        const val KEY_RESPONDING_ENABLED = "lomolab_hilight_responding_enabled"
+        const val KEY_SCREEN_OFF_ONLY = "lomolab_hilight_screen_off_only"
+        const val KEY_DISABLE_CHARGING = "lomolab_hilight_disable_charging"
+        const val KEY_TEST_TRIGGER = "lomolab_hilight_test_trigger"
+        const val KEY_TEST_COLOR = "lomolab_hilight_test_color"
+    }
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.gemini_hilight_settings, rootKey)
         val resolver = requireContext().contentResolver
 
-        val mainSwitch = findPreference<TwoStatePreference>(HiLightService.KEY_HILIGHT_ENABLED)
+        val mainSwitch = findPreference<TwoStatePreference>(KEY_HILIGHT_ENABLED)
         SettingsHelper.bindSwitch(
             mainSwitch,
             resolver,
-            HiLightService.KEY_HILIGHT_ENABLED,
+            KEY_HILIGHT_ENABLED,
             SettingsHelper.Table.SYSTEM,
             defaultEnabled = false
         )
-
-        mainSwitch?.onPreferenceChangeListener = Preference.OnPreferenceChangeListener { _, newValue ->
-            val isEnabled = newValue as? Boolean ?: false
-            if (isEnabled) {
-                HiLightService.startIfEnabled(requireContext())
-            } else {
-                HiLightService.stop(requireContext())
-                HiLightController.clearLed()
-            }
-            true
-        }
 
         val assistantInfo = findPreference<Preference>("lomolab_hilight_assistant_info")
-        val detectedAssistant = HiLightController.getAssistantPackage(requireContext())
-        if (detectedAssistant != null) {
-            assistantInfo?.summary = detectedAssistant
-        } else {
-            assistantInfo?.summary = "No Assistant role holder detected"
+        try {
+            val roleManager = requireContext().getSystemService(RoleManager::class.java)
+            val holders = roleManager?.getRoleHolders(RoleManager.ROLE_ASSISTANT)
+            if (!holders.isNullOrEmpty()) {
+                assistantInfo?.summary = holders[0]
+            } else {
+                assistantInfo?.summary = "No Assistant role holder detected"
+            }
+        } catch (e: Exception) {
+            assistantInfo?.summary = "Assistant role detection unavailable"
         }
 
         SettingsHelper.bindSwitch(
-            findPreference<TwoStatePreference>(HiLightService.KEY_LISTENING_ENABLED),
+            findPreference<TwoStatePreference>(KEY_LISTENING_ENABLED),
             resolver,
-            HiLightService.KEY_LISTENING_ENABLED,
+            KEY_LISTENING_ENABLED,
             SettingsHelper.Table.SYSTEM,
             defaultEnabled = true
         )
 
         SettingsHelper.bindSwitch(
-            findPreference<TwoStatePreference>(HiLightService.KEY_THINKING_ENABLED),
+            findPreference<TwoStatePreference>(KEY_THINKING_ENABLED),
             resolver,
-            HiLightService.KEY_THINKING_ENABLED,
+            KEY_THINKING_ENABLED,
             SettingsHelper.Table.SYSTEM,
             defaultEnabled = true
         )
 
         SettingsHelper.bindSwitch(
-            findPreference<TwoStatePreference>(HiLightService.KEY_RESPONDING_ENABLED),
+            findPreference<TwoStatePreference>(KEY_RESPONDING_ENABLED),
             resolver,
-            HiLightService.KEY_RESPONDING_ENABLED,
+            KEY_RESPONDING_ENABLED,
             SettingsHelper.Table.SYSTEM,
             defaultEnabled = true
         )
 
         SettingsHelper.bindSwitch(
-            findPreference<TwoStatePreference>(HiLightService.KEY_SCREEN_OFF_ONLY),
+            findPreference<TwoStatePreference>(KEY_SCREEN_OFF_ONLY),
             resolver,
-            HiLightService.KEY_SCREEN_OFF_ONLY,
+            KEY_SCREEN_OFF_ONLY,
             SettingsHelper.Table.SYSTEM,
             defaultEnabled = false
         )
 
         SettingsHelper.bindSwitch(
-            findPreference<TwoStatePreference>(HiLightService.KEY_DISABLE_CHARGING),
+            findPreference<TwoStatePreference>(KEY_DISABLE_CHARGING),
             resolver,
-            HiLightService.KEY_DISABLE_CHARGING,
+            KEY_DISABLE_CHARGING,
             SettingsHelper.Table.SYSTEM,
             defaultEnabled = true
         )
@@ -106,9 +111,14 @@ class GeminiHiLightFragment : PreferenceFragmentCompat() {
                 Toast.LENGTH_SHORT
             ).show()
 
-            HiLightController.testLed(requireContext(), color) {
-                // Restored
+            // Trigger test LED via Settings.System for SystemUI to execute
+            try {
+                Settings.System.putInt(resolver, KEY_TEST_COLOR, color)
+                Settings.System.putLong(resolver, KEY_TEST_TRIGGER, System.currentTimeMillis())
+            } catch (e: Exception) {
+                // Ignore
             }
+
             false // Do not persist selection as a persistent setting
         }
     }

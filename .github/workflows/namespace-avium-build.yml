@@ -10,6 +10,7 @@ on:
         type: choice
         options:
           - "bacon"
+          - "hilight_gate"
           - "LoMoLab"
           - "Settings"
           - "SystemUI-core"
@@ -425,7 +426,7 @@ jobs:
           du -h -d1 /home/runner/android/avium 2>/dev/null | sort -h || true
 
       - name: "Phase Gate 1.2: m LoMoLab"
-        if: ${{ github.event.inputs.build_target == 'LoMoLab' || github.event.inputs.build_target == 'bacon' }}
+        if: ${{ github.event.inputs.build_target == 'LoMoLab' || github.event.inputs.build_target == 'hilight_gate' || github.event.inputs.build_target == 'bacon' }}
         run: |
           echo "=================================================="
           echo "=== 11.3. EXECUTING: m LoMoLab ==="
@@ -579,7 +580,7 @@ jobs:
           echo "PASS: Free disk (${FREE_GIB} GiB) is >= 90 GiB. Safe to proceed to full m bacon."
 
       - name: "Phase Gate 2.5: m SystemUI-core"
-        if: ${{ github.event.inputs.build_target == 'SystemUI-core' || github.event.inputs.build_target == 'bacon' }}
+        if: ${{ github.event.inputs.build_target == 'SystemUI-core' || github.event.inputs.build_target == 'hilight_gate' || github.event.inputs.build_target == 'bacon' }}
         run: |
           echo "=================================================="
           echo "=== 12.5. EXECUTING: m SystemUI-core ==="
@@ -605,7 +606,7 @@ jobs:
           echo "PASS: m SystemUI-core succeeded!"
 
       - name: "Phase Gate 2.55: m SystemUI-application"
-        if: ${{ github.event.inputs.build_target == 'SystemUI-application' || github.event.inputs.build_target == 'bacon' }}
+        if: ${{ github.event.inputs.build_target == 'SystemUI-application' || github.event.inputs.build_target == 'hilight_gate' || github.event.inputs.build_target == 'bacon' }}
         run: |
           echo "=================================================="
           echo "=== 12.55. EXECUTING: m SystemUI-application ==="

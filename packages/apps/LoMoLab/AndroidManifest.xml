@@ -9,12 +9,7 @@
     <uses-permission android:name="android.permission.CHANGE_OVERLAY_PACKAGES" />
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
-    <uses-permission android:name="android.permission.CONTROL_DEVICE_LIGHTS" />
     <uses-permission android:name="android.permission.INTERACT_ACROSS_USERS" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.MODIFY_AUDIO_ROUTING" />
-    <uses-permission android:name="android.permission.STATUS_BAR" />
 
     <application
         android:label="@string/lomolab_app_name"
@@ -55,19 +50,6 @@
             android:name=".SubSettingsActivity"
             android:exported="true"
             android:parentActivityName=".LoMoLabActivity" />
-
-        <!-- Event-driven LoMo HiLight Service -->
-        <service
-            android:name=".hilight.HiLightService"
-            android:exported="false" />
-
-        <receiver
-            android:name=".hilight.BootCompletedReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-            </intent-filter>
-        </receiver>
 
     </application>
 </manifest>

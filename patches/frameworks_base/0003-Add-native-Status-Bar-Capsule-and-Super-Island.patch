@@ -526,7 +526,7 @@ new file mode 100644
 index 00000000..11111111
 --- /dev/null
 +++ b/packages/SystemUI/src/org/avium/systemui/island/IslandController.kt
-@@ -0,0 +1,215 @@
+@@ -0,0 +1,217 @@
 +/*
 + * Copyright (C) 2026 The AviumUI Project
 + *
@@ -558,6 +558,7 @@ index 00000000..11111111
 +import org.avium.systemui.island.monitors.HeadsetEventMonitor
 +import org.avium.systemui.island.monitors.MediaEventMonitor
 +import org.avium.systemui.island.monitors.ScreenRecordEventMonitor
++import org.avium.systemui.hilight.LoMoHiLightController
 +import org.avium.systemui.island.ui.StatusBarCapsuleView
 +import java.util.concurrent.ConcurrentHashMap
 +import javax.inject.Inject
@@ -647,6 +648,7 @@ index 00000000..11111111
 +            override fun onEventDismissed(id: String) { handleEventDismissed(IslandEventType.FLASHLIGHT) }
 +        }
 +        flashlightMonitor.start(flashlightCallback)
++        LoMoHiLightController.getInstance(context).start()
 +    }
 +
 +    fun setCapsuleView(view: StatusBarCapsuleView?) {
