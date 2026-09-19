@@ -423,6 +423,50 @@ jobs:
           echo "=== 5. First-level directory breakdown (sorted) ==="
           du -h -d1 /home/runner/android/avium 2>/dev/null | sort -h || true
 
+      - name: "Phase Gate 1.2: m AiWallpapers & Signature Verification"
+        if: ${{ github.event.inputs.build_target == 'Settings' || github.event.inputs.build_target == 'bacon' }}
+        run: |
+          echo "=================================================="
+          echo "=== 11.3. EXECUTING: m AiWallpapers ==="
+          echo "=================================================="
+          cd /home/runner/android/avium
+          source build/envsetup.sh
+          lunch lineage_enchilada-bp4a-userdebug || lunch lineage_enchilada-userdebug
+
+          mkdir -p /home/runner/android/logs
+          set -o pipefail
+          m -j16 AiWallpapers 2>&1 | tee /home/runner/android/logs/build_aiwallpapers.log
+          rc=${PIPESTATUS[0]}
+          if [ "$rc" -ne 0 ]; then
+            echo "ERROR: m AiWallpapers failed with rc=$rc"
+            exit "$rc"
+          fi
+          echo "PASS: m AiWallpapers succeeded!"
+
+          echo "=== Verifying AiWallpapers APK and Signing Certificate ==="
+          PREBUILT_APK="device/oneplus/enchilada/AiWallpapers/AiWallpapers.apk"
+          BUILT_APK=$(find out/ -name "AiWallpapers.apk" 2>/dev/null | grep -E 'target/product/enchilada|intermediates' | head -n 1)
+          echo "Prebuilt APK: $PREBUILT_APK"
+          echo "Built APK: $BUILT_APK"
+          if [ -z "$BUILT_APK" ] || [ ! -f "$BUILT_APK" ]; then
+            echo "ERROR: Output AiWallpapers.apk not found!"
+            exit 1
+          fi
+
+          echo "--- apksigner verify --verbose on built APK ---"
+          apksigner verify --verbose "$BUILT_APK"
+
+          echo "--- Comparing signing certificates ---"
+          ORIG_DIGEST=$(apksigner verify --print-certs "$PREBUILT_APK" | grep -i "SHA-256 digest" | head -n 1)
+          BUILT_DIGEST=$(apksigner verify --print-certs "$BUILT_APK" | grep -i "SHA-256 digest" | head -n 1)
+          echo "Original: $ORIG_DIGEST"
+          echo "Built:    $BUILT_DIGEST"
+          if [ "$ORIG_DIGEST" != "$BUILT_DIGEST" ]; then
+            echo "ERROR: Certificate digest mismatch!"
+            exit 1
+          fi
+          echo "PASS: Google original signing certificate strictly preserved."
+
       - name: "Phase Gate 1.3: m Settings"
         if: ${{ github.event.inputs.build_target == 'Settings' || github.event.inputs.build_target == 'bacon' }}
         run: |
