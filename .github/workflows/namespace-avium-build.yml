@@ -444,54 +444,69 @@ jobs:
           echo "PASS: m AiWallpapers succeeded!"
 
           echo "=== Verifying AiWallpapers APK and Signing Certificate ==="
-          SOURCE_ROOT="${GITHUB_WORKSPACE:-$PWD}"
+          echo "PWD=$PWD"
+          echo "GITHUB_WORKSPACE=${GITHUB_WORKSPACE:-unset}"
+          echo "ANDROID_BUILD_TOP=${ANDROID_BUILD_TOP:-unset}"
+
+          if [ -n "$ANDROID_BUILD_TOP" ] && [ -d "$ANDROID_BUILD_TOP/build/soong" ]; then
+            SOURCE_ROOT="$ANDROID_BUILD_TOP"
+          elif [ -d "/home/runner/android/avium/build/soong" ]; then
+            SOURCE_ROOT="/home/runner/android/avium"
+          else
+            SOURCE_ROOT="$PWD"
+          fi
+          echo "Android source root: $SOURCE_ROOT"
+
+          if [ ! -d "$SOURCE_ROOT/build/soong" ]; then
+            echo "ERROR: invalid Android source root: $SOURCE_ROOT"
+            exit 1
+          fi
+
           JAVA="$SOURCE_ROOT/prebuilts/jdk/jdk21/linux-x86/bin/java"
           APKSIGNER_JAR="$SOURCE_ROOT/prebuilts/sdk/tools/linux/lib/apksigner.jar"
           PREBUILT_APK="$SOURCE_ROOT/device/oneplus/enchilada/AiWallpapers/AiWallpapers.apk"
           BUILT_APK="$SOURCE_ROOT/out/soong/.intermediates/device/oneplus/enchilada/AiWallpapers/AiWallpapers/android_common/AiWallpapers.apk"
-          if [ ! -f "$BUILT_APK" ]; then
-            BUILT_APK=$(find "$SOURCE_ROOT/out" -name "AiWallpapers.apk" 2>/dev/null | grep -E 'target/product/enchilada|intermediates' | head -n 1)
-          fi
 
-          echo "Prebuilt APK: $PREBUILT_APK"
-          echo "Built APK:    $BUILT_APK"
+          echo "JAVA=$JAVA"
+          echo "APKSIGNER_JAR=$APKSIGNER_JAR"
+          echo "PREBUILT_APK=$PREBUILT_APK"
+          echo "BUILT_APK=$BUILT_APK"
 
-          if [ -z "$BUILT_APK" ] || [ ! -f "$BUILT_APK" ]; then
-            echo "ERROR: Output AiWallpapers.apk not found!"
-            exit 1
-          fi
-
-          if [ ! -f "$PREBUILT_APK" ]; then
-            echo "ERROR: Prebuilt AiWallpapers.apk not found at $PREBUILT_APK!"
-            exit 1
-          fi
-
-          if [ -x "$JAVA" ] && [ -f "$APKSIGNER_JAR" ]; then
-            echo "Using AOSP JDK + apksigner.jar directly: $APKSIGNER_JAR"
-            echo "--- Verifying built APK signature ---"
-            "$JAVA" -jar "$APKSIGNER_JAR" verify --verbose "$BUILT_APK"
-
-            echo "--- Comparing signing certificates ---"
-            "$JAVA" -jar "$APKSIGNER_JAR" verify --print-certs "$PREBUILT_APK" > /tmp/prebuilt-cert.txt
-            "$JAVA" -jar "$APKSIGNER_JAR" verify --print-certs "$BUILT_APK" > /tmp/built-cert.txt
-
-            cat /tmp/prebuilt-cert.txt
-            cat /tmp/built-cert.txt
-
-            PREBUILT_SHA256=$(grep -m1 "certificate SHA-256 digest:" /tmp/prebuilt-cert.txt | sed 's/.*digest: //')
-            BUILT_SHA256=$(grep -m1 "certificate SHA-256 digest:" /tmp/built-cert.txt | sed 's/.*digest: //')
-
-            echo "Prebuilt cert SHA256: $PREBUILT_SHA256"
-            echo "Built cert SHA256:    $BUILT_SHA256"
-
-            if [ -z "$PREBUILT_SHA256" ] || [ -z "$BUILT_SHA256" ] || [ "$PREBUILT_SHA256" != "$BUILT_SHA256" ]; then
-              echo "ERROR: Certificate digest mismatch or missing!"
+          for f in "$JAVA" "$APKSIGNER_JAR" "$PREBUILT_APK" "$BUILT_APK"; do
+            if [ ! -e "$f" ]; then
+              echo "ERROR: missing required path: $f"
               exit 1
             fi
-            echo "PASS: Google original signing certificate strictly preserved ($BUILT_SHA256)."
-          else
-            echo "WARNING: AOSP JDK or apksigner.jar not found ($APKSIGNER_JAR); skipping certificate check without failing build."
+          done
+
+          if [ ! -x "$JAVA" ]; then
+            echo "ERROR: java exists but is not executable: $JAVA"
+            ls -l "$JAVA"
+            exit 1
           fi
+
+          echo "Using AOSP JDK + apksigner.jar directly: $APKSIGNER_JAR"
+          echo "--- Verifying built APK signature ---"
+          "$JAVA" -jar "$APKSIGNER_JAR" verify --verbose "$BUILT_APK"
+
+          echo "--- Comparing signing certificates ---"
+          "$JAVA" -jar "$APKSIGNER_JAR" verify --print-certs "$PREBUILT_APK" > /tmp/prebuilt-cert.txt
+          "$JAVA" -jar "$APKSIGNER_JAR" verify --print-certs "$BUILT_APK" > /tmp/built-cert.txt
+
+          cat /tmp/prebuilt-cert.txt
+          cat /tmp/built-cert.txt
+
+          PREBUILT_SHA256=$(grep -m1 "certificate SHA-256 digest:" /tmp/prebuilt-cert.txt | sed 's/.*digest: //')
+          BUILT_SHA256=$(grep -m1 "certificate SHA-256 digest:" /tmp/built-cert.txt | sed 's/.*digest: //')
+
+          echo "Prebuilt cert SHA256: $PREBUILT_SHA256"
+          echo "Built cert SHA256:    $BUILT_SHA256"
+
+          if [ -z "$PREBUILT_SHA256" ] || [ -z "$BUILT_SHA256" ] || [ "$PREBUILT_SHA256" != "$BUILT_SHA256" ]; then
+            echo "ERROR: Certificate digest mismatch or missing!"
+            exit 1
+          fi
+          echo "PASS: Google original signing certificate strictly preserved ($BUILT_SHA256)."
 
       - name: "Phase Gate 1.3: m Settings"
         if: ${{ github.event.inputs.build_target == 'Settings' || github.event.inputs.build_target == 'bacon' }}
