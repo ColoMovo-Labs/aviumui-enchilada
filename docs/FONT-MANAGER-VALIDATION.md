@@ -1,8 +1,8 @@
-# Font Manager Architecture & Validation Report
+# Font Management Architecture & Validation Report
 
-> **Target Device**: OnePlus 6 (enchilada / Snapdragon 845)  
+> **Target Device**: OnePlus 6 (`enchilada` / Snapdragon 845)  
 > **ROM Base**: AviumUI 16.2.1 (Android 16 QPR2)  
-> **Font Engine**: Runtime Resource Overlay (RRO) + AOSP Theme Customization Category + Android `OverlayManager`  
+> **Font Engine**: Runtime Resource Overlay (RRO) + AOSP Theme Customization Category (`android.theme.customization.font`) + `OverlayManager`  
 > **Validation Status**: **PASS — 11/11 CURATED FONTS SELECTABLE & VERIFIED**
 
 ---
@@ -30,36 +30,25 @@ Every font is physically prebuilt in the product partition (`/product/fonts/`), 
 
 ## 2. Runtime Font Switching Mechanism
 
-### 2.1 AOSP Secure Settings Transaction
-When a user selects a font in LoMoLab -> **Appearance & Fonts**:
-1. `FontManager.applyFont(...)` retrieves `Settings.Secure.THEME_CUSTOMIZATION_OVERLAY_PACKAGES`.
-2. It parses the stored JSON object:
+### 2.1 Native AOSP Secure Settings Transaction
+Font selection is natively wired inside AviumUI FeatureSettings (Personalization):
+1. User selects a font preference from the ListPreference (`theme_font_picker`).
+2. The controller reads current `Settings.Secure.THEME_CUSTOMIZATION_OVERLAY_PACKAGES`.
+3. It updates the JSON payload:
    ```json
    {
      "android.theme.customization.font": "org.avium.overlay.font.smileysans"
    }
    ```
    For **System Default**, the `"android.theme.customization.font"` key is stripped or set to `"android"`.
-3. SystemUI's `ThemeOverlayController` is woken by the `ContentObserver` on this secure setting. It automatically calls `OverlayManagerTransaction` to enable the target overlay and disable the previous overlay.
-
-### 2.2 Direct Privileged OverlayManager Fallback
-Because `LoMoLab` runs with privileged status and holds `android.permission.CHANGE_OVERLAY_PACKAGES`:
-`FontManager` simultaneously instructs `OverlayManager.setEnabled(targetPkg, true, userHandle)` and disables all other 10 font overlays. This ensures instant font application across running processes without requiring a reboot or SystemUI restart.
+4. Writing back to `Settings.Secure.THEME_CUSTOMIZATION_OVERLAY_PACKAGES` triggers AOSP's standard `ThemeOverlayController` in SystemUI and `ThemeOverlayApplier`, which calls `OverlayManagerTransaction` to enable the selected font overlay and disable existing ones.
 
 ---
 
-## 3. Typographical Fallback & Crash Prevention Verification
+## 3. Typographical Fallback & Stability Verification
 
-### 3.1 Glyph Fallback Integrity
 - **Chinese Characters**: Rendered by the chosen font family if glyph exists.
-- **Latin & Numerical Characters**: Included directly in modern Chinese font binaries (Smiley Sans, LXGW WenKai, LXGW Neo XiHei) or seamlessly fall back to Roboto/Noto Sans via Android's fallback font XML mechanism.
+- **Latin & Numerical Characters**: Included directly in modern Chinese font binaries or seamlessly fall back to Roboto/Noto Sans via Android's fallback font XML mechanism.
 - **Emoji Fallback**: Google Noto Color Emoji remains intact at the root of `fonts.xml` and is unaffected by font overlays. Emoji renders in full color across all apps.
-- **No Tofu (□)**: Every font overlay inherits standard Android XML fallback chain rules. Characters not supported by decorative calligraphic fonts (e.g. Long Cang, Zhi Mang Xing) fall back cleanly to system Noto Sans SC instead of missing-glyph boxes.
-
-### 3.2 Stability Assertions
-- **Zero Copying**: No runtime `cp` to `/system` or `/product`.
+- **No Tofu (□)**: Every font overlay inherits standard Android XML fallback chain rules.
 - **Zero Root / Magisk**: Operates 100% within SELinux Enforcing boundaries using native Android OS overlay APIs.
-- **Process Stability**: Tested and verified that font overlay switching does not cause crashes in:
-  - `com.android.settings` (Settings)
-  - `com.android.systemui` (SystemUI)
-  - `com.android.launcher3` (Launcher3QuickStep)

@@ -78,32 +78,13 @@ OnePlus 6 仍然具有能够处理现代 Android 工作负载的硬件。高通�
 此构建为包含完整功能的 **Feature Build**，在纯净基准之上集成了多项专属体验增强：
 
 * **Google Mobile Services (GMS)**：深度集成官方 GMS 运行环境，支持账户同步与基础服务。
-* **LoMoLab 洛陌实验室**：全新的独立特权系统定制中心（`org.lomolab.settings`），无缝接入系统顶级设置，整合 9 大个性化模块。
-* **11 种精心挑选的中文字体与字体管理器**：集成包括得意黑、霞鹜文楷、霞鹜新晰黑、小赖圆体、思源宋体等在内的 11 种开源授权字体，支持通过 LoMoLab 字体管理器与系统“壁纸与样式”实时无缝切换。
+* **11 种精心挑选的中文字体与系统级字体管理**：集成包括得意黑、霞鹜文楷、霞鹜新晰黑、小赖圆体、思源宋体等在内的 11 种开源授权字体，通过原生 Theme Overlay 体系（`android.theme.customization.font`）与系统个性化设置实时无缝切换。
+* **Google AiWallpapers 官方独立集成**：预装官方独立预编译包（`com.google.android.apps.aiwallpapers`），系统自带 WallpaperPicker2 动态壁纸原生自动发现，真机实测可用。
 * **物理分区空间优化**：解绑 27 张内置静态壁纸（释放约 15 MB 关键空间），严格保障 Physical A/B 系统分区的长期升级与运行冗余；支持用户通过系统壁纸选择器自由配置个性化壁纸。
 * **Avium / Elixir Control Center**：全新设计的控制中心快捷磁贴与状态面板，提供流畅的下滑手势与交互控制。
 * **Status Bar Capsule (状态栏胶囊)**：在状态栏轻量化呈现当前正在进行的系统事件。
 * **Super Island (超级岛)**：居中适配 OnePlus 6 顶部凹槽（Notch）的实时活动交互岛，彻底移除实验性 RenderEffect 模糊，采用纯净半透明深色 OLED 渲染，零视觉伪影。
-* **LoMo HiLight (硬件呼吸灯协同)**：基于官方 `LightsSession` 架构，使 OnePlus 6 的物理 RGB 通知指示灯与智能助手（Google Assistant / Gemini）建立事件驱动的动态呼吸灯联动。
 * **Back-to-Home 动画改进**：针对 Quickstep 与 Launcher3 之间的过渡管线进行了优化，使返回桌面的手势退出动画更加连贯。
-
----
-
-## 🧪 洛陌实验室 (LoMoLab)
-
-让个性化，回归从容与秩序。
-
-**LoMoLab**（`org.lomolab.settings`）是专为 OnePlus 6 上的 AviumUI 打造的独立特权系统级定制中心。通过静态与动态双重注入机制，LoMoLab 作为一级入口直接嵌入 Android 顶级设置菜单中，将丰富的高级定制选项归整为 9 个清晰的体验维度：
-
-1. **外观与字体 (Appearance & Fonts)**：内置字体管理器，提供 11 种精选开源字体的可视化即时预览与基于 RRO Overlay 的一键运行时切换；支持图标包风格与全局形状定制。
-2. **状态栏 (Status Bar)**：提供电池电量百分比样式、实时网速指示器、系统图标显隐与时钟位置微调。
-3. **超级岛 (Super Island)**：自由配置实时活动呈现模式（仅胶囊、仅超级岛或联动呈现），并针对各项后台事件进行独立开关过滤。
-4. **控制中心 (Control Center)**：支持自定义快捷磁贴网格布局、快捷下拉触发阈值与亮度滑块风格。
-5. **动画与手势 (Animations & Gestures)**：提供全局过渡动效速率调节、三指截屏手势支持以及经过物理弹簧调校的返回桌面动效。
-6. **Pixel 体验 (Pixel Features)**：集成 Google 相册无限容量功能、Pixel 专属手势导航栏样式，以及 AI 壁纸功能状态实时检测。
-7. **Gemini 与 LoMo HiLight (呼吸灯与助手联动)**：唤醒 OnePlus 6 经典的实体 RGB 呼吸灯，与智能语音助手实现动态脉冲交互。
-8. **实验特性 (Experimental Lab)**：探索游戏性能模式、边缘误触抑制算法与更为激进的后台电池优化策略。
-9. **关于洛陌实验室 (About LoMoLab)**：提供构建版本哈希、平台硬件状态与技术架构说明。
 
 ---
 
@@ -131,33 +112,20 @@ OnePlus 6 采用 19:9 AMOLED 屏幕，顶部中央配备物理刘海凹槽（宽
 * **屏幕录制 (Screen Recording)**：实时录屏计时状态与快速停止控制。
 * **手电筒 (Flashlight)**：手电筒开启状态指示与快捷关闭。
 
-您可以在 `设置 -> 洛陌实验室 -> 超级岛`（或 `Settings -> LoMoLab -> Super Island`）中按需调整显示模式与事件开关。
-
----
-
-## 💡 LoMo HiLight (硬件呼吸灯与智能助手协同)
-
-让经典硬件，重新感知当下的智能。
-
-OnePlus 6 机身正面配备的实体 RGB 呼吸灯是该机型的标志性硬件之一。LoMo HiLight 将这一硬件从传统的被动通知指示，升级为能够与现代生成式 AI 助手实时共鸣的氛围载体：
-
-* **基于 LightsManager 官方会话架构**：严格基于 Android 官方 `android.hardware.lights.LightsManager.openSession()` 会话机制实现。当助手被唤醒或执行音频交互时，系统获取高优先级的 `LightsSession` 并注入高辨识度的 RGB 颜色（例如 `#FF4285F4` 经典 Gemini 蓝或紫光脉冲）。
-* **自动仲裁与优雅复原**：当语音交互结束或屏幕点亮时，会话将干净利落地关闭。HAL 层会自动恢复系统原有的充电指示与常规未读通知灯光状态，绝不抢占系统既有逻辑。
-* **零轮询与电池友好**：完全采用基于事件回调的架构（监听 `AudioRecordingCallback` 与 `AudioPlaybackCallback`），并结合 `RoleManager.ROLE_ASSISTANT` 动态识别默认助手。不驻留常驻唤醒锁（Wakelock），不进行后台轮询，待机功耗为零。
-* **丰富个性化**：用户可在 `设置 -> 洛陌实验室 -> Gemini 与 LoMo HiLight` 中自由启用或调整呼吸节奏与预设颜色。
+Super Island 深度融入 SystemUI 与系统设置，提供原生、流畅的实时活动交互体验。
 
 ---
 
 ## 🔤 中文字体管理与系统壁纸说明
 
 ### 11 种开源精选中文字体
-内置 11 款高质量中文字体（涵盖得意黑、霞鹜文楷、霞鹜新晰黑、小赖圆体、思源宋体、站酷庆科黄油体、站酷小薇体、站酷快乐体、马善政毛笔体、龙藏体、志莽行书），并已在 `/product/etc/fonts_customization.xml` 中完成完整的系统级回退链注册。任何缺失的生僻字、Emoji 或多国语言文字均将平滑回退至系统原生字体，绝不发生排版截断或应用崩溃。用户可在 LoMoLab 的“外观与字体”模块中直观预览并即时应用。
+内置 11 款高质量中文字体（涵盖得意黑、霞鹜文楷、霞鹜新晰黑、小赖圆体、思源宋体、站酷庆科黄油体、站酷小薇体、站酷快乐体、马善政毛笔体、龙藏体、志莽行书），并已在 `/product/etc/fonts_customization.xml` 中完成完整的系统级回退链注册。任何缺失的生僻字、Emoji 或多国语言文字均将平滑回退至系统原生字体，绝不发生排版截断或应用崩溃。用户可在系统个性化设置（FeatureSettings）中直观选择并即时应用，由原生 `android.theme.customization.font` Overlay 系统驱动。
 
 ### 壁纸策略与系统空间安全
 在早前的实验版本中，设备树中内置了 27 张垂直高清壁纸。为了绝对保障 OnePlus 6 物理 A/B 架构下 `/system` 分区的可用安全裕量（严守构建安全红线，保留足够的系统冗余空间），本版本将这部分静态壁纸解绑移出基础固件。用户可通过系统自带的壁纸选择器、相册或第三方壁纸应用随心定义桌面与锁屏，兼顾个性化与系统分区的绝对稳定性。
 
-### AI 生成壁纸兼容性说明
-Google AI 生成壁纸功能在底层深度依赖特定的片上硬件加速单元（AICore 及 Pixel 专有 NPU）。Qualcomm Snapdragon 845 平台在硬件与官方 GMS 授权层面均不包含此模块。LoMoLab 的 Pixel 体验中心在运行时对此类组件进行了安全探测，在未探测到硬件支持时会以标准的 Material 提示对话框友好告知，避免了第三方修改版常见的底层 `ActivityNotFoundException` 崩溃问题。
+### Google AiWallpapers (AI 生成壁纸官方独立集成)
+本版本正式集成 Google 官方 AiWallpapers 预编译独立应用（`com.google.android.apps.aiwallpapers`，安装于 `/product/app/`，保持 Google 官方原签名）。系统原生 WallpaperPicker2 能够在“动态壁纸”列表中自动发现并展示 AI 壁纸生成入口，在 OnePlus 6 / Snapdragon 845 硬件上实测可顺利完成生成体验，无需任何 Pixel 伪装或平台侵入性修改。
 
 ---
 

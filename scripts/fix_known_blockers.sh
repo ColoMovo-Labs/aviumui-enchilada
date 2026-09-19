@@ -89,13 +89,200 @@ if [ -d "$FRAMEWORKS_BASE_PATCH_DIR" ]; then
   done
 fi
 
-# 1.6 packages/apps/FeatureSettings (Capsule & Super Island customization settings)
+# 1.6 packages/apps/FeatureSettings (Capsule, Super Island, and Native Font Picker)
 FEATURE_SETTINGS_DIR="$SOURCE_ROOT/packages/apps/FeatureSettings"
 FEATURE_SETTINGS_PATCH_DIR="$META_DIR/patches/packages_apps_FeatureSettings"
 if [ -d "$FEATURE_SETTINGS_PATCH_DIR" ]; then
   for p in $(ls "$FEATURE_SETTINGS_PATCH_DIR"/*.patch 2>/dev/null | sort); do
     apply_patch_if_needed "$FEATURE_SETTINGS_DIR" "$p"
   done
+fi
+
+if [ -d "$FEATURE_SETTINGS_DIR" ]; then
+  python3 - "$FEATURE_SETTINGS_DIR" << 'PYEOF' || true
+import sys, os
+
+feature_dir = sys.argv[1]
+
+# 1. In CategorySettingsFragment.kt
+frag_path = os.path.join(feature_dir, "app/src/main/java/org/exthm/featuresettings/CategorySettingsFragment.kt")
+if os.path.exists(frag_path):
+    with open(frag_path, "r", encoding="utf-8") as f:
+        code = f.read()
+    if "bindFontPreference" not in code:
+        font_method = """
+    private fun bindFontPreference() {
+        val pref = findPreference<androidx.preference.ListPreference>("theme_font_picker") ?: return
+        val resolver = requireContext().contentResolver
+        val categoryKey = "android.theme.customization.font"
+        val settingKey = "theme_customization_overlay_packages"
+
+        fun getCurrentFont(): String {
+            try {
+                val raw = android.provider.Settings.Secure.getString(resolver, settingKey)
+                if (!raw.isNullOrEmpty()) {
+                    val json = org.json.JSONObject(raw)
+                    if (json.has(categoryKey)) {
+                        return json.getString(categoryKey)
+                    }
+                }
+            } catch (ignored: Exception) {}
+            return "android"
+        }
+
+        val current = getCurrentFont()
+        pref.isPersistent = false
+        pref.value = current
+        val idx = pref.findIndexOfValue(current)
+        if (idx >= 0) {
+            pref.summary = pref.entries[idx]
+        }
+
+        pref.onPreferenceChangeListener = androidx.preference.Preference.OnPreferenceChangeListener { _, newValue ->
+            val pkg = newValue as? String ?: "android"
+            try {
+                val raw = android.provider.Settings.Secure.getString(resolver, settingKey)
+                val json = if (!raw.isNullOrEmpty()) {
+                    try { org.json.JSONObject(raw) } catch (e: Exception) { org.json.JSONObject() }
+                } else {
+                    org.json.JSONObject()
+                }
+
+                if (pkg == "android" || pkg.isEmpty()) {
+                    json.remove(categoryKey)
+                } else {
+                    json.put(categoryKey, pkg)
+                }
+
+                android.provider.Settings.Secure.putString(resolver, settingKey, json.toString())
+
+                val newIdx = pref.findIndexOfValue(pkg)
+                if (newIdx >= 0) {
+                    pref.summary = pref.entries[newIdx]
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("FeatureSettings", "Failed to update font setting", e)
+            }
+            true
+        }
+    }
+"""
+        idx = code.rfind("}")
+        if idx != -1:
+            code = code[:idx] + font_method + "\n" + code[idx:]
+        if "bindStatusBarPreferences()" in code:
+            call_idx = code.find("bindStatusBarPreferences()")
+            brace_idx = code.find("{", call_idx)
+            if brace_idx != -1:
+                code = code[:brace_idx + 1] + "\n        bindFontPreference()" + code[brace_idx + 1:]
+        with open(frag_path, "w", encoding="utf-8") as f:
+            f.write(code)
+        print("[FEATURE_SETTINGS] Injected bindFontPreference into CategorySettingsFragment.kt")
+
+# 2. In feature_settings_ui.xml
+xml_path = os.path.join(feature_dir, "app/src/main/res/xml/feature_settings_ui.xml")
+if os.path.exists(xml_path):
+    with open(xml_path, "r", encoding="utf-8") as f:
+        xml_content = f.read()
+    if "theme_font_picker" not in xml_content:
+        font_cat = """
+    <PreferenceCategory
+        android:title="@string/font_settings_title">
+
+        <ListPreference
+            android:key="theme_font_picker"
+            android:title="@string/font_manager_title"
+            android:summary="%s"
+            android:entries="@array/font_picker_entries"
+            android:entryValues="@array/font_picker_values"
+            android:defaultValue="android" />
+    </PreferenceCategory>
+"""
+        idx = xml_content.find(">")
+        if idx != -1:
+            xml_content = xml_content[:idx + 1] + "\n" + font_cat + xml_content[idx + 1:]
+            with open(xml_path, "w", encoding="utf-8") as f:
+                f.write(xml_content)
+            print("[FEATURE_SETTINGS] Injected font category into feature_settings_ui.xml")
+
+# 3. In app/src/main/res/values/arrays.xml
+arrays_en = os.path.join(feature_dir, "app/src/main/res/values/arrays.xml")
+if os.path.exists(arrays_en):
+    with open(arrays_en, "r", encoding="utf-8") as f:
+        arr_content = f.read()
+    if "font_picker_entries" not in arr_content:
+        font_arrays = """
+    <!-- Font Picker -->
+    <string-array name="font_picker_entries" translatable="false">
+        <item>System Default</item>
+        <item>Smiley Sans (得意黑)</item>
+        <item>LXGW WenKai (霞鹜文楷)</item>
+        <item>LXGW Neo XiHei (霞鹜新晰黑)</item>
+        <item>Xiaolai Rounded (小赖圆体)</item>
+        <item>Noto Serif SC (思源宋体)</item>
+        <item>ZCOOL QingKe HuangYou (站酷黄油)</item>
+        <item>ZCOOL XiaoWei (站酷小薇)</item>
+        <item>ZCOOL KuaiLe (站酷快乐)</item>
+        <item>Ma Shan Zheng (马善政毛笔)</item>
+        <item>Long Cang (龙藏体)</item>
+        <item>Zhi Mang Xing (志莽行书)</item>
+    </string-array>
+
+    <string-array name="font_picker_values" translatable="false">
+        <item>android</item>
+        <item>org.avium.overlay.font.smileysans</item>
+        <item>org.avium.overlay.font.lxgwwenkai</item>
+        <item>org.avium.overlay.font.lxgwneoxihei</item>
+        <item>org.avium.overlay.font.xiaolai</item>
+        <item>org.avium.overlay.font.notoserifsc</item>
+        <item>org.avium.overlay.font.zcoolqingkehuangyou</item>
+        <item>org.avium.overlay.font.zcoolxiaowei</item>
+        <item>org.avium.overlay.font.zcoolkuaile</item>
+        <item>org.avium.overlay.font.mashanzheng</item>
+        <item>org.avium.overlay.font.longcang</item>
+        <item>org.avium.overlay.font.zhimangxing</item>
+    </string-array>
+"""
+        idx = arr_content.rfind("</resources>")
+        if idx != -1:
+            arr_content = arr_content[:idx] + font_arrays + "\n" + arr_content[idx:]
+            with open(arrays_en, "w", encoding="utf-8") as f:
+                f.write(arr_content)
+            print("[FEATURE_SETTINGS] Injected font arrays into arrays.xml")
+
+# 4. In strings.xml (en and zh-rCN)
+strings_en = os.path.join(feature_dir, "app/src/main/res/values/strings.xml")
+if os.path.exists(strings_en):
+    with open(strings_en, "r", encoding="utf-8") as f:
+        str_content = f.read()
+    if "font_settings_title" not in str_content:
+        font_strings = """
+    <string name="font_settings_title">Typography &amp; Fonts</string>
+    <string name="font_manager_title">System Font Style</string>
+"""
+        idx = str_content.rfind("</resources>")
+        if idx != -1:
+            str_content = str_content[:idx] + font_strings + "\n" + str_content[idx:]
+            with open(strings_en, "w", encoding="utf-8") as f:
+                f.write(str_content)
+            print("[FEATURE_SETTINGS] Injected font strings into strings.xml")
+
+strings_zh = os.path.join(feature_dir, "app/src/main/res/values-zh-rCN/strings.xml")
+if os.path.exists(strings_zh):
+    with open(strings_zh, "r", encoding="utf-8") as f:
+        str_content = f.read()
+    if "font_settings_title" not in str_content:
+        font_strings_zh = """
+    <string name="font_settings_title">字体与排版风格</string>
+    <string name="font_manager_title">系统字体选择</string>
+"""
+        idx = str_content.rfind("</resources>")
+        if idx != -1:
+            str_content = str_content[:idx] + font_strings_zh + "\n" + str_content[idx:]
+            with open(strings_zh, "w", encoding="utf-8") as f:
+                f.write(str_content)
+            print("[FEATURE_SETTINGS] Injected font strings into values-zh-rCN/strings.xml")
+PYEOF
 fi
 
 # 1.6b packages/apps/Launcher3 (Smooth return-to-home animation on Back)
@@ -156,80 +343,45 @@ if [ -f "$VERSION_MK" ]; then
   sed -i '/ro\.avium\.maintainer=/d' "$VERSION_MK" || true
 fi
 
-# 1.9 Deploy LoMoLab & Wire Settings Entry
+# 1.9 Purge legacy LoMoLab and wallpapers
 echo "============================================================"
-echo "=== DEPLOYING LOMOLAB AND SETTINGS WIRING ==="
+echo "=== PURGING LEGACY LOMOLAB AND WALLPAPERS ==="
 echo "============================================================"
-if [ -d "$META_DIR/packages/apps/LoMoLab" ]; then
-  echo "[+] Deploying packages/apps/LoMoLab..."
-  mkdir -p "$SOURCE_ROOT/packages/apps/LoMoLab"
-  cp -rf "$META_DIR/packages/apps/LoMoLab/." "$SOURCE_ROOT/packages/apps/LoMoLab/"
-fi
-
-# Ensure device/oneplus/enchilada packages LoMoLab and purges legacy wallpapers
 ENCHILADA_MK="$SOURCE_ROOT/device/oneplus/enchilada/lineage_enchilada.mk"
 if [ -f "$ENCHILADA_MK" ]; then
   sed -i '/wallpapers\.mk/d' "$ENCHILADA_MK" || true
-  if ! grep -q "LoMoLab" "$ENCHILADA_MK"; then
-    echo -e "\nPRODUCT_PACKAGES += LoMoLab" >> "$ENCHILADA_MK"
-  fi
+  sed -i '/LoMoLab/d' "$ENCHILADA_MK" || true
 fi
 if [ -d "$SOURCE_ROOT/device/oneplus/enchilada/wallpapers" ]; then
   echo "[-] Purging legacy 27 wallpapers directory from device tree..."
   rm -rf "$SOURCE_ROOT/device/oneplus/enchilada/wallpapers"
 fi
+if [ -d "$SOURCE_ROOT/packages/apps/LoMoLab" ]; then
+  echo "[-] Purging legacy LoMoLab directory from source tree..."
+  rm -rf "$SOURCE_ROOT/packages/apps/LoMoLab"
+fi
 
-# Inject LoMoLab icon and strings into Settings
 SETTINGS_DIR="$SOURCE_ROOT/packages/apps/Settings"
 if [ -d "$SETTINGS_DIR" ]; then
-  echo "[+] Configuring Settings LoMoLab integration..."
-  mkdir -p "$SETTINGS_DIR/res/drawable"
-  if [ -f "$META_DIR/packages/apps/LoMoLab/res/drawable/ic_lomolab.xml" ]; then
-    cp -f "$META_DIR/packages/apps/LoMoLab/res/drawable/ic_lomolab.xml" "$SETTINGS_DIR/res/drawable/ic_lomolab.xml"
-  fi
+  echo "[-] Purging legacy LoMoLab strings and preferences from Settings..."
+  rm -f "$SETTINGS_DIR/res/drawable/ic_lomolab.xml"
+  sed -i '/lomolab_/d' "$SETTINGS_DIR/res/values/strings.xml" 2>/dev/null || true
+  sed -i '/lomolab_/d' "$SETTINGS_DIR/res/values-zh-rCN/strings.xml" 2>/dev/null || true
+  python3 - "$SETTINGS_DIR" << 'PYEOF' || true
+import os, sys, re
 
-  STRINGS_EN="$SETTINGS_DIR/res/values/strings.xml"
-  if [ -f "$STRINGS_EN" ] && ! grep -q "lomolab_app_name" "$STRINGS_EN"; then
-    sed -i 's|</resources>|    <string name="lomolab_app_name">LoMoLab</string>\n    <string name="lomolab_summary">Personalization hub and advanced experimental laboratory</string>\n</resources>|' "$STRINGS_EN"
-  fi
-
-  STRINGS_ZH="$SETTINGS_DIR/res/values-zh-rCN/strings.xml"
-  if [ -f "$STRINGS_ZH" ] && ! grep -q "lomolab_app_name" "$STRINGS_ZH"; then
-    sed -i 's|</resources>|    <string name="lomolab_app_name">LoMoLab 洛陌实验室</string>\n    <string name="lomolab_summary">个性化自定义中心与进阶实验室，让前沿科技触手可及</string>\n</resources>|' "$STRINGS_ZH"
-  fi
-
-  TOP_LEVEL_XML="$SETTINGS_DIR/res/xml/top_level_settings.xml"
-  if [ -f "$TOP_LEVEL_XML" ] && ! grep -q "top_level_lomolab" "$TOP_LEVEL_XML"; then
-    python3 - "$TOP_LEVEL_XML" << 'PYEOF' || true
-import sys
-
-path = sys.argv[1]
-with open(path, 'r', encoding='utf-8') as f:
-    content = f.read()
-
-lomolab_entry = """
-    <!-- LoMoLab Customization Center -->
-    <com.android.settings.widget.HomepagePreference
-        android:key="top_level_lomolab"
-        android:title="@string/lomolab_app_name"
-        android:summary="@string/lomolab_summary"
-        android:icon="@drawable/ic_lomolab"
-        android:order="-90">
-        <intent
-            android:action="android.intent.action.MAIN"
-            android:targetPackage="org.lomolab.settings"
-            android:targetClass="org.lomolab.settings.LoMoLabActivity" />
-    </com.android.settings.widget.HomepagePreference>
-"""
-
-if "</PreferenceScreen>" in content and "top_level_lomolab" not in content:
-    idx = content.rfind("</PreferenceScreen>")
-    content = content[:idx] + lomolab_entry + "\n" + content[idx:]
-    with open(path, 'w', encoding='utf-8') as f:
-        f.write(content)
-    print("[SETTINGS] Injected LoMoLab HomepagePreference into top_level_settings.xml")
+settings_dir = sys.argv[1] if len(sys.argv) > 1 else "packages/apps/Settings"
+top_level_xml = os.path.join(settings_dir, "res/xml/top_level_settings.xml")
+if os.path.exists(top_level_xml):
+    with open(top_level_xml, "r", encoding="utf-8") as f:
+        c = f.read()
+    if "top_level_lomolab" in c:
+        c = re.sub(r'<!--\s*LoMoLab Customization Center\s*-->\s*<com\.android\.settings\.widget\.HomepagePreference\s+android:key="top_level_lomolab".*?</com\.android\.settings\.widget\.HomepagePreference>\s*', '', c, flags=re.DOTALL)
+        c = re.sub(r'<com\.android\.settings\.widget\.HomepagePreference\s+android:key="top_level_lomolab".*?</com\.android\.settings\.widget\.HomepagePreference>\s*', '', c, flags=re.DOTALL)
+        with open(top_level_xml, "w", encoding="utf-8") as f:
+            f.write(c)
+        print("[SETTINGS] Successfully removed LoMoLab from top_level_settings.xml")
 PYEOF
-  fi
 fi
 
 echo "============================================================"

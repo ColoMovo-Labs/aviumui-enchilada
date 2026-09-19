@@ -10,8 +10,6 @@ on:
         type: choice
         options:
           - "bacon"
-          - "hilight_gate"
-          - "LoMoLab"
           - "Settings"
           - "SystemUI-core"
           - "SystemUI-application"
@@ -425,32 +423,6 @@ jobs:
           echo "=== 5. First-level directory breakdown (sorted) ==="
           du -h -d1 /home/runner/android/avium 2>/dev/null | sort -h || true
 
-      - name: "Phase Gate 1.2: m LoMoLab"
-        if: ${{ github.event.inputs.build_target == 'LoMoLab' || github.event.inputs.build_target == 'hilight_gate' || github.event.inputs.build_target == 'bacon' }}
-        run: |
-          echo "=================================================="
-          echo "=== 11.3. EXECUTING: m LoMoLab ==="
-          echo "=================================================="
-          cd /home/runner/android/avium
-          source build/envsetup.sh
-          lunch lineage_enchilada-bp4a-userdebug || lunch lineage_enchilada-userdebug
-
-          if [ "${{ github.event.inputs.use_ccache }}" = "true" ]; then
-            export CCACHE_DIR=/cache/ccache
-            export USE_CCACHE=1
-            export CCACHE_EXEC=/usr/bin/ccache
-          fi
-
-          mkdir -p /home/runner/android/logs
-          set -o pipefail
-          m -j16 LoMoLab 2>&1 | tee /home/runner/android/logs/build_lomolab.log
-          rc=${PIPESTATUS[0]}
-          if [ "$rc" -ne 0 ]; then
-            echo "ERROR: m LoMoLab failed with rc=$rc"
-            exit "$rc"
-          fi
-          echo "PASS: m LoMoLab succeeded!"
-
       - name: "Phase Gate 1.3: m Settings"
         if: ${{ github.event.inputs.build_target == 'Settings' || github.event.inputs.build_target == 'bacon' }}
         run: |
@@ -580,7 +552,7 @@ jobs:
           echo "PASS: Free disk (${FREE_GIB} GiB) is >= 90 GiB. Safe to proceed to full m bacon."
 
       - name: "Phase Gate 2.5: m SystemUI-core"
-        if: ${{ github.event.inputs.build_target == 'SystemUI-core' || github.event.inputs.build_target == 'hilight_gate' || github.event.inputs.build_target == 'bacon' }}
+        if: ${{ github.event.inputs.build_target == 'SystemUI-core' || github.event.inputs.build_target == 'bacon' }}
         run: |
           echo "=================================================="
           echo "=== 12.5. EXECUTING: m SystemUI-core ==="
@@ -606,7 +578,7 @@ jobs:
           echo "PASS: m SystemUI-core succeeded!"
 
       - name: "Phase Gate 2.55: m SystemUI-application"
-        if: ${{ github.event.inputs.build_target == 'SystemUI-application' || github.event.inputs.build_target == 'hilight_gate' || github.event.inputs.build_target == 'bacon' }}
+        if: ${{ github.event.inputs.build_target == 'SystemUI-application' || github.event.inputs.build_target == 'bacon' }}
         run: |
           echo "=================================================="
           echo "=== 12.55. EXECUTING: m SystemUI-application ==="
@@ -749,14 +721,21 @@ jobs:
             echo "PASS: System headroom is ${HEADROOM_MIB} MiB (>= 50 MiB threshold)."
           fi
 
-          echo "=== 8. Verifying LoMoLab packaging ==="
+          echo "=== 8. Verifying AiWallpapers & Purged Packages ==="
+          AIWALLPAPERS_APK=$(find "$OUT_DIR" -name "AiWallpapers.apk" | head -n 1)
+          if [ -n "$AIWALLPAPERS_APK" ]; then
+            echo "PASS: AiWallpapers APK found at $AIWALLPAPERS_APK"
+          else
+            echo "ERROR: AiWallpapers APK NOT found in build output!"
+            exit 1
+          fi
+
           LOMOLAB_APK=$(find "$OUT_DIR" -name "LoMoLab.apk" | head -n 1)
           if [ -n "$LOMOLAB_APK" ]; then
-            echo "PASS: LoMoLab APK found at $LOMOLAB_APK"
-          else
-            echo "WARNING: LoMoLab APK check: searching target product directory..."
-            find "$OUT_DIR" -name "*LoMoLab*" || true
+            echo "ERROR: LoMoLab APK found at $LOMOLAB_APK when it was supposed to be completely purged!"
+            exit 1
           fi
+          echo "PASS: LoMoLab is confirmed completely purged from build output."
 
       - name: Final Disk Space Audit (Post-Bacon)
         if: always() && github.event.inputs.build_target == 'bacon'
@@ -805,8 +784,8 @@ jobs:
             find "$OUT_DIR" -maxdepth 1 -name "vendor.img" -exec cp {} "$ARTIFACT_DIR/" \; || true
           fi
 
-          # Collect LoMoLab.apk if built
-          find /home/runner/android/avium/out -name "LoMoLab.apk" -exec cp {} "$ARTIFACT_DIR/" \; || true
+          # Collect AiWallpapers.apk if built
+          find "$OUT_DIR" -name "AiWallpapers.apk" -exec cp {} "$ARTIFACT_DIR/" \; || true
 
           echo "Collected artifacts:"
           ls -lh "$ARTIFACT_DIR"
