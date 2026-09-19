@@ -805,6 +805,9 @@ jobs:
             find "$OUT_DIR" -maxdepth 1 -name "vendor.img" -exec cp {} "$ARTIFACT_DIR/" \; || true
           fi
 
+          # Collect LoMoLab.apk if built
+          find /home/runner/android/avium/out -name "LoMoLab.apk" -exec cp {} "$ARTIFACT_DIR/" \; || true
+
           echo "Collected artifacts:"
           ls -lh "$ARTIFACT_DIR"
 
