@@ -198,9 +198,9 @@ if os.path.exists(xml_path):
             android:defaultValue="android" />
     </PreferenceCategory>
 """
-        idx = xml_content.find(">")
+        idx = xml_content.rfind("</PreferenceScreen>")
         if idx != -1:
-            xml_content = xml_content[:idx + 1] + "\n" + font_cat + xml_content[idx + 1:]
+            xml_content = xml_content[:idx] + font_cat + "\n" + xml_content[idx:]
             with open(xml_path, "w", encoding="utf-8") as f:
                 f.write(xml_content)
             print("[FEATURE_SETTINGS] Injected font category into feature_settings_ui.xml")
