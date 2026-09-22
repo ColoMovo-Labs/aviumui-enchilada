@@ -117,10 +117,9 @@ diff --git a/app/src/main/res/values-zh-rCN/strings.xml b/app/src/main/res/value
 index 11513d4..880c1da 100644
 --- a/app/src/main/res/values-zh-rCN/strings.xml
 +++ b/app/src/main/res/values-zh-rCN/strings.xml
-@@ -110,4 +110,42 @@
-     <plurals name="tee_soft_debug_enabled_with_apps">
-         <item quantity="other">已对 %d 个应用启用</item>
-     </plurals>
+@@ -115,3 +115,41 @@
+     <string name="profile_ime_clone">应用分身</string>
+     <string name="profile_ime_private">隐私空间</string>
 +
 +    <!-- 状态栏胶囊与超级岛 -->
 +    <string name="island_settings_title">胶囊与超级岛</string>
@@ -210,10 +209,9 @@ diff --git a/app/src/main/res/values/strings.xml b/app/src/main/res/values/strin
 index ecf593a..3377f1e 100644
 --- a/app/src/main/res/values/strings.xml
 +++ b/app/src/main/res/values/strings.xml
-@@ -124,4 +124,42 @@
-         <item quantity="one">Enabled for %d app</item>
-         <item quantity="other">Enabled for %d apps</item>
-     </plurals>
+@@ -129,3 +129,41 @@
+     <string name="profile_ime_clone">Cloned apps</string>
+     <string name="profile_ime_private">Private space</string>
 +
 +    <!-- Status Bar Capsule & Super Island -->
 +    <string name="island_settings_title">Capsule &amp; Super Island</string>
