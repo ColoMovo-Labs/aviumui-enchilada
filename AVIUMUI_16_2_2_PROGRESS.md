@@ -36,13 +36,14 @@
 | Blocker | Impact | Resolution | Status |
 | :--- | :--- | :--- | :--- |
 | `oemnetd_aidl_interface-java` missing from APEX `allowed_deps.txt` | `m bacon` target 174536/180352 failed during APEX dependency check | Injected `oemnetd_aidl_interface-java(minSdkVersion:30)` in `scripts/fix_known_blockers.sh` | **RESOLVED & VERIFIED** |
+| `Task.java` duplicate `prepareSurfaces()` definition | `services.core.unboosted` compilation error at `Task.java:3416` during `m bacon` | Backported upstream AviumUI fix (`7d9112e5`) via automated deduplication in `scripts/fix_known_blockers.sh` | **RESOLVED & VERIFIED** |
 | `FeatureSettings` profile IME string conflict | Patch hunk rejection on 16.2.2 upstream | Refreshed `0001-Add-Status-Bar-Capsule...` patch context | **RESOLVED & VERIFIED** |
 | WCN3990 160MHz Wi-Fi Hardware Incompatibility | OnePlus 6 SDM845 lack of 160MHz physical support | Dynamic channel filtering in `WifiTether160MhzPreferenceController` verified | **HANDLED SAFELY** |
 
 ---
 
 ## 4. Work in Progress
-- **CI Workflow Validation**: Run `35803631379` dispatched on Namespace runner (`namespace-profile-avium-run15`), testing full `m bacon` completion with `allowed_deps.txt` fix.
+- **CI Workflow Validation**: Run `35809013154` dispatched on Namespace runner (`namespace-profile-avium-run15`), testing full `m bacon` completion with `allowed_deps.txt` fix, `Task.java` fix, ModuleLab 2.0 integration, and automated Magisk boot dual artifact generation.
 
 ---
 
