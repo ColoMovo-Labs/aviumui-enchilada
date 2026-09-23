@@ -475,17 +475,20 @@ if [ -d "$META_DIR/packages/apps/ModuleLab" ]; then
   mkdir -p "$SOURCE_ROOT/packages/apps/ModuleLab"
   cp -rf "$META_DIR/packages/apps/ModuleLab/"* "$SOURCE_ROOT/packages/apps/ModuleLab/"
   
-  if [ -f "$ENCHILADA_MK" ]; then
-    if ! grep -q "ModuleLab" "$ENCHILADA_MK"; then
-      echo "[+] Registering ModuleLab in PRODUCT_PACKAGES ($ENCHILADA_MK)..."
-      cat << 'MKEOF' >> "$ENCHILADA_MK"
+  CUSTOM_MK="$SOURCE_ROOT/device/oneplus/enchilada/custom_enchilada.mk"
+  for target_mk in "$ENCHILADA_MK" "$CUSTOM_MK"; do
+    if [ -f "$target_mk" ]; then
+      if ! grep -q "ModuleLab" "$target_mk"; then
+        echo "[+] Registering ModuleLab in PRODUCT_PACKAGES ($target_mk)..."
+        cat << 'MKEOF' >> "$target_mk"
 
-# AviumUI Module Lab 2.0 (Root & Module Management Center)
+# Module Lab 2.0 (Root & Module Management Center)
 PRODUCT_PACKAGES += \
     ModuleLab
 MKEOF
+      fi
     fi
-  fi
+  done
 fi
 
 SETTINGS_DIR="$SOURCE_ROOT/packages/apps/Settings"

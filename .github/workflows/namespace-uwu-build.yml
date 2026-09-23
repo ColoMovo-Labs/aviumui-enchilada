@@ -1,0 +1,862 @@
+name: uwuAOSP 16.2 OnePlus 6 (enchilada) Namespace Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_target:
+        description: "Build target gate to execute"
+        required: true
+        default: "uwu"
+        type: choice
+        options:
+          - "uwu"
+          - "Settings"
+          - "SystemUI-core"
+          - "Launcher3"
+          - "bootimage"
+          - "nothing"
+          - "sync_audit_only"
+      sync_jobs:
+        description: "Repo sync concurrency (-j)"
+        required: true
+        default: "16"
+      use_ccache:
+        description: "Enable lightweight ccache on /cache volume"
+        required: false
+        default: false
+        type: boolean
+      with_magisk:
+        description: "Build rooted boot alongside stock (WITH_MAGISK)"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: namespace-uwu-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build uwuAOSP 16.2 (${{ github.event.inputs.build_target || 'uwu' }})
+    runs-on: namespace-profile-avium-run15
+    timeout-minutes: 720
+
+    steps:
+      - name: Runner Hardware & Environment Audit
+        run: |
+          echo "=================================================="
+          echo "=== 1. RUNNER HARDWARE & ENVIRONMENT AUDIT ==="
+          echo "=================================================="
+          echo "=== CPU INFO ==="
+          nproc
+          lscpu | head -n 25
+
+          echo "=== MEMORY ==="
+          free -h
+
+          echo "=== STORAGE ==="
+          df -hT / /cache /tmp /dev/shm
+          df -i / /cache
+
+          echo "=== KERNEL & OS ==="
+          uname -a
+
+      - name: Checkout Control Repository
+        uses: actions/checkout@v4
+        with:
+          path: control-repo
+
+      - name: Install Build Dependencies & Tools
+        run: |
+          echo "=================================================="
+          echo "=== 2. INSTALLING BUILD DEPENDENCIES ==="
+          echo "=================================================="
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc bison build-essential ccache curl flex g++-multilib \
+            gcc-multilib git git-lfs gnupg gperf imagemagick \
+            lib32readline-dev lib32z1-dev libelf-dev liblz4-tool \
+            libssl-dev libxml2 libxml2-utils lzop pngcrush \
+            rsync schedtool squashfs-tools xsltproc zip zlib1g-dev \
+            python3 python-is-python3 unzip wget zstd tar ripgrep pigz jq libncurses-dev
+
+          git lfs install
+          sudo curl -sLo /usr/local/bin/repo https://storage.googleapis.com/git-repo-downloads/repo
+          sudo chmod a+rx /usr/local/bin/repo
+          repo version
+
+      - name: Setup Workspace on Root NVMe
+        run: |
+          echo "=================================================="
+          echo "=== 3. SETUP WORKSPACE ON ROOT NVMe ==="
+          echo "=================================================="
+          mkdir -p /home/runner/android/uwu
+          mkdir -p /home/runner/android/logs
+          mkdir -p /home/runner/android/artifacts
+          
+          git config --global user.name "ColoMovo"
+          git config --global user.email "colomovo@users.noreply.github.com"
+          git config --global color.ui false
+
+          df -hT /home/runner/android/uwu
+
+      - name: Initialize uwuAOSP Source Tree
+        run: |
+          echo "=================================================="
+          echo "=== 4. REPO INIT uwuAOSP 16.2 ==="
+          echo "=================================================="
+          cd /home/runner/android/uwu
+
+          repo init \
+            -u https://github.com/uwuAOSP/platform_manifests \
+            -b uwu-16.2 \
+            --git-lfs \
+            --depth=1
+
+      - name: Inject Validated Enchilada Local Manifest
+        run: |
+          echo "=================================================="
+          echo "=== 5. INJECTING ENCHILADA LOCAL MANIFEST ==="
+          echo "=================================================="
+          WORKSPACE_ROOT="$GITHUB_WORKSPACE"
+          CONTROL_DIR="$WORKSPACE_ROOT/control-repo"
+          if [ ! -d "$CONTROL_DIR" ]; then
+            CONTROL_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
+          fi
+
+          mkdir -p /home/runner/android/uwu/.repo/local_manifests
+          cp "$CONTROL_DIR/local_manifests/uwu_enchilada.xml" /home/runner/android/uwu/.repo/local_manifests/uwu_enchilada.xml
+
+          echo "=== Active .repo/local_manifests/uwu_enchilada.xml ==="
+          cat /home/runner/android/uwu/.repo/local_manifests/uwu_enchilada.xml
+
+      - name: Synchronize Repositories
+        run: |
+          echo "=================================================="
+          echo "=== 6. SYNCHRONIZING REPOSITORIES ==="
+          echo "=================================================="
+          cd /home/runner/android/uwu
+
+          SYNC_JOBS="${{ github.event.inputs.sync_jobs || '16' }}"
+          echo "Starting repo sync with -j${SYNC_JOBS}..."
+
+          repo sync \
+            -c \
+            --force-sync \
+            --no-clone-bundle \
+            --no-tags \
+            -j"${SYNC_JOBS}" || \
+          repo sync \
+            -c \
+            --force-sync \
+            --no-clone-bundle \
+            --no-tags \
+            -j4
+
+          echo "=== Workspace disk status after sync ==="
+          df -hT /home/runner/android/uwu
+
+      - name: Apply Known Blocker Resolutions
+        run: |
+          echo "=================================================="
+          echo "=== 7. APPLYING BLOCKER RESOLUTIONS ==="
+          echo "=================================================="
+          WORKSPACE_ROOT="$GITHUB_WORKSPACE"
+          CONTROL_DIR="$WORKSPACE_ROOT/control-repo"
+          if [ ! -d "$CONTROL_DIR" ]; then
+            CONTROL_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
+          fi
+
+          if [ -f "$CONTROL_DIR/scripts/fix_known_blockers.sh" ]; then
+            bash "$CONTROL_DIR/scripts/fix_known_blockers.sh" /home/runner/android/uwu "$CONTROL_DIR"
+          fi
+
+      - name: Strict Static Audit (No-Super & No-Retrofit)
+        run: |
+          echo "=================================================="
+          echo "=== 8. STRICT STATIC AUDIT (NO-SUPER & NO-RETROFIT) ==="
+          echo "=================================================="
+          cd /home/runner/android/uwu
+
+          echo "Checking device/oneplus and vendor/oneplus..."
+
+          # 1. BOARD_SUPER (filtering comments)
+          SUPER_MATCHES=$(grep -RIn "BOARD_SUPER" device/oneplus vendor/oneplus 2>/dev/null | grep -vE ':[0-9]+:[[:space:]]*#' || true)
+          if [ -n "$SUPER_MATCHES" ]; then
+            echo "ERROR: Active BOARD_SUPER definition detected!"
+            echo "$SUPER_MATCHES"
+            exit 1
+          fi
+          echo "PASS: Zero active BOARD_SUPER definitions."
+
+          # 2. super_empty (filtering comments)
+          SUPER_EMPTY=$(grep -RIn "super_empty" device/oneplus vendor/oneplus 2>/dev/null | grep -vE ':[0-9]+:[[:space:]]*#' || true)
+          if [ -n "$SUPER_EMPTY" ]; then
+            echo "ERROR: Active super_empty definition detected!"
+            echo "$SUPER_EMPTY"
+            exit 1
+          fi
+          echo "PASS: Zero active super_empty definitions."
+
+          # 3. PRODUCT_USE_DYNAMIC_PARTITIONS (filtering comments)
+          DYN_MATCHES=$(grep -RIn "PRODUCT_USE_DYNAMIC_PARTITIONS" device/oneplus vendor/oneplus 2>/dev/null | grep -vE ':[0-9]+:[[:space:]]*#' || true)
+          if [ -n "$DYN_MATCHES" ]; then
+            echo "ERROR: Active PRODUCT_USE_DYNAMIC_PARTITIONS definition detected!"
+            echo "$DYN_MATCHES"
+            exit 1
+          fi
+          echo "PASS: Zero active PRODUCT_USE_DYNAMIC_PARTITIONS definitions."
+
+          # 4. PRODUCT_RETROFIT_DYNAMIC_PARTITIONS (filtering comments)
+          RETRO_MATCHES=$(grep -RIn "PRODUCT_RETROFIT_DYNAMIC_PARTITIONS" device/oneplus vendor/oneplus 2>/dev/null | grep -vE ':[0-9]+:[[:space:]]*#' || true)
+          if [ -n "$RETRO_MATCHES" ]; then
+            echo "ERROR: Active PRODUCT_RETROFIT_DYNAMIC_PARTITIONS definition detected!"
+            echo "$RETRO_MATCHES"
+            exit 1
+          fi
+          echo "PASS: Zero active PRODUCT_RETROFIT_DYNAMIC_PARTITIONS definitions."
+
+      - name: Lunch & Dynamic Build Var Assertions
+        run: |
+          echo "=================================================="
+          echo "=== 9. LUNCH & DYNAMIC ASSERTIONS ==="
+          echo "=================================================="
+          cd /home/runner/android/uwu
+          source build/envsetup.sh
+
+          echo "Attempting lunch..."
+          lunch custom_enchilada-bp4a-userdebug || lunch custom_enchilada-userdebug
+
+          echo "=== Verifying TARGET_PRODUCT ==="
+          VAL_PRODUCT=$(get_build_var TARGET_PRODUCT)
+          echo "TARGET_PRODUCT: $VAL_PRODUCT"
+          if [ "$VAL_PRODUCT" != "custom_enchilada" ]; then
+            echo "ERROR: TARGET_PRODUCT is '$VAL_PRODUCT', expected 'custom_enchilada'!"
+            exit 1
+          fi
+
+          echo "=== Verifying AB_OTA_PARTITIONS ==="
+          VAL_AB_OTA=$(get_build_var AB_OTA_PARTITIONS)
+          echo "AB_OTA_PARTITIONS: $VAL_AB_OTA"
+          for part in boot dtbo system vbmeta vendor; do
+            if ! echo "$VAL_AB_OTA" | grep -qw "$part"; then
+              echo "ERROR: Required physical A/B partition '$part' missing from AB_OTA_PARTITIONS!"
+              exit 1
+            fi
+          done
+          echo "PASS: All required physical partitions (boot dtbo system vbmeta vendor) present."
+
+          echo "=== Verifying BOARD_SUPER_PARTITION_SIZE ==="
+          VAL_SUPER=$(get_build_var BOARD_SUPER_PARTITION_SIZE)
+          echo "BOARD_SUPER_PARTITION_SIZE: '$VAL_SUPER'"
+          if [ -n "$VAL_SUPER" ] && [ "$VAL_SUPER" != "0" ]; then
+            echo "ERROR: BOARD_SUPER_PARTITION_SIZE is '$VAL_SUPER', expected empty or 0!"
+            exit 1
+          fi
+          echo "PASS: BOARD_SUPER_PARTITION_SIZE is empty."
+
+          echo "=== Verifying Partition Sizes ==="
+          VAL_SYSTEM=$(get_build_var BOARD_SYSTEMIMAGE_PARTITION_SIZE)
+          echo "BOARD_SYSTEMIMAGE_PARTITION_SIZE: $VAL_SYSTEM"
+          if [ "$VAL_SYSTEM" != "2998927360" ]; then
+            echo "ERROR: BOARD_SYSTEMIMAGE_PARTITION_SIZE is '$VAL_SYSTEM', expected '2998927360'!"
+            exit 1
+          fi
+
+          VAL_VENDOR=$(get_build_var BOARD_VENDORIMAGE_PARTITION_SIZE)
+          echo "BOARD_VENDORIMAGE_PARTITION_SIZE: $VAL_VENDOR"
+          if [ "$VAL_VENDOR" != "1073741824" ]; then
+            echo "ERROR: BOARD_VENDORIMAGE_PARTITION_SIZE is '$VAL_VENDOR', expected '1073741824'!"
+            exit 1
+          fi
+          echo "PASS: System and Vendor partition sizes match physical layout."
+
+          echo "=== Verifying Filesystem Types (EROFS) ==="
+          VAL_SYS_FS=$(get_build_var BOARD_SYSTEMIMAGE_FILE_SYSTEM_TYPE)
+          VAL_VND_FS=$(get_build_var BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE)
+          echo "BOARD_SYSTEMIMAGE_FILE_SYSTEM_TYPE: $VAL_SYS_FS"
+          echo "BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE: $VAL_VND_FS"
+          if [ "$VAL_SYS_FS" != "erofs" ] || [ "$VAL_VND_FS" != "erofs" ]; then
+            echo "ERROR: Expected erofs filesystem for system and vendor, got sys='$VAL_SYS_FS', vnd='$VAL_VND_FS'!"
+            exit 1
+          fi
+          echo "PASS: EROFS filesystem confirmed for system and vendor."
+
+          echo "=== Verifying TARGET_KERNEL_VERSION (4.19) ==="
+          VAL_KERN_VER=$(get_build_var TARGET_KERNEL_VERSION)
+          echo "TARGET_KERNEL_VERSION: $VAL_KERN_VER"
+          if [ "$VAL_KERN_VER" != "4.19" ]; then
+            echo "ERROR: Expected TARGET_KERNEL_VERSION to be 4.19, got '$VAL_KERN_VER'!"
+            exit 1
+          fi
+          echo "PASS: TARGET_KERNEL_VERSION is 4.19."
+
+          echo "=== Verifying PRODUCT_USE_DYNAMIC_PARTITIONS ==="
+          VAL_DYN_PART=$(get_build_var PRODUCT_USE_DYNAMIC_PARTITIONS)
+          echo "PRODUCT_USE_DYNAMIC_PARTITIONS: '$VAL_DYN_PART'"
+          if [ -n "$VAL_DYN_PART" ] && [ "$VAL_DYN_PART" != "false" ]; then
+            echo "ERROR: PRODUCT_USE_DYNAMIC_PARTITIONS is '$VAL_DYN_PART', expected empty or false!"
+            exit 1
+          fi
+          echo "PASS: PRODUCT_USE_DYNAMIC_PARTITIONS is not enabled."
+
+          echo "=== Verifying WITH_GMS (true) ==="
+          VAL_GMS=$(get_build_var WITH_GMS)
+          echo "WITH_GMS: $VAL_GMS"
+          if [ "$VAL_GMS" != "true" ]; then
+            echo "ERROR: Expected WITH_GMS to be true, got '$VAL_GMS'!"
+            exit 1
+          fi
+          echo "PASS: WITH_GMS is true."
+
+      - name: Assert Pure Linux 4.19 Golden Baseline (No KSU)
+        run: |
+          echo "=================================================="
+          echo "=== 10. ASSERTING PURE LINUX 4.19 GOLDEN BASELINE (NO KSU) ==="
+          echo "=================================================="
+          cd /home/runner/android/uwu
+          echo "Verifying absence of drivers/kernelsu..."
+          if [ -d "kernel/oneplus/sdm845/drivers/kernelsu" ]; then
+            echo "ERROR: drivers/kernelsu found in kernel tree! KernelSU must be absent."
+            exit 1
+          fi
+          if grep -q "^CONFIG_KSU" kernel/oneplus/sdm845/arch/arm64/configs/vendor/enchilada.config; then
+            echo "ERROR: CONFIG_KSU found in enchilada.config! KernelSU must be absent."
+            exit 1
+          fi
+          echo "PASS: Pure Linux 4.19 golden baseline verified (KernelSU ABSENT)."
+
+      - name: Configure Optional Lightweight Ccache
+        if: ${{ github.event.inputs.use_ccache == 'true' }}
+        run: |
+          echo "=================================================="
+          echo "=== OPTIONAL CCACHE CONFIGURATION ==="
+          echo "=================================================="
+          sudo mkdir -p /cache/ccache
+          sudo chown -R $(id -u):$(id -g) /cache/ccache
+          export CCACHE_DIR=/cache/ccache
+          export USE_CCACHE=1
+          export CCACHE_EXEC=/usr/bin/ccache
+          ccache -M 20G
+          ccache -s
+
+      - name: "Phase Gate 1: m nothing"
+        if: ${{ github.event.inputs.build_target != 'sync_audit_only' }}
+        run: |
+          echo "=================================================="
+          echo "=== 11. EXECUTING: m nothing ==="
+          echo "=================================================="
+          cd /home/runner/android/uwu
+          source build/envsetup.sh
+          lunch custom_enchilada-bp4a-userdebug || lunch custom_enchilada-userdebug
+
+          if [ "${{ github.event.inputs.use_ccache }}" = "true" ]; then
+            export CCACHE_DIR=/cache/ccache
+            export USE_CCACHE=1
+            export CCACHE_EXEC=/usr/bin/ccache
+          fi
+
+          START_NOTHING=$(date +%s)
+          set -o pipefail
+          m nothing 2>&1 | tee /home/runner/android/logs/build_nothing.log
+          END_NOTHING=$(date +%s)
+          NOTHING_DURATION=$((END_NOTHING - START_NOTHING))
+          echo "NOTHING_DURATION_SECONDS=$NOTHING_DURATION" >> "$GITHUB_ENV"
+          echo "PASS: m nothing succeeded in $((NOTHING_DURATION / 60))m $((NOTHING_DURATION % 60))s!"
+
+      - name: Disk Space Audit (Post-Nothing)
+        if: ${{ github.event.inputs.build_target != 'sync_audit_only' }}
+        run: |
+          echo "=================================================="
+          echo "=== DISK SPACE AUDIT (POST-NOTHING) ==="
+          echo "=================================================="
+          echo "=== 1. Root filesystem usage (df -h /) ==="
+          df -h /
+
+          echo "=== 2. .repo size ==="
+          du -sh /home/runner/android/uwu/.repo || true
+
+          echo "=== 3. out directory size ==="
+          du -sh /home/runner/android/uwu/out || true
+
+          echo "=== 4. Total uwu workspace size ==="
+          du -sh /home/runner/android/uwu || true
+
+          echo "=== 5. First-level directory breakdown (sorted) ==="
+          du -h -d1 /home/runner/android/uwu 2>/dev/null | sort -h || true
+
+      - name: "Phase Gate 1.2: m AiWallpapers & Signature Verification"
+        if: ${{ github.event.inputs.build_target == 'Settings' || github.event.inputs.build_target == 'uwu' }}
+        run: |
+          echo "=================================================="
+          echo "=== 11.3. EXECUTING: m AiWallpapers ==="
+          echo "=================================================="
+          cd /home/runner/android/uwu
+          source build/envsetup.sh
+          lunch custom_enchilada-bp4a-userdebug || lunch custom_enchilada-userdebug
+
+          mkdir -p /home/runner/android/logs
+          set -o pipefail
+          m -j16 AiWallpapers 2>&1 | tee /home/runner/android/logs/build_aiwallpapers.log
+          rc=${PIPESTATUS[0]}
+          if [ "$rc" -ne 0 ]; then
+            echo "ERROR: m AiWallpapers failed with rc=$rc"
+            exit "$rc"
+          fi
+          echo "PASS: m AiWallpapers succeeded!"
+
+          echo "=== Verifying AiWallpapers APK and Signing Certificate ==="
+          SOURCE_ROOT="/home/runner/android/uwu"
+          JAVA="$SOURCE_ROOT/prebuilts/jdk/jdk21/linux-x86/bin/java"
+          APKSIGNER_JAR="$SOURCE_ROOT/prebuilts/sdk/tools/linux/lib/apksigner.jar"
+          PREBUILT_APK="$SOURCE_ROOT/device/oneplus/enchilada/AiWallpapers/AiWallpapers.apk"
+          BUILT_APK="$SOURCE_ROOT/out/soong/.intermediates/device/oneplus/enchilada/AiWallpapers/AiWallpapers/android_common/AiWallpapers.apk"
+
+          echo "JAVA=$JAVA"
+          echo "APKSIGNER_JAR=$APKSIGNER_JAR"
+          echo "PREBUILT_APK=$PREBUILT_APK"
+          echo "BUILT_APK=$BUILT_APK"
+
+          for f in "$JAVA" "$APKSIGNER_JAR" "$PREBUILT_APK" "$BUILT_APK"; do
+            if [ ! -e "$f" ]; then
+              echo "ERROR: missing required path: $f"
+              exit 1
+            fi
+          done
+
+          echo "Using AOSP JDK + apksigner.jar directly: $APKSIGNER_JAR"
+          echo "--- Verifying built APK signature ---"
+          "$JAVA" -jar "$APKSIGNER_JAR" verify --verbose "$BUILT_APK"
+
+          echo "--- Comparing signing certificates ---"
+          "$JAVA" -jar "$APKSIGNER_JAR" verify --print-certs "$PREBUILT_APK" > /tmp/prebuilt-cert.txt
+          "$JAVA" -jar "$APKSIGNER_JAR" verify --print-certs "$BUILT_APK" > /tmp/built-cert.txt
+
+          cat /tmp/prebuilt-cert.txt
+          cat /tmp/built-cert.txt
+
+          PREBUILT_SHA256=$(grep -m1 "certificate SHA-256 digest:" /tmp/prebuilt-cert.txt | sed 's/.*digest: //')
+          BUILT_SHA256=$(grep -m1 "certificate SHA-256 digest:" /tmp/built-cert.txt | sed 's/.*digest: //')
+
+          echo "Prebuilt cert SHA256: $PREBUILT_SHA256"
+          echo "Built cert SHA256:    $BUILT_SHA256"
+
+          if [ -z "$PREBUILT_SHA256" ] || [ -z "$BUILT_SHA256" ] || [ "$PREBUILT_SHA256" != "$BUILT_SHA256" ]; then
+            echo "ERROR: Certificate digest mismatch or missing!"
+            exit 1
+          fi
+          echo "PASS: Google original signing certificate strictly preserved ($BUILT_SHA256)."
+
+      - name: "Phase Gate 1.3: m Settings"
+        if: ${{ github.event.inputs.build_target == 'Settings' || github.event.inputs.build_target == 'uwu' }}
+        run: |
+          echo "=================================================="
+          echo "=== 11.4. EXECUTING: m Settings ==="
+          echo "=================================================="
+          cd /home/runner/android/uwu
+          source build/envsetup.sh
+          lunch custom_enchilada-bp4a-userdebug || lunch custom_enchilada-userdebug
+
+          if [ "${{ github.event.inputs.use_ccache }}" = "true" ]; then
+            export CCACHE_DIR=/cache/ccache
+            export USE_CCACHE=1
+            export CCACHE_EXEC=/usr/bin/ccache
+          fi
+
+          mkdir -p /home/runner/android/logs
+          set -o pipefail
+          m -j16 Settings 2>&1 | tee /home/runner/android/logs/build_settings.log
+          rc=${PIPESTATUS[0]}
+          if [ "$rc" -ne 0 ]; then
+            echo "ERROR: m Settings failed with rc=$rc"
+            exit "$rc"
+          fi
+          echo "PASS: m Settings succeeded!"
+
+      - name: "Phase Gate 2: m bootimage"
+        if: ${{ github.event.inputs.build_target == 'bootimage' || github.event.inputs.build_target == 'uwu' }}
+        run: |
+          echo "=================================================="
+          echo "=== 12. EXECUTING: m bootimage ==="
+          echo "=================================================="
+          cd /home/runner/android/uwu
+          source build/envsetup.sh
+          lunch custom_enchilada-bp4a-userdebug || lunch custom_enchilada-userdebug
+
+          if [ "${{ github.event.inputs.use_ccache }}" = "true" ]; then
+            export CCACHE_DIR=/cache/ccache
+            export USE_CCACHE=1
+            export CCACHE_EXEC=/usr/bin/ccache
+          fi
+
+          START_BOOT=$(date +%s)
+          set +e
+          set -o pipefail
+
+          mkdir -p /home/runner/android/logs
+          PARALLEL_LOG="/home/runner/android/logs/build_bootimage.log"
+          J1_LOG="/home/runner/android/logs/build_bootimage_j1.log"
+
+          echo "Starting parallel bootimage build..."
+          m -j16 TARGET_KERNEL_ADDITIONAL_FLAGS="-j8" bootimage 2>&1 | tee "$PARALLEL_LOG"
+          rc=${PIPESTATUS[0]}
+
+          if [ "$rc" -ne 0 ]; then
+            echo "=================================================="
+            echo "Parallel bootimage failed with rc=$rc; retrying -j1 for diagnostics"
+            echo "=================================================="
+            m -j1 bootimage 2>&1 | tee "$J1_LOG"
+            rc=${PIPESTATUS[0]}
+            if [ "$rc" -ne 0 ]; then
+              echo "ERROR: bootimage -j1 failed with rc=$rc"
+              exit "$rc"
+            fi
+          fi
+
+          BOOT_IMG="/home/runner/android/uwu/out/target/product/enchilada/boot.img"
+          if [ ! -s "$BOOT_IMG" ]; then
+            echo "ERROR: build returned success but boot.img does not exist or is empty"
+            exit 1
+          fi
+
+          END_BOOT=$(date +%s)
+          BOOT_DURATION=$((END_BOOT - START_BOOT))
+          echo "BOOT_DURATION_SECONDS=$BOOT_DURATION" >> "$GITHUB_ENV"
+          echo "PASS: m bootimage succeeded in $((BOOT_DURATION / 60))m $((BOOT_DURATION % 60))s!"
+
+          echo "=================================================="
+          echo "=== VERIFYING boot.img PHYSICAL CONSTRAINTS ==="
+          echo "=================================================="
+          ls -lh "$BOOT_IMG"
+          BOOT_SIZE=$(stat -c %s "$BOOT_IMG")
+          echo "boot.img exact size: $BOOT_SIZE bytes"
+
+          MAX_BOOT_SIZE=67108864
+          if [ "$BOOT_SIZE" -gt "$MAX_BOOT_SIZE" ]; then
+            echo "ERROR: boot.img size ($BOOT_SIZE bytes) exceeds physical 64 MiB boot partition ($MAX_BOOT_SIZE bytes)!"
+            exit 1
+          fi
+          echo "PASS: boot.img size ($BOOT_SIZE bytes) is within physical 64 MiB partition limit (<= $MAX_BOOT_SIZE bytes)."
+
+      - name: Disk Space Audit (Post-Bootimage)
+        if: ${{ github.event.inputs.build_target == 'bootimage' || github.event.inputs.build_target == 'uwu' }}
+        run: |
+          echo "=================================================="
+          echo "=== DISK SPACE AUDIT (POST-BOOTIMAGE) ==="
+          echo "=================================================="
+          echo "=== 1. Root filesystem usage (df -h /) ==="
+          df -h /
+
+          echo "=== 2. .repo size ==="
+          du -sh /home/runner/android/uwu/.repo || true
+
+          echo "=== 3. out directory size ==="
+          du -sh /home/runner/android/uwu/out || true
+
+          echo "=== 4. Total uwu workspace size ==="
+          du -sh /home/runner/android/uwu || true
+
+          echo "=== 5. First-level directory breakdown (sorted) ==="
+          du -h -d1 /home/runner/android/uwu 2>/dev/null | sort -h || true
+
+      - name: Disk Space Gate Before Full uwu
+        if: ${{ github.event.inputs.build_target == 'uwu' }}
+        run: |
+          echo "=================================================="
+          echo "=== DISK SPACE GATE BEFORE FULL UWU ==="
+          echo "=================================================="
+          FREE_KB=$(df --output=avail -k / | tail -1 | tr -d ' ')
+          FREE_GIB=$((FREE_KB / 1024 / 1024))
+          echo "Free disk before uwu: ${FREE_GIB} GiB"
+
+          if [ "$FREE_GIB" -lt 90 ]; then
+            echo "ERROR: Free disk before uwu (${FREE_GIB} GiB) is less than required 90 GiB threshold!"
+            exit 1
+          fi
+          echo "PASS: Free disk (${FREE_GIB} GiB) is >= 90 GiB. Safe to proceed to full m uwu."
+
+      - name: "Phase Gate 2.5: m SystemUI-core"
+        if: ${{ github.event.inputs.build_target == 'SystemUI-core' || github.event.inputs.build_target == 'uwu' }}
+        run: |
+          echo "=================================================="
+          echo "=== 12.5. EXECUTING: m SystemUI-core ==="
+          echo "=================================================="
+          cd /home/runner/android/uwu
+          source build/envsetup.sh
+          lunch custom_enchilada-bp4a-userdebug || lunch custom_enchilada-userdebug
+
+          if [ "${{ github.event.inputs.use_ccache }}" = "true" ]; then
+            export CCACHE_DIR=/cache/ccache
+            export USE_CCACHE=1
+            export CCACHE_EXEC=/usr/bin/ccache
+          fi
+
+          mkdir -p /home/runner/android/logs
+          set -o pipefail
+          m -j16 SystemUI-core 2>&1 | tee /home/runner/android/logs/build_systemui.log
+          rc=${PIPESTATUS[0]}
+          if [ "$rc" -ne 0 ]; then
+            echo "ERROR: m SystemUI-core failed with rc=$rc"
+            exit "$rc"
+          fi
+          echo "PASS: m SystemUI-core succeeded!"
+
+      - name: "Phase Gate 2.6: m Launcher3"
+        if: ${{ github.event.inputs.build_target == 'Launcher3' || github.event.inputs.build_target == 'uwu' }}
+        run: |
+          echo "=================================================="
+          echo "=== 12.6. EXECUTING: m Launcher3 ==="
+          echo "=================================================="
+          cd /home/runner/android/uwu
+          source build/envsetup.sh
+          lunch custom_enchilada-bp4a-userdebug || lunch custom_enchilada-userdebug
+
+          if [ "${{ github.event.inputs.use_ccache }}" = "true" ]; then
+            export CCACHE_DIR=/cache/ccache
+            export USE_CCACHE=1
+            export CCACHE_EXEC=/usr/bin/ccache
+          fi
+
+          mkdir -p /home/runner/android/logs
+          set -o pipefail
+          m -j16 Launcher3 2>&1 | tee /home/runner/android/logs/build_launcher3.log
+          rc=${PIPESTATUS[0]}
+          if [ "$rc" -ne 0 ]; then
+            echo "ERROR: m Launcher3 failed with rc=$rc"
+            exit "$rc"
+          fi
+          echo "PASS: m Launcher3 succeeded!"
+
+      - name: "Phase Gate 3: m uwu"
+        if: ${{ github.event.inputs.build_target == 'uwu' }}
+        run: |
+          echo "=================================================="
+          echo "=== 13. EXECUTING: m uwu ==="
+          echo "=================================================="
+          cd /home/runner/android/uwu
+          source build/envsetup.sh
+          lunch custom_enchilada-bp4a-userdebug || lunch custom_enchilada-userdebug
+
+          if [ "${{ github.event.inputs.use_ccache }}" = "true" ]; then
+            export CCACHE_DIR=/cache/ccache
+            export USE_CCACHE=1
+            export CCACHE_EXEC=/usr/bin/ccache
+          fi
+
+          START_UWU=$(date +%s)
+          set -o pipefail
+
+          echo "=== 13.0 Pre-building and synchronizing APEX allowed dependencies ==="
+          m -j16 out/soong/apex/depsinfo/new-allowed-deps.txt || true
+          if [ -f "out/soong/apex/depsinfo/new-allowed-deps.txt" ]; then
+            echo "[+] Synchronizing packages/modules/common/build/allowed_deps.txt with new-allowed-deps.txt..."
+            echo "# A list of allowed dependencies for all updatable modules." > packages/modules/common/build/allowed_deps.txt
+            cat out/soong/apex/depsinfo/new-allowed-deps.txt >> packages/modules/common/build/allowed_deps.txt
+            mkdir -p out/soong/apex/depsinfo
+            touch out/soong/apex/depsinfo/new-allowed-deps.txt.check
+            echo "[+] Allowed deps synchronized: $(wc -l < packages/modules/common/build/allowed_deps.txt) entries"
+          fi
+
+          echo "=== 13.1 Executing full uwu ==="
+          m -j16 TARGET_KERNEL_ADDITIONAL_FLAGS="-j8" uwu 2>&1 | tee /home/runner/android/logs/uwu.log
+          rc=${PIPESTATUS[0]}
+
+          if [ "$rc" -ne 0 ]; then
+            if grep -q "Detected changes to allowed dependencies in updatable modules" /home/runner/android/logs/uwu.log 2>/dev/null; then
+              echo "=================================================="
+              echo "[!] Detected APEX allowed_deps mismatch during uwu. Auto-synchronizing..."
+              echo "=================================================="
+              if [ -f "out/soong/apex/depsinfo/new-allowed-deps.txt" ]; then
+                echo "# A list of allowed dependencies for all updatable modules." > packages/modules/common/build/allowed_deps.txt
+                cat out/soong/apex/depsinfo/new-allowed-deps.txt >> packages/modules/common/build/allowed_deps.txt
+                mkdir -p out/soong/apex/depsinfo
+                touch out/soong/apex/depsinfo/new-allowed-deps.txt.check
+                echo "[+] Re-executing m uwu with synchronized allowed_deps.txt..."
+                m -j16 TARGET_KERNEL_ADDITIONAL_FLAGS="-j8" uwu 2>&1 | tee -a /home/runner/android/logs/uwu.log
+                rc=${PIPESTATUS[0]}
+              fi
+            fi
+            if [ "$rc" -ne 0 ]; then
+              echo "ERROR: m uwu failed with rc=$rc"
+              exit "$rc"
+            fi
+          fi
+
+          END_UWU=$(date +%s)
+          UWU_DURATION=$((END_UWU - START_UWU))
+          echo "UWU_DURATION_SECONDS=$UWU_DURATION" >> "$GITHUB_ENV"
+          echo "PASS: m uwu succeeded in $((UWU_DURATION / 60))m $((UWU_DURATION % 60))s!"
+
+      - name: Final Image and Package Validation
+        if: ${{ github.event.inputs.build_target == 'uwu' }}
+        run: |
+          echo "=================================================="
+          echo "=== 14. FINAL IMAGE & PACKAGE VALIDATION ==="
+          echo "=================================================="
+          OUT_DIR="/home/runner/android/uwu/out/target/product/enchilada"
+          cd /home/runner/android/uwu
+
+          echo "=== 1. Listing $OUT_DIR ==="
+          ls -lh "$OUT_DIR"
+
+          echo "=== 2. Checking key image files and ROM zip ==="
+          ls -lh "$OUT_DIR"/*.zip "$OUT_DIR"/boot.img "$OUT_DIR"/dtbo.img "$OUT_DIR"/vbmeta.img 2>/dev/null || true
+
+          echo "=== 3. Checking system.img and vendor.img ==="
+          ls -lh "$OUT_DIR"/system.img "$OUT_DIR"/vendor.img 2>/dev/null || true
+
+          echo "=== 4. Confirming ZERO Super Images ==="
+          SUPER_FOUND=$(find "$OUT_DIR" -maxdepth 1 -iname '*super*' -print || true)
+          if [ -n "$SUPER_FOUND" ]; then
+            echo "ERROR: Super partition artifacts detected in output directory!"
+            echo "$SUPER_FOUND"
+            exit 1
+          fi
+          echo "PASS: Zero super partition artifacts found in output directory."
+
+          echo "=== 5. Dynamic Partition Assertion Check ==="
+          source build/envsetup.sh
+          lunch custom_enchilada-bp4a-userdebug || lunch custom_enchilada-userdebug
+          VAL_SUPER=$(get_build_var BOARD_SUPER_PARTITION_SIZE)
+          echo "BOARD_SUPER_PARTITION_SIZE: '$VAL_SUPER'"
+          if [ -n "$VAL_SUPER" ] && [ "$VAL_SUPER" != "0" ]; then
+            echo "ERROR: BOARD_SUPER_PARTITION_SIZE is '$VAL_SUPER', MUST be empty!"
+            exit 1
+          fi
+          echo "PASS: BOARD_SUPER_PARTITION_SIZE is confirmed empty."
+
+          VAL_AB_OTA=$(get_build_var AB_OTA_PARTITIONS)
+          echo "AB_OTA_PARTITIONS: $VAL_AB_OTA"
+
+          echo "=== 6. Image Size and Sparse Validation ==="
+          stat -c '%n %s bytes' "$OUT_DIR"/boot.img 2>/dev/null || true
+          if [ -f "$OUT_DIR"/system.img ]; then
+            stat -c '%n %s bytes' "$OUT_DIR"/system.img
+            file "$OUT_DIR"/system.img
+          fi
+          if [ -f "$OUT_DIR"/vendor.img ]; then
+            stat -c '%n %s bytes' "$OUT_DIR"/vendor.img
+            file "$OUT_DIR"/vendor.img
+          fi
+
+          echo "=== 7. System Partition Headroom Calculation ==="
+          MAX_SYSTEM_SIZE=2998927360
+          if [ -f "$OUT_DIR"/system.img ]; then
+            SYS_BYTES=$(stat -c %s "$OUT_DIR"/system.img)
+            HEADROOM_BYTES=$((MAX_SYSTEM_SIZE - SYS_BYTES))
+            HEADROOM_MIB=$((HEADROOM_BYTES / 1024 / 1024))
+            echo "system.img size: $SYS_BYTES bytes"
+            echo "AVB max system size: $MAX_SYSTEM_SIZE bytes"
+            echo "system headroom: $HEADROOM_BYTES bytes ($HEADROOM_MIB MiB)"
+            if [ "$HEADROOM_MIB" -lt 50 ]; then
+              echo "ERROR: System headroom is ${HEADROOM_MIB} MiB (< 50 MiB threshold)!"
+              exit 1
+            fi
+            echo "PASS: System headroom is ${HEADROOM_MIB} MiB (>= 50 MiB threshold)."
+          fi
+
+          echo "=== 8. Verifying AiWallpapers & Purged Packages ==="
+          AIWALLPAPERS_APK=$(find "$OUT_DIR" -name "AiWallpapers.apk" | head -n 1)
+          if [ -n "$AIWALLPAPERS_APK" ]; then
+            echo "PASS: AiWallpapers APK found at $AIWALLPAPERS_APK"
+          else
+            echo "ERROR: AiWallpapers APK NOT found in build output!"
+            exit 1
+          fi
+
+          LOMOLAB_APK=$(find "$OUT_DIR" -name "LoMoLab.apk" | head -n 1)
+          if [ -n "$LOMOLAB_APK" ]; then
+            echo "ERROR: LoMoLab APK found at $LOMOLAB_APK when it was supposed to be completely purged!"
+            exit 1
+          fi
+          echo "PASS: LoMoLab is confirmed completely purged from build output."
+
+      - name: Final Disk Space Audit (Post-Uwu)
+        if: always() && github.event.inputs.build_target == 'uwu'
+        run: |
+          echo "=================================================="
+          echo "=== FINAL DISK SPACE AUDIT (POST-UWU) ==="
+          echo "=================================================="
+          echo "=== 1. Root filesystem usage (df -h /) ==="
+          df -h /
+
+          echo "=== 2. .repo size ==="
+          du -sh /home/runner/android/uwu/.repo || true
+
+          echo "=== 3. out directory size ==="
+          du -sh /home/runner/android/uwu/out || true
+
+          echo "=== 4. Total uwu workspace size ==="
+          du -sh /home/runner/android/uwu || true
+
+          echo "=== 5. First-level directory breakdown (sorted) ==="
+          du -h -d1 /home/runner/android/uwu 2>/dev/null | sort -h || true
+
+      - name: Collect Build Artifacts
+        if: always()
+        run: |
+          echo "=================================================="
+          echo "=== 15. COLLECTING ARTIFACTS ==="
+          echo "=================================================="
+          ARTIFACT_DIR="/home/runner/android/artifacts"
+          OUT_DIR="/home/runner/android/uwu/out/target/product/enchilada"
+          WORKSPACE_ROOT="$GITHUB_WORKSPACE"
+          CONTROL_DIR="$WORKSPACE_ROOT/control-repo"
+          if [ ! -d "$CONTROL_DIR" ]; then
+            CONTROL_DIR=$(find /home/runner -maxdepth 4 -type d -name "control-repo" 2>/dev/null | head -n 1)
+          fi
+
+          mkdir -p "$ARTIFACT_DIR"
+
+          # Collect logs
+          if [ -d "/home/runner/android/logs" ]; then
+            cp -r /home/runner/android/logs "$ARTIFACT_DIR/" || true
+          fi
+
+          # Collect images and zip if they exist
+          if [ -d "$OUT_DIR" ]; then
+            find "$OUT_DIR" -maxdepth 1 -name "*.zip" -exec cp {} "$ARTIFACT_DIR/" \; || true
+            find "$OUT_DIR" -maxdepth 1 -name "*.md5sum" -exec cp {} "$ARTIFACT_DIR/" \; || true
+            find "$OUT_DIR" -maxdepth 1 -name "*.sha256sum" -exec cp {} "$ARTIFACT_DIR/" \; || true
+            find "$OUT_DIR" -maxdepth 1 -name "boot.img" -exec cp {} "$ARTIFACT_DIR/" \; || true
+            find "$OUT_DIR" -maxdepth 1 -name "dtbo.img" -exec cp {} "$ARTIFACT_DIR/" \; || true
+            find "$OUT_DIR" -maxdepth 1 -name "vbmeta.img" -exec cp {} "$ARTIFACT_DIR/" \; || true
+            find "$OUT_DIR" -maxdepth 1 -name "recovery.img" -exec cp {} "$ARTIFACT_DIR/" \; || true
+            find "$OUT_DIR" -maxdepth 1 -name "system.img" -exec cp {} "$ARTIFACT_DIR/" \; || true
+            find "$OUT_DIR" -maxdepth 1 -name "vendor.img" -exec cp {} "$ARTIFACT_DIR/" \; || true
+          fi
+
+          # Collect AiWallpapers.apk if built
+          find "$OUT_DIR" -name "AiWallpapers.apk" -exec cp {} "$ARTIFACT_DIR/" \; || true
+
+          # Collect ModuleLab.apk if built
+          find "$OUT_DIR" -name "ModuleLab.apk" -exec cp {} "$ARTIFACT_DIR/" \; || true
+
+          # Generate rooted boot (boot-magisk.img) alongside stock boot.img
+          BOOT_IMG="$OUT_DIR/boot.img"
+          if [ "${{ github.event.inputs.with_magisk }}" != "false" ] && [ -s "$BOOT_IMG" ] && [ -f "$CONTROL_DIR/scripts/build_magisk_boot.sh" ]; then
+            echo "=================================================="
+            echo "=== GENERATING ROOTED BOOT (boot-magisk.img) ==="
+            echo "=================================================="
+            ROOTED_BOOT="$OUT_DIR/boot-magisk.img"
+            bash "$CONTROL_DIR/scripts/build_magisk_boot.sh" "$BOOT_IMG" "$ROOTED_BOOT" || true
+            if [ -s "$ROOTED_BOOT" ]; then
+              cp "$ROOTED_BOOT" "$ARTIFACT_DIR/" || true
+              echo "PASS: Collected boot-magisk.img to artifacts!"
+            fi
+          fi
+
+          echo "Collected artifacts:"
+          ls -lh "$ARTIFACT_DIR"
+
+      - name: Upload Build Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: uwu-enchilada-${{ github.event.inputs.build_target || 'uwu' }}-${{ github.run_id }}
+          path: /home/runner/android/artifacts/
+          if-no-files-found: warn

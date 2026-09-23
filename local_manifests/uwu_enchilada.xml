@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Local Manifest for uwuAOSP 16.2 on OnePlus 6 (enchilada) -->
+<manifest>
+
+    <remote
+        name="github-raw"
+        fetch="https://github.com/" />
+
+    <!-- OnePlus 6 device tree -->
+    <project
+        name="ColoMovo-Labs/android_device_oneplus_enchilada"
+        path="device/oneplus/enchilada"
+        remote="github-raw"
+        revision="avium-16.2.1-enchilada-gms-features" />
+
+    <!-- OnePlus SDM845 common tree -->
+    <project
+        name="ColoMovo-Labs/android_device_oneplus_sdm845-common"
+        path="device/oneplus/sdm845-common"
+        remote="github-raw"
+        revision="avium-16.2.1-enchilada-gms-features" />
+
+    <!-- Kernel (Linux 4.19 golden baseline) -->
+    <project
+        name="ColoMovo-Labs/android_kernel_oneplus_sdm845"
+        path="kernel/oneplus/sdm845"
+        remote="github-raw"
+        revision="avium-16.2.1-enchilada-gms-features" />
+
+    <!-- OnePlus hardware HALs -->
+    <project
+        name="LineageOS/android_hardware_oneplus"
+        path="hardware/oneplus"
+        remote="github-raw"
+        revision="lineage-23.2" />
+
+    <!-- Dolby hardware support -->
+    <project
+        name="AviumUI-Devices/hardware_dolby"
+        path="hardware/dolby"
+        remote="github-raw"
+        revision="avium-16.2" />
+
+    <!-- Proprietary vendor blobs -->
+    <project
+        name="TheMuppets/proprietary_vendor_oneplus_enchilada"
+        path="vendor/oneplus/enchilada"
+        remote="github-raw"
+        revision="lineage-22.2"
+        clone-depth="1" />
+
+    <project
+        name="EdwinMoq/proprietary_vendor_oneplus_sdm845-common"
+        path="vendor/oneplus/sdm845-common"
+        remote="github-raw"
+        revision="lineage-23.2-4.19"
+        clone-depth="1" />
+
+</manifest>
