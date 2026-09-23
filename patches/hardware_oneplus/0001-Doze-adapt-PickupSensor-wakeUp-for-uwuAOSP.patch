@@ -1,0 +1,38 @@
+From e87c0503f27f8a7d1887e14f85e49c7161b36b28 Mon Sep 17 00:00:00 2001
+From: ColoMovo <colomovo@users.noreply.github.com>
+Date: Wed, 23 Sep 2026 19:00:00 +0800
+Subject: [PATCH] Doze: adapt PickupSensor wakeUp for uwuAOSP
+
+Standard AOSP and uwuAOSP PowerManager do not provide Lineage-specific
+wakeUpWithProximityCheck. Use standard PowerManager.wakeUp instead.
+---
+ packages/Doze/src/org/lineageos/settings/doze/PickupSensor.kt | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/packages/Doze/src/org/lineageos/settings/doze/PickupSensor.kt b/packages/Doze/src/org/lineageos/settings/doze/PickupSensor.kt
+index 6754815..e87c050 100644
+--- a/packages/Doze/src/org/lineageos/settings/doze/PickupSensor.kt
++++ b/packages/Doze/src/org/lineageos/settings/doze/PickupSensor.kt
+@@ -14,7 +14,6 @@ import android.hardware.SensorManager
+ import android.os.PowerManager
+ import android.os.SystemClock
+ import android.util.Log
+-import android.view.Display
+ import java.util.concurrent.Executors
+ 
+ class PickupSensor(
+@@ -40,12 +39,7 @@ class PickupSensor(
+         if (event.values[0] == sensorValue) {
+             if (Utils.isPickUpSetToWake(context)) {
+                 wakeLock.acquire(WAKELOCK_TIMEOUT_MS)
+-                powerManager.wakeUpWithProximityCheck(
+-                    SystemClock.uptimeMillis(),
+-                    PowerManager.WAKE_REASON_GESTURE,
+-                    TAG,
+-                    Display.DEFAULT_DISPLAY,
+-                )
++                powerManager.wakeUp(SystemClock.uptimeMillis(), PowerManager.WAKE_REASON_GESTURE, TAG)
+             } else {
+                 Utils.launchDozePulse(context)
+             }
+-- 

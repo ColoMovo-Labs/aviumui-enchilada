@@ -80,6 +80,42 @@ if [ -d "$SEPOLICY_PATCH_DIR" ]; then
   done
 fi
 
+# 1.45 hardware/oneplus (Doze PickupSensor PowerManager adaptation)
+HARDWARE_ONEPLUS_DIR="$SOURCE_ROOT/hardware/oneplus"
+HARDWARE_ONEPLUS_PATCH_DIR="$META_DIR/patches/hardware_oneplus"
+if [ -d "$HARDWARE_ONEPLUS_PATCH_DIR" ]; then
+  for p in $(ls "$HARDWARE_ONEPLUS_PATCH_DIR"/*.patch 2>/dev/null | sort); do
+    apply_patch_if_needed "$HARDWARE_ONEPLUS_DIR" "$p"
+  done
+fi
+
+PICKUP_KT="$HARDWARE_ONEPLUS_DIR/packages/Doze/src/org/lineageos/settings/doze/PickupSensor.kt"
+if [ -f "$PICKUP_KT" ]; then
+  python3 - "$PICKUP_KT" << 'PYEOF' || true
+import sys, re
+
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as f:
+    code = f.read()
+
+if "wakeUpWithProximityCheck" in code:
+    print("[HARDWARE_ONEPLUS] Adapting wakeUpWithProximityCheck in PickupSensor.kt for standard AOSP/uwuAOSP PowerManager...")
+    pattern = r'powerManager\.wakeUpWithProximityCheck\(\s*SystemClock\.uptimeMillis\(\),\s*PowerManager\.WAKE_REASON_GESTURE,\s*TAG,\s*Display\.DEFAULT_DISPLAY,?\s*\)'
+    replacement = 'powerManager.wakeUp(SystemClock.uptimeMillis(), PowerManager.WAKE_REASON_GESTURE, TAG)'
+    new_code = re.sub(pattern, replacement, code)
+    if new_code != code:
+        code = new_code
+    else:
+        code = code.replace("powerManager.wakeUpWithProximityCheck(", "powerManager.wakeUp(")
+        code = code.replace("Display.DEFAULT_DISPLAY,", "")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(code)
+    print("[HARDWARE_ONEPLUS] PickupSensor.kt successfully adapted.")
+else:
+    print("[HARDWARE_ONEPLUS] PickupSensor.kt already clean.")
+PYEOF
+fi
+
 # 1.5 frameworks/base (SQLiteTokenizer, Google Photos spoof, Status Bar Capsule & Super Island)
 FRAMEWORKS_BASE_DIR="$SOURCE_ROOT/frameworks/base"
 FRAMEWORKS_BASE_PATCH_DIR="$META_DIR/patches/frameworks_base"
