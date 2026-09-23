@@ -89,6 +89,50 @@ if [ -d "$FRAMEWORKS_BASE_PATCH_DIR" ]; then
   done
 fi
 
+TASK_JAVA="$FRAMEWORKS_BASE_DIR/services/core/java/com/android/server/wm/Task.java"
+if [ -f "$TASK_JAVA" ]; then
+  python3 - "$TASK_JAVA" << 'PYEOF' || true
+import os, sys, re
+
+task_java = sys.argv[1]
+with open(task_java, "r", encoding="utf-8") as f:
+    content = f.read()
+
+if content.count("void prepareSurfaces()") > 1:
+    print("[FRAMEWORKS_BASE] Found duplicate Task.prepareSurfaces() in Task.java, deduplicating...")
+    m = re.search(r'void prepareSurfaces\(\)\s*\{([^}]+PopUpWindowController[^}]+)\}', content)
+    if m and "mTaskInputSink" not in m.group(1):
+        sink_block = """        // Input sink surface is not a part of animation, so apply in a steady state
+        // (non-sync) with pending transaction.
+        if (mTaskInputSink != null && isVisible() && mSyncState == SYNC_STATE_NONE) {
+            mTaskInputSink.applyChangesToSurfaceIfChanged(getPendingTransaction());
+        }
+        """
+        content = content[:m.start(1)] + sink_block + content[m.start(1):]
+    
+    matches = list(re.finditer(r'@Override\s+void prepareSurfaces\(\)\s*\{', content))
+    if len(matches) > 1:
+        start = matches[1].start()
+        brace_count = 0
+        end = -1
+        for i in range(content.find('{', start), len(content)):
+            if content[i] == '{':
+                brace_count += 1
+            elif content[i] == '}':
+                brace_count -= 1
+                if brace_count == 0:
+                    end = i + 1
+                    break
+        if end != -1:
+            content = content[:start] + content[end:]
+            with open(task_java, "w", encoding="utf-8") as f:
+                f.write(content)
+            print("[FRAMEWORKS_BASE] Successfully resolved duplicate prepareSurfaces() in Task.java!")
+else:
+    print("[FRAMEWORKS_BASE] Task.java prepareSurfaces() is clean.")
+PYEOF
+fi
+
 # 1.6 packages/apps/FeatureSettings (Capsule, Super Island, and Native Font Picker)
 FEATURE_SETTINGS_DIR="$SOURCE_ROOT/packages/apps/FeatureSettings"
 FEATURE_SETTINGS_PATCH_DIR="$META_DIR/patches/packages_apps_FeatureSettings"
