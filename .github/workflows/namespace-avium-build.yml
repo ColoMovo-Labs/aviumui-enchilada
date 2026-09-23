@@ -26,6 +26,11 @@ on:
         required: false
         default: false
         type: boolean
+      with_magisk:
+        description: "Build rooted boot alongside stock (WITH_MAGISK)"
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: write
@@ -871,6 +876,23 @@ jobs:
 
           # Collect AiWallpapers.apk if built
           find "$OUT_DIR" -name "AiWallpapers.apk" -exec cp {} "$ARTIFACT_DIR/" \; || true
+
+          # P2: Collect ModuleLab.apk if built
+          find "$OUT_DIR" -name "ModuleLab.apk" -exec cp {} "$ARTIFACT_DIR/" \; || true
+
+          # P6: Generate and collect rooted boot (boot-magisk.img) alongside stock boot.img
+          BOOT_IMG="$OUT_DIR/boot.img"
+          if [ "${{ github.event.inputs.with_magisk }}" != "false" ] && [ -s "$BOOT_IMG" ] && [ -f "$CONTROL_DIR/scripts/build_magisk_boot.sh" ]; then
+            echo "=================================================="
+            echo "=== P6: GENERATING ROOTED BOOT (boot-magisk.img) ==="
+            echo "=================================================="
+            ROOTED_BOOT="$OUT_DIR/boot-magisk.img"
+            bash "$CONTROL_DIR/scripts/build_magisk_boot.sh" "$BOOT_IMG" "$ROOTED_BOOT" || true
+            if [ -s "$ROOTED_BOOT" ]; then
+              cp "$ROOTED_BOOT" "$ARTIFACT_DIR/" || true
+              echo "PASS: Collected boot-magisk.img to artifacts!"
+            fi
+          fi
 
           echo "Collected artifacts:"
           ls -lh "$ARTIFACT_DIR"
