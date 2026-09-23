@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 The AviumUI Project
+     SPDX-License-Identifier: Apache-2.0
+-->
+<resources>
+    <string name="app_name">模块实验室</string>
+    <string name="app_summary">Root 环境感知、模块管理、Hook 框架与安全恢复</string>
+
+    <!-- Top Bar -->
+    <string name="module_lab_title">模块实验室</string>
+    <string name="module_lab_subtitle">Root 与 Hooking 生态管理中心</string>
+    <string name="action_refresh">刷新状态</string>
+    <string name="action_diagnostics">诊断与日志</string>
+
+    <!-- Section 1: Root Environment -->
+    <string name="section_root_environment">Root 环境状态</string>
+    <string name="root_status_label">Root 状态</string>
+    <string name="root_status_active">已激活并可用</string>
+    <string name="root_status_inactive">未安装 / 未激活</string>
+    <string name="root_implementation_label">底层框架</string>
+    <string name="root_su_path_label">Su 二进制</string>
+    <string name="root_selinux_label">SELinux 模式</string>
+    <string name="selinux_enforcing">Enforcing (严格保护)</string>
+    <string name="selinux_permissive">Permissive (宽容模式)</string>
+    <string name="root_data_adb_label">/data/adb 存储</string>
+    <string name="root_zygisk_label">Zygisk 引擎</string>
+    <string name="status_enabled">已开启</string>
+    <string name="status_disabled">已禁用</string>
+    <string name="status_detected">正常挂载</string>
+    <string name="status_missing">未检测到</string>
+
+    <!-- Section 2: Frameworks (LSPosed / Vector) -->
+    <string name="section_frameworks">Hook 框架支持</string>
+    <string name="framework_lsposed_title">LSPosed 框架</string>
+    <string name="framework_lsposed_desc">基于 Zygisk 的 ART Hooking 框架与 Xposed API</string>
+    <string name="framework_vector_title">Vector 引擎</string>
+    <string name="framework_vector_desc">现代化 LSPlant ART Hooking 引擎分支</string>
+    <string name="framework_conflict_warning">提示：LSPosed 与 Vector 共享底层 Hook 拦截点，二者互斥，请勿同时激活。</string>
+    <string name="framework_active">正常运行</string>
+    <string name="framework_inactive">未安装</string>
+
+    <!-- Section 3: Installed Modules -->
+    <string name="section_modules">已安装模块</string>
+    <string name="modules_count_format">共 %1$d 个模块 (%2$d 个生效中)</string>
+    <string name="no_modules_found">/data/adb/modules 目录下未发现任何模块</string>
+    <string name="module_badge_enabled">运行中</string>
+    <string name="module_badge_disabled">已停用</string>
+    <string name="module_badge_update">待更新</string>
+    <string name="module_badge_reboot">需重启</string>
+    <string name="module_badge_remove">重启删除</string>
+    <string name="module_action_remove">删除</string>
+    <string name="module_action_details">详情与日志</string>
+    <string name="module_remove_confirm_title">删除模块</string>
+    <string name="module_remove_confirm_message">确定要标记删除模块“%1$s”吗？该模块将在下次重启时被彻底清理。</string>
+    <string name="dialog_cancel">取消</string>
+    <string name="dialog_confirm">确定</string>
+
+    <!-- Section 4: Safe Mode & Recovery -->
+    <string name="section_safe_mode">安全模式与灾难恢复</string>
+    <string name="safe_mode_title">紧急安全模式</string>
+    <string name="safe_mode_summary">下次启动时禁用所有模块与 Zygisk，防范不良模块导致的卡开机动画</string>
+    <string name="action_disable_all_modules">一键禁用全部模块</string>
+    <string name="action_disable_all_confirm">确定将当前已安装的 %1$d 个模块全部设置为禁用状态吗？</string>
+    <string name="action_rollback_last">回滚最近安装模块</string>
+    <string name="action_rollback_desc">禁用最近安装的 %1$s</string>
+    <string name="recovery_hardware_tip">OnePlus 6 硬件安全键说明：若遇到 Bootloop 无法进入系统，开机时持续按住【音量减键】即可直接触发 Magisk 官方安全模式，全模块停用开机。</string>
+
+    <!-- Section 5: Diagnostics Dialog -->
+    <string name="dialog_diagnostics_title">系统状态诊断与日志</string>
+    <string name="diagnostics_loading">正在读取系统运行状态日志...</string>
+    <string name="action_close">关闭</string>
+    <string name="action_reboot">重启设备</string>
+    <string name="reboot_confirm_title">重启设备</string>
+    <string name="reboot_confirm_message">确定现在重启手机以使模块变更生效吗？</string>
+</resources>

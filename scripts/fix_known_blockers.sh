@@ -388,6 +388,28 @@ if [ -d "$SOURCE_ROOT/packages/apps/LoMoLab" ]; then
   rm -rf "$SOURCE_ROOT/packages/apps/LoMoLab"
 fi
 
+# 1.9b Sync AviumUI Module Lab 2.0 (Root & Hooking Ecosystem Center)
+echo "============================================================"
+echo "=== SYNCING MODULE LAB 2.0 TO BUILD TREE ==="
+echo "============================================================"
+if [ -d "$META_DIR/packages/apps/ModuleLab" ]; then
+  echo "[+] Copying ModuleLab to $SOURCE_ROOT/packages/apps/ModuleLab..."
+  mkdir -p "$SOURCE_ROOT/packages/apps/ModuleLab"
+  cp -rf "$META_DIR/packages/apps/ModuleLab/"* "$SOURCE_ROOT/packages/apps/ModuleLab/"
+  
+  if [ -f "$ENCHILADA_MK" ]; then
+    if ! grep -q "ModuleLab" "$ENCHILADA_MK"; then
+      echo "[+] Registering ModuleLab in PRODUCT_PACKAGES ($ENCHILADA_MK)..."
+      cat << 'MKEOF' >> "$ENCHILADA_MK"
+
+# AviumUI Module Lab 2.0 (Root & Module Management Center)
+PRODUCT_PACKAGES += \
+    ModuleLab
+MKEOF
+    fi
+  fi
+fi
+
 SETTINGS_DIR="$SOURCE_ROOT/packages/apps/Settings"
 if [ -d "$SETTINGS_DIR" ]; then
   echo "[-] Purging legacy LoMoLab strings and preferences from Settings..."

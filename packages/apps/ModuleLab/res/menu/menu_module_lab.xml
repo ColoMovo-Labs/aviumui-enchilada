@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 The AviumUI Project
+     SPDX-License-Identifier: Apache-2.0
+-->
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/menu_refresh"
+        android:icon="@drawable/ic_refresh"
+        android:title="@string/action_refresh"
+        app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/menu_diagnostics"
+        android:icon="@drawable/ic_terminal_logs"
+        android:title="@string/action_diagnostics"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/menu_reboot"
+        android:title="@string/action_reboot"
+        app:showAsAction="never" />
+</menu>

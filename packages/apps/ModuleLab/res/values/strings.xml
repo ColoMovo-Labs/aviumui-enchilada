@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 The AviumUI Project
+     SPDX-License-Identifier: Apache-2.0
+-->
+<resources>
+    <string name="app_name">Module Lab</string>
+    <string name="app_summary">Root environment, module manager, frameworks &amp; recovery</string>
+
+    <!-- Top Bar -->
+    <string name="module_lab_title">Module Lab</string>
+    <string name="module_lab_subtitle">Root &amp; Hooking Ecosystem</string>
+    <string name="action_refresh">Refresh Status</string>
+    <string name="action_diagnostics">Diagnostics &amp; Logs</string>
+
+    <!-- Section 1: Root Environment -->
+    <string name="section_root_environment">Root Environment</string>
+    <string name="root_status_label">Root Status</string>
+    <string name="root_status_active">Active &amp; Granted</string>
+    <string name="root_status_inactive">Not Installed / Inactive</string>
+    <string name="root_implementation_label">Engine</string>
+    <string name="root_su_path_label">Su Binary</string>
+    <string name="root_selinux_label">SELinux Mode</string>
+    <string name="selinux_enforcing">Enforcing (Secure)</string>
+    <string name="selinux_permissive">Permissive (Warning)</string>
+    <string name="root_data_adb_label">/data/adb Storage</string>
+    <string name="root_zygisk_label">Zygisk Engine</string>
+    <string name="status_enabled">Enabled</string>
+    <string name="status_disabled">Disabled</string>
+    <string name="status_detected">Detected</string>
+    <string name="status_missing">Missing</string>
+
+    <!-- Section 2: Frameworks (LSPosed / Vector) -->
+    <string name="section_frameworks">Hooking Frameworks</string>
+    <string name="framework_lsposed_title">LSPosed Framework</string>
+    <string name="framework_lsposed_desc">Zygisk ART hooking framework &amp; Xposed API</string>
+    <string name="framework_vector_title">Vector Engine</string>
+    <string name="framework_vector_desc">Modern LSPlant-based hooking framework</string>
+    <string name="framework_conflict_warning">Note: LSPosed and Vector are mutually exclusive. Do not enable both simultaneously.</string>
+    <string name="framework_active">Running</string>
+    <string name="framework_inactive">Not Installed</string>
+
+    <!-- Section 3: Installed Modules -->
+    <string name="section_modules">Installed Modules</string>
+    <string name="modules_count_format">%1$d installed (%2$d active)</string>
+    <string name="no_modules_found">No modules detected in /data/adb/modules</string>
+    <string name="module_badge_enabled">Active</string>
+    <string name="module_badge_disabled">Disabled</string>
+    <string name="module_badge_update">Update Pending</string>
+    <string name="module_badge_reboot">Reboot Required</string>
+    <string name="module_badge_remove">Remove on Boot</string>
+    <string name="module_action_remove">Remove</string>
+    <string name="module_action_details">Details &amp; Logs</string>
+    <string name="module_remove_confirm_title">Remove Module</string>
+    <string name="module_remove_confirm_message">Are you sure you want to remove \"%1$s\"? This module will be removed upon reboot.</string>
+    <string name="dialog_cancel">Cancel</string>
+    <string name="dialog_confirm">Confirm</string>
+
+    <!-- Section 4: Safe Mode & Recovery -->
+    <string name="section_safe_mode">Safe Mode &amp; Recovery</string>
+    <string name="safe_mode_title">Emergency Safe Mode</string>
+    <string name="safe_mode_summary">Disable all modules and Zygisk on next boot to recover from bootloops</string>
+    <string name="action_disable_all_modules">Disable All Modules</string>
+    <string name="action_disable_all_confirm">Set disable flag for all %1$d installed modules?</string>
+    <string name="action_rollback_last">Rollback Last Installed Module</string>
+    <string name="action_rollback_desc">Disable %1$s installed recently</string>
+    <string name="recovery_hardware_tip">OnePlus 6 Hardware Safe Mode: If device bootloops, long-press Volume Down during boot to trigger Magisk Safe Mode automatically.</string>
+
+    <!-- Section 5: Diagnostics Dialog -->
+    <string name="dialog_diagnostics_title">System Diagnostics &amp; Logs</string>
+    <string name="diagnostics_loading">Reading system logs...</string>
+    <string name="action_close">Close</string>
+    <string name="action_reboot">Reboot Device</string>
+    <string name="reboot_confirm_title">Reboot Device</string>
+    <string name="reboot_confirm_message">Reboot device now to apply module changes?</string>
+</resources>
