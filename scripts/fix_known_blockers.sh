@@ -343,6 +343,33 @@ if [ -f "$VERSION_MK" ]; then
   sed -i '/ro\.avium\.maintainer=/d' "$VERSION_MK" || true
 fi
 
+# 1.8b packages/modules/common (Update allowed_deps.txt for 16.2.2 oemnetd tethering dependency)
+ALLOWED_DEPS="$SOURCE_ROOT/packages/modules/common/build/allowed_deps.txt"
+if [ -f "$ALLOWED_DEPS" ]; then
+  python3 - "$ALLOWED_DEPS" << 'PYEOF' || true
+import sys
+
+deps_file = sys.argv[1]
+with open(deps_file, "r") as f:
+    lines = f.readlines()
+
+comments = [l for l in lines if l.startswith("#")]
+entries = [l.strip() for l in lines if l.strip() and not l.startswith("#")]
+
+new_entry = "oemnetd_aidl_interface-java(minSdkVersion:30)"
+if new_entry not in entries:
+    entries.append(new_entry)
+    entries.sort()
+    with open(deps_file, "w") as f:
+        f.writelines(comments)
+        for e in entries:
+            f.write(e + "\n")
+    print(f"[ALLOWED_DEPS] Added {new_entry} to {deps_file}")
+else:
+    print(f"[ALLOWED_DEPS] {new_entry} already present in {deps_file}")
+PYEOF
+fi
+
 # 1.9 Purge legacy LoMoLab and wallpapers
 echo "============================================================"
 echo "=== PURGING LEGACY LOMOLAB AND WALLPAPERS ==="
