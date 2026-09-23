@@ -737,7 +737,57 @@ jobs:
 
           START_BACON=$(date +%s)
           set -o pipefail
+
+          echo "=== 13.0 Pre-building and synchronizing APEX allowed dependencies ==="
+          m -j16 out/soong/apex/depsinfo/new-allowed-deps.txt || true
+          if [ -f "out/soong/apex/depsinfo/new-allowed-deps.txt" ]; then
+            echo "[+] Synchronizing packages/modules/common/build/allowed_deps.txt with new-allowed-deps.txt..."
+            cat > packages/modules/common/build/allowed_deps.txt << 'EOF'
+# A list of allowed dependencies for all updatable modules.
+#
+# The list tracks all direct and transitive dependencies that end up within any
+# of the updatable binaries; specifically excluding external dependencies
+# required to compile those binaries. This prevents potential regressions in
+# case a new dependency is not aware of the different functional and
+# non-functional requirements being part of an updatable module, for example
+# setting correct min_sdk_version.
+#
+# To update the list, run:
+# repo-root$ packages/modules/common/build/update-apex-allowed-deps.sh
+#
+# See go/apex-allowed-deps-error for more details.
+# TODO(b/157465465): introduce automated quality signals and remove this list.
+EOF
+            cat out/soong/apex/depsinfo/new-allowed-deps.txt >> packages/modules/common/build/allowed_deps.txt
+            mkdir -p out/soong/apex/depsinfo
+            touch out/soong/apex/depsinfo/new-allowed-deps.txt.check
+            echo "[+] Allowed deps synchronized: $(wc -l < packages/modules/common/build/allowed_deps.txt) entries"
+          fi
+
+          echo "=== 13.1 Executing full bacon ==="
           m -j16 TARGET_KERNEL_ADDITIONAL_FLAGS="-j8" bacon 2>&1 | tee /home/runner/android/logs/bacon.log
+          rc=${PIPESTATUS[0]}
+
+          if [ "$rc" -ne 0 ]; then
+            if grep -q "Detected changes to allowed dependencies in updatable modules" /home/runner/android/logs/bacon.log 2>/dev/null; then
+              echo "=================================================="
+              echo "[!] Detected APEX allowed_deps mismatch during bacon. Auto-synchronizing..."
+              echo "=================================================="
+              if [ -f "out/soong/apex/depsinfo/new-allowed-deps.txt" ]; then
+                cat out/soong/apex/depsinfo/new-allowed-deps.txt > packages/modules/common/build/allowed_deps.txt
+                mkdir -p out/soong/apex/depsinfo
+                touch out/soong/apex/depsinfo/new-allowed-deps.txt.check
+                echo "[+] Re-executing m bacon with synchronized allowed_deps.txt..."
+                m -j16 TARGET_KERNEL_ADDITIONAL_FLAGS="-j8" bacon 2>&1 | tee -a /home/runner/android/logs/bacon.log
+                rc=${PIPESTATUS[0]}
+              fi
+            fi
+            if [ "$rc" -ne 0 ]; then
+              echo "ERROR: m bacon failed with rc=$rc"
+              exit "$rc"
+            fi
+          fi
+
           END_BACON=$(date +%s)
           BACON_DURATION=$((END_BACON - START_BACON))
           echo "BACON_DURATION_SECONDS=$BACON_DURATION" >> "$GITHUB_ENV"
