@@ -742,22 +742,7 @@ jobs:
           m -j16 out/soong/apex/depsinfo/new-allowed-deps.txt || true
           if [ -f "out/soong/apex/depsinfo/new-allowed-deps.txt" ]; then
             echo "[+] Synchronizing packages/modules/common/build/allowed_deps.txt with new-allowed-deps.txt..."
-            cat > packages/modules/common/build/allowed_deps.txt << 'EOF'
-# A list of allowed dependencies for all updatable modules.
-#
-# The list tracks all direct and transitive dependencies that end up within any
-# of the updatable binaries; specifically excluding external dependencies
-# required to compile those binaries. This prevents potential regressions in
-# case a new dependency is not aware of the different functional and
-# non-functional requirements being part of an updatable module, for example
-# setting correct min_sdk_version.
-#
-# To update the list, run:
-# repo-root$ packages/modules/common/build/update-apex-allowed-deps.sh
-#
-# See go/apex-allowed-deps-error for more details.
-# TODO(b/157465465): introduce automated quality signals and remove this list.
-EOF
+            echo "# A list of allowed dependencies for all updatable modules." > packages/modules/common/build/allowed_deps.txt
             cat out/soong/apex/depsinfo/new-allowed-deps.txt >> packages/modules/common/build/allowed_deps.txt
             mkdir -p out/soong/apex/depsinfo
             touch out/soong/apex/depsinfo/new-allowed-deps.txt.check
@@ -774,7 +759,8 @@ EOF
               echo "[!] Detected APEX allowed_deps mismatch during bacon. Auto-synchronizing..."
               echo "=================================================="
               if [ -f "out/soong/apex/depsinfo/new-allowed-deps.txt" ]; then
-                cat out/soong/apex/depsinfo/new-allowed-deps.txt > packages/modules/common/build/allowed_deps.txt
+                echo "# A list of allowed dependencies for all updatable modules." > packages/modules/common/build/allowed_deps.txt
+                cat out/soong/apex/depsinfo/new-allowed-deps.txt >> packages/modules/common/build/allowed_deps.txt
                 mkdir -p out/soong/apex/depsinfo
                 touch out/soong/apex/depsinfo/new-allowed-deps.txt.check
                 echo "[+] Re-executing m bacon with synchronized allowed_deps.txt..."
